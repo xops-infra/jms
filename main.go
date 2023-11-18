@@ -146,7 +146,7 @@ func scpHandler(args []string, sess *ssh.Session) {
 func startScheduler() {
 	c := cron.New()
 	time.Sleep(10 * time.Second)
-	c.AddFunc("*/30 * * * * *", func() {
+	c.AddFunc("*/50 * * * * *", func() {
 		instance.LoadServer(app.App.Config)
 	})
 

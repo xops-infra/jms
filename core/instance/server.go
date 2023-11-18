@@ -12,6 +12,12 @@ import (
 )
 
 func LoadServer(conf *config.Config) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorf("LoadServer panic: %v", err)
+		}
+	}()
+
 	instanceAll := make(map[string]config.Server, 0)
 	startTime := time.Now()
 	instances := app.App.Server.QueryInstances(model.InstanceQueryInput{
