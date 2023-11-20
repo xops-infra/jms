@@ -9,46 +9,23 @@
 
 ## 功能
 
-### config
-1. 支持配置个人信息，登录用户名密码，如果没有文件则登录 cli 等待输入用户名密码；
-2. 支持配置多个账号，登录时可选择账号；
-
-### 连接功能
-1. 登录后，ls 查看可以连接的资产；
-2. 支持模糊搜索，列表实时显示搜索结果；
-3. 支持连接多个资产，连接后可通过 tab 切换；
-
-### 文件传输功能
-1. 支持文件上传下载；
-2. 支持文件夹上传下载；
-
-### 代理功能
-1. 支持代理功能，可通过代理连接资产；
-2. 支持代理的增删改查；
-
-### 管理功能
-1. 支持资产管理，增删改查；
-2. 支持资产分组管理，增删改查；
-3. 支持资产标签管理，增删改查；
-4. 支持资产批量导入导出；
-5. 支持资产批量执行命令；
-6. 支持用户管理，增删改查；
-7. 支持用户分组管理，增删改查；
-8. 支持权限管理，增删改查；
-9. 支持用户接入ldap；
-
 ```bash
-# ssh-copy-id
+# 设置免密登录
+# ssh-copy-id -p 22222 登录用户@jms域名
 ssh-copy-id -p 22222 zhoushoujian@localhost
 
 # 登录
+# ssh -p 22222 登录用户@jms域名
 ssh -p 22222 zhoushoujian@localhost
 
+# 权限
+# 默认只支持查看机器标签 EnvType!=prod的机器，admin组可以查看所有机器
+
 # 文件传输
-# 上传
+# 上传 scp -P 22222 本地文件  登录用户@jms域名:远端服务器用户@远端服务器IP地址:远端服务器文件路径
 [root@zhoushoujianworkspace jms]# scp -P 22222 ./README.md  zhoushoujian@localhost:ec2-user@192.168.1.1:/tmp/README1.md
 README.md                                     100% 2506     2.9KB/s   00:00    
-# 下载
+# 下载 scp -P 22222 登录用户@jms域名:远端服务器用户@远端服务器IP地址:远端服务器文件路径 本地文件
 [root@zhoushoujianworkspace jms]# scp -P 22222 zhoushoujian@localhost:ec2-user@192.168.1.1:/tmp/README1.md /tmp/README.md
 README1.md                                    100% 2506     1.8MB/s   00:00
 

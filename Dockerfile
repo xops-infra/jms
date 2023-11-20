@@ -5,7 +5,7 @@ ENV GOOS linux
 ENV GOARCH amd64
 WORKDIR /opt
 COPY . .
-RUN go mod tidy && go build
+RUN go mod tidy && go build -o jms-go
 RUN chmod +x /opt/jms-go
 
 FROM centos:7

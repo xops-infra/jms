@@ -46,7 +46,7 @@ spec:
               containerPort: 22222
               protocol: TCP
       volumes:
-        - name: jms-config-volume
+        - name: jms-config-volume # 安全原因 configmap.yaml是没有上传的，需要自己去集群修改。
           configMap:
             name: jms-config
         - name: ssh-volume
