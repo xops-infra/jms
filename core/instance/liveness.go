@@ -29,7 +29,7 @@ func ServerLiveness() {
 		}
 
 		for _, sshUser := range *server.SSHUsers {
-			_, err := sshd.NewSSHClient(server, sshUser)
+			client, err := sshd.NewSSHClient(server, sshUser)
 			if err != nil {
 				_, found := app.App.Cache.Get(server.Host)
 				if found {
@@ -45,6 +45,7 @@ func ServerLiveness() {
 					app.App.Cache.Delete(server.Host)
 				}
 			}
+			defer client.Close()
 		}
 	}
 	log.Infof("server liveness check done cost: %s", time.Since(timeStart))
