@@ -39,13 +39,13 @@ func ServerLiveness() {
 				sendN(fmt.Sprintf("（紧急）机器ssh连接失败，请检查机器是否失联！\n机器名称：%s\n机器IP：%s\n登录用户：%s\n告警时间：%s\n错误信息：%s", server.Name, server.Host,
 					sshUser.SSHUsername, time.Now().Format(time.RFC3339), err))
 			} else {
+				defer client.Close()
 				_, found := app.App.Cache.Get(server.Host)
 				if found {
 					sendN(fmt.Sprintf("机器ssh连接已经恢复！\n机器名称：%s\n机器IP：%s\n告警时间：%s\n登录用户：%s", server.Name, server.Host, time.Now().Format(time.RFC3339), sshUser.SSHUsername))
 					app.App.Cache.Delete(server.Host)
 				}
 			}
-			defer client.Close()
 		}
 	}
 	log.Infof("server liveness check done cost: %s", time.Since(timeStart))
