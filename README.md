@@ -39,6 +39,12 @@ docker run --rm --network=host -dit -v /root/jms/ssh/:/root/.ssh/ -v /root/jms/j
 
 ## 开发日志
 cli 部分参阅项目：https://github.com/TNK-Studio/gortal.git
+
+### 2023-11
+- 支持监控机器连接性告警功能；
+- 支持scp复制功能；
+- 支持配置热更新；
+
 ### 2023-10
 - 支持 ssh-copy-id 设置，并通过密钥验证登录；
 
