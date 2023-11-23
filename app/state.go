@@ -2,7 +2,6 @@ package app
 
 import (
 	"github.com/patrickmn/go-cache"
-	dt "github.com/patsnapops/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/utils"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
@@ -22,7 +21,7 @@ var App *Application
 type Application struct {
 	Debug  bool
 	SshDir string
-	DT     *dt.DingTalkClient
+	DT     *utils.RobotClient
 	Ldap   *utils.Ldap
 	Config *config.Config
 	Server *server.ServerService
@@ -64,14 +63,7 @@ func NewApplication(debug bool, sshDir string) *Application {
 }
 
 func (app *Application) WithDingTalk() *Application {
-	dt, err := dt.NewDingTalkClient(&dt.DingTalkConfig{
-		AppKey:    app.Config.DingTalk.AppKey,
-		AppSecret: app.Config.DingTalk.AppSecret,
-	})
-	if err != nil {
-		panic(err)
-	}
-	dt.WithMiniProgramClient(app.Config.DingTalk.AgentId)
+	dt := utils.NewRobotClient()
 	app.DT = dt
 	return app
 }

@@ -25,10 +25,7 @@ type Config struct {
 }
 
 type DingTalk struct {
-	AppKey                string   `mapstructure:"appKey"`
-	AppSecret             string   `mapstructure:"appSecret"`
-	AgentId               int64    `mapstructure:"agentId"`
-	WorkNotificationUsers []string `mapstructure:"workNotificationUsers"`
+	RobotToken string `mapstructure:"robotToken"`
 }
 
 type Monitor struct {

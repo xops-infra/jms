@@ -191,7 +191,7 @@ func main() {
 		log.Infof("with ssh check,5min check once")
 		go func() {
 			for {
-				instance.ServerLiveness()
+				instance.ServerLiveness(app.App.Config.DingTalk.RobotToken)
 				time.Sleep(5 * time.Minute)
 			}
 		}()

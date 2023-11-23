@@ -15,5 +15,10 @@ func init() {
 
 func TestServerLiveness(t *testing.T) {
 	instance.LoadServer(app.App.Config)
-	instance.ServerLiveness()
+	instance.ServerLiveness(app.App.Config.DingTalk.RobotToken)
+}
+
+// test sendMessage
+func TestSendMessage(t *testing.T) {
+	instance.SendMessage(app.App.Config.DingTalk.RobotToken, "ssh test")
 }

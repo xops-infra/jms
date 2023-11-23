@@ -13,7 +13,6 @@ require (
 	github.com/manifoldco/promptui v0.9.0
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/patsnapops/go-dingtalk-sdk-wrapper v0.1.1-0.20231025072305-63f3f1f57dbc
 	github.com/patsnapops/noop v0.5.0
 	github.com/robfig/cron v1.2.0
 	github.com/spf13/viper v1.16.0
@@ -28,21 +27,11 @@ require (
 	github.com/UserExistsError/conpty v0.1.1 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/alexflint/go-scalar v1.2.0 // indirect
-	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.4 // indirect
-	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.4 // indirect
 	github.com/alibabacloud-go/debug v1.0.0 // indirect
-	github.com/alibabacloud-go/dingtalk v1.6.25 // indirect
-	github.com/alibabacloud-go/gateway-dingtalk v1.0.2 // indirect
-	github.com/alibabacloud-go/openapi-util v0.1.0 // indirect
-	github.com/alibabacloud-go/tea-utils v1.4.5 // indirect
-	github.com/alibabacloud-go/tea-utils/v2 v2.0.4 // indirect
-	github.com/alibabacloud-go/tea-xml v1.1.3 // indirect
-	github.com/aliyun/credentials-go v1.3.1 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/aws/aws-sdk-go v1.45.9 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/clbanning/mxj v1.8.4 // indirect
-	github.com/clbanning/mxj/v2 v2.7.0 // indirect
 	github.com/creack/pty v1.1.18 // indirect
 	github.com/dchest/jsmin v0.0.0-20220218165748-59f39799265f // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
@@ -64,6 +53,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mozillazg/go-httpheader v0.2.1 // indirect
 	github.com/ncruces/zenity v0.10.10 // indirect
+	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/pkg/sftp v1.13.6 // indirect
 	github.com/randall77/makefat v0.0.0-20210315173500-7ddd0e42c844 // indirect
@@ -82,7 +72,6 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tiia v1.0.759 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/vpc v1.0.753 // indirect
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.43 // indirect
-	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/trzsz/go-arg v1.5.2 // indirect
 	github.com/trzsz/promptui v0.10.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
@@ -92,6 +81,7 @@ require (
 	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
