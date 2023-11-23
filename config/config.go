@@ -6,22 +6,29 @@ import (
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/patsnapops/noop/log"
 	"github.com/spf13/viper"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 )
+
+var Conf *Config
+
+func init() {
+	Conf = &Config{
+		Servers: &map[string]Server{},
+	}
+}
 
 // Config config
 type Config struct {
 	Servers  *map[string]Server
 	Policies []Policy              `mapstructure:"policies"`
-	Groups   []Group               `mapstructure:"groups"`
-	Profiles []model.ProfileConfig `mapstructure:"profiles"`
-	Ldap     Ldap                  `mapstructure:"ldap"`
-	Proxies  []Proxy               `mapstructure:"proxies"`
-	Keys     map[string]string     `mapstructure:"keys"`
-	DingTalk DingTalk              `mapstructure:"dingtalk"`
-	Monitor  Monitor               `mapstructure:"monitor"`
+	Groups   []Group               `mapstructure:"groups"`   // 支持配置动态加载
+	Profiles []model.ProfileConfig `mapstructure:"profiles"` // 支持配置动态加载
+	Ldap     Ldap                  `mapstructure:"ldap"`     // 支持配置动态加载
+	Proxies  []Proxy               `mapstructure:"proxies"`  // 支持配置动态加载
+	Keys     map[string]string     `mapstructure:"keys"`     // 支持配置动态加载
+	DingTalk DingTalk              `mapstructure:"dingtalk"` // 支持配置动态加载
+	Monitor  Monitor               `mapstructure:"monitor"`  // 支持配置动态加载
 }
 
 type DingTalk struct {
@@ -43,49 +50,40 @@ type Ldap struct {
 }
 
 // load config from file
-func loadConfig(configFile string) error {
+func Load(configFile string) {
 	homedir := os.Getenv("HOME")
 
 	if strings.HasPrefix(configFile, "~") {
 		configFile = strings.Replace(configFile, "~", homedir, 1)
 	}
+	configFile = strings.TrimSuffix(configFile, "/") + "/.jms.yml"
 	fmt.Printf("config file: %s\n", configFile)
 	viper.SetConfigFile(configFile)
 	viper.SetConfigType("yml")
 
 	if err := viper.ReadInConfig(); err != nil {
-		return fmt.Errorf("read config file error: %s", err)
+		panic(err)
+	}
+	err := viper.Unmarshal(Conf)
+	if err != nil {
+		panic(err)
 	}
 
 	// 使用fsnotify监视配置文件变化
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
-		fmt.Println("Config file changed:", e.Name)
 		err := viper.ReadInConfig()
 		if err != nil {
-			fmt.Println("Error reloading config:", err)
+			fmt.Printf("config file changed error: %s\n", err)
 		} else {
-			fmt.Println("Config reloaded successfully")
+			Conf = &Config{
+				Servers: Conf.Servers, // 保留servers配置
+			}
+			viper.Unmarshal(Conf)
+			fmt.Println("config file changed:", e.Name, e.Op.String())
 		}
 	})
 
-	return nil
-}
-
-func Load(configDir string) *Config {
-	if !strings.HasSuffix(configDir, "/") {
-		configDir = configDir + "/"
-	}
-	proxy := &Config{
-		Servers: &map[string]Server{},
-	}
-	err := loadConfig(configDir + ".jms.yml")
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-	viper.Unmarshal(proxy)
-	// fmt.Printf("%+v\n", proxy)
-	return proxy
 }
 
 type User struct {

@@ -10,10 +10,7 @@ import (
 )
 
 func init() {
-	// err := godotenv.Load(".env")
-	// if err != nil {
-	// 	panic(err)
-	// }
+	config.Load(appDir)
 }
 
 var App *Application
@@ -39,7 +36,7 @@ func NewApplication(debug bool, sshDir string) *Application {
 		SshDir: sshDir,
 		Debug:  debug,
 		DB:     utils.NewSQLite(),
-		Config: config.Load(appDir),
+		Config: config.Conf,
 		Cache:  cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
 
