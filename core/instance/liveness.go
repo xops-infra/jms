@@ -14,7 +14,8 @@ import (
 // dingtalkToken 为钉钉机器人的token
 func ServerLiveness(dingtalkToken string) {
 	timeStart := time.Now()
-	for _, server := range *app.App.Config.Servers {
+	servers := GetServers()
+	for _, server := range servers {
 		isIgnore := true
 		for _, checkIp := range app.App.Config.Monitor.IPS {
 			if checkIp == server.Host {

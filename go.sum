@@ -297,8 +297,8 @@ github.com/trzsz/promptui v0.10.3 h1:uhcLQsLZqMxEtGiYoeM2lR/Hd4pSxoYsd2eFctH8MCs
 github.com/trzsz/promptui v0.10.3/go.mod h1:GMZtu6ZTzU73CBFkzGtmB4wnTROIAbv4GFA74fV8V8g=
 github.com/trzsz/trzsz-go v1.1.6 h1:Bg3jnW4trxI/jJx94ahOeiHC/WpME42eF40zTuGrN5o=
 github.com/trzsz/trzsz-go v1.1.6/go.mod h1:sOLnYeA77qyF2Aqj+leycDWxFpylV46BA7g6F3gWcfQ=
-github.com/xops-infra/multi-cloud-sdk v0.0.0-20231108072939-763fce1dec91 h1:uNI9qRUKML9K+Ab04qpV9YhlEIfEJpOdvyUn8m7tjdI=
-github.com/xops-infra/multi-cloud-sdk v0.0.0-20231108072939-763fce1dec91/go.mod h1:TP9pqGGmkz4YicjDDSH+UjtdvwW4pwWlejsgyupoI3M=
+github.com/xops-infra/multi-cloud-sdk v0.0.0-20231124062327-e93c68f5c6e0 h1:pNrTyvkFUeEaeUaO9QAYG+nVHZiOgMx3lYqudGtOfSw=
+github.com/xops-infra/multi-cloud-sdk v0.0.0-20231124062327-e93c68f5c6e0/go.mod h1:M60GBtU9/aDLmiHDvJXr0yIh/e/INJTmHB8TB0Z6euY=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

@@ -24,7 +24,7 @@ func LoadServer(conf *config.Config) {
 		// Status: model.InstanceStatusRunning,
 	})
 	for _, instance := range instances {
-		if tea.StringValue(instance.Status) != model.InstanceStatusRunning.ToString() {
+		if instance.Status != model.InstanceStatusRunning {
 			// for _, privateIp := range instance.PrivateIP {
 			// 	if privateIp != nil && instance.Name != nil && instance.Status != nil {
 			// 		log.Debugf("instance: %s ip:%s status: %s\n", *instance.Name, *privateIp, *instance.Status)
@@ -59,7 +59,7 @@ func LoadServer(conf *config.Config) {
 			Port:     22,
 			Profile:  instance.Profile,
 			Region:   *instance.Region,
-			Status:   model.InstanceStatus(*instance.Status),
+			Status:   instance.Status,
 			KeyPair:  keyName,
 			SSHUsers: &sshUser,
 			Tags:     *instance.Tags,
@@ -67,8 +67,23 @@ func LoadServer(conf *config.Config) {
 		}
 		log.Debugf(tea.Prettify(instanceAll[*instance.InstanceID].SSHUsers))
 	}
-	conf.Servers = &instanceAll
+	_, found := app.App.Cache.Get("servers")
+	if found {
+		app.App.Cache.Delete("servers")
+	}
+	err := app.App.Cache.Add("servers", instanceAll, 0)
+	if err != nil {
+		log.Errorf("app.App.Cache.Add error: %s", err)
+	}
 	log.Infof("%s len: %d", time.Since(startTime), len(instances))
+}
+
+func GetServers() map[string]config.Server {
+	servers, found := app.App.Cache.Get("servers")
+	if !found {
+		return nil
+	}
+	return servers.(map[string]config.Server)
 }
 
 // getKeyPair

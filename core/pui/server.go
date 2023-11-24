@@ -9,13 +9,15 @@ import (
 	"github.com/patsnapops/noop/log"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 )
 
 func GetServersMenuV2(user string) []*MenuItem {
 	menu := make([]*MenuItem, 0)
-	for serverKey, server := range *app.App.Config.Servers {
+	servers := instance.GetServers()
+	for serverKey, server := range servers {
 		if matchPolicy(user, server, *app.App.Config) {
 			info := make(map[string]string, 0)
 			info[serverInfoKey] = *server.KeyPair
@@ -130,7 +132,6 @@ func GetServerSSHUsersMenu(server config.Server) func(int, *MenuItem, *ssh.Sessi
 				}
 				err := sshd.NewTerminal(server, sshUser, sess)
 				if err != nil {
-					log.Errorf("NewTerminal error: %s", err)
 					return err
 				}
 				return nil

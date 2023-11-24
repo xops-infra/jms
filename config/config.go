@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
@@ -13,14 +14,11 @@ import (
 var Conf *Config
 
 func init() {
-	Conf = &Config{
-		Servers: &map[string]Server{},
-	}
+	Conf = &Config{}
 }
 
 // Config config
 type Config struct {
-	Servers  *map[string]Server
 	Policies []Policy              `mapstructure:"policies"`
 	Groups   []Group               `mapstructure:"groups"`   // 支持配置动态加载
 	Profiles []model.ProfileConfig `mapstructure:"profiles"` // 支持配置动态加载
@@ -76,11 +74,9 @@ func Load(configFile string) {
 		if err != nil {
 			fmt.Printf("config file changed error: %s\n", err)
 		} else {
-			Conf = &Config{
-				Servers: Conf.Servers, // 保留servers配置
-			}
+			Conf = &Config{}
 			viper.Unmarshal(Conf)
-			fmt.Println("config file changed:", e.Name, e.Op.String())
+			fmt.Println("config file changed:", e.Name, tea.Prettify(Conf))
 		}
 	})
 

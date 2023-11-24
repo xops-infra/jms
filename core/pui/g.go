@@ -130,7 +130,6 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			log.Debugf("Run selectFunc %+v", selectedFunc)
 			err := selectedFunc(index, selected, ui.sess, selectedChain)
 			if err != nil {
-				log.Errorf("Run selected func err: %s", err)
 				sshd.ErrorInfo(err, ui.sess)
 			}
 			if selected.BackAfterSelected == true {
