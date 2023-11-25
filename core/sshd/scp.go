@@ -153,9 +153,12 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 		return err
 	}
 
-	upstream, err := NewSSHClient(*server, sshUser)
+	proxyClient, upstream, err := NewSSHClient(*server, sshUser)
 	if err != nil {
 		return err
+	}
+	if proxyClient != nil {
+		defer proxyClient.Close()
 	}
 
 	upstreamSess, err := upstream.NewSession()
@@ -378,9 +381,12 @@ func copyFileToServer(bfReader *bufio.Reader, size int64, filename, filePath str
 		return err
 	}
 
-	upstream, err := NewSSHClient(*server, sshUser)
+	proxyClient, upstream, err := NewSSHClient(*server, sshUser)
 	if err != nil {
 		return err
+	}
+	if proxyClient != nil {
+		defer proxyClient.Close()
 	}
 
 	upstreamSess, err := upstream.NewSession()

@@ -37,11 +37,12 @@ func GetClientByPasswd(username, host string, port int, passwd string) (*sshclie
 // NewTerminal NewTerminal
 func NewTerminal(server config.Server, sshUser *config.SSHUser, sess *ssh.Session) error {
 
-	upstreamClient, err := NewSSHClient(server, sshUser)
+	proxyClient, upstreamClient, err := NewSSHClient(server, sshUser)
 	if err != nil {
 		log.Errorf("NewSSHClient error: %s", err)
 		return err
 	}
+	defer proxyClient.Close()
 
 	upstreamSess, err := upstreamClient.NewSession()
 	if err != nil {
@@ -103,7 +104,7 @@ func NewTerminal(server config.Server, sshUser *config.SSHUser, sess *ssh.Sessio
 }
 
 // NewSSHClient NewSSHClient
-func NewSSHClient(server config.Server, sshUser *config.SSHUser) (*gossh.Client, error) {
+func NewSSHClient(server config.Server, sshUser *config.SSHUser) (*gossh.Client, *gossh.Client, error) {
 
 	if server.Proxy != nil {
 		log.Debugf("get proxy: %s:%d\n", server.Proxy.Host, server.Proxy.Port)
@@ -112,7 +113,7 @@ func NewSSHClient(server config.Server, sshUser *config.SSHUser) (*gossh.Client,
 	log.Debugf("direct connect: %s:%d\n", server.Host, server.Port)
 	signer, err := geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(sshUser.IdentityFile, "/"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	config := &gossh.ClientConfig{
 		User: sshUser.SSHUsername,
@@ -122,13 +123,14 @@ func NewSSHClient(server config.Server, sshUser *config.SSHUser) (*gossh.Client,
 		HostKeyCallback: gossh.HostKeyCallback(func(hostname string, remote net.Addr, key gossh.PublicKey) error { return nil }),
 		Timeout:         8 * time.Second,
 	}
-	return gossh.Dial("tcp", fmt.Sprintf("%s:%d", server.Host, server.Port), config)
+	client, err := gossh.Dial("tcp", fmt.Sprintf("%s:%d", server.Host, server.Port), config)
+	return nil, client, err
 }
 
-func ProxyClient(instance config.Server, sshUser *config.SSHUser) (*gossh.Client, error) {
+func ProxyClient(instance config.Server, sshUser *config.SSHUser) (*gossh.Client, *gossh.Client, error) {
 	signerProxy, err := geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(instance.Proxy.SSHUsers.IdentityFile, "/"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	proxyConfig := &gossh.ClientConfig{
 		User: instance.Proxy.SSHUsers.SSHUsername,
@@ -140,13 +142,13 @@ func ProxyClient(instance config.Server, sshUser *config.SSHUser) (*gossh.Client
 	}
 	proxyClient, err := gossh.Dial("tcp", fmt.Sprintf("%s:%d", instance.Proxy.Host, instance.Proxy.Port), proxyConfig)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	signer, err := geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(sshUser.IdentityFile, "/"))
 	if err != nil {
 		log.Errorf("signer error: %s", err)
-		return nil, err
+		return nil, nil, err
 	}
 	config := &gossh.ClientConfig{
 		User: sshUser.SSHUsername,
@@ -159,15 +161,16 @@ func ProxyClient(instance config.Server, sshUser *config.SSHUser) (*gossh.Client
 
 	conn, err := proxyClient.Dial("tcp", fmt.Sprintf("%s:%d", instance.Host, instance.Port))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
 	clientConn, proxyChans, proxyReqs, err := gossh.NewClientConn(conn, fmt.Sprintf("%s:%d", instance.Host, instance.Port), config)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	client := gossh.NewClient(clientConn, proxyChans, proxyReqs)
 
-	return client, nil
+	return proxyClient, client, nil
 }
 
 func geSigner(identityFile string) (gossh.Signer, error) {
