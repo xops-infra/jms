@@ -42,7 +42,9 @@ func NewTerminal(server config.Server, sshUser *config.SSHUser, sess *ssh.Sessio
 		log.Errorf("NewSSHClient error: %s", err)
 		return err
 	}
-	defer proxyClient.Close()
+	if proxyClient != nil {
+		defer proxyClient.Close()
+	}
 
 	upstreamSess, err := upstreamClient.NewSession()
 	if err != nil {
