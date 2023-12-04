@@ -8,8 +8,8 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
 	"github.com/manifoldco/promptui"
-	"github.com/patsnapops/noop/log"
 	"github.com/xops-infra/jms/core/sshd"
+	"github.com/xops-infra/noop/log"
 )
 
 // PUI pui

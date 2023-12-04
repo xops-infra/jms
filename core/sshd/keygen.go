@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/patsnapops/noop/log"
 	"github.com/xops-infra/jms/utils"
+	"github.com/xops-infra/noop/log"
 	"golang.org/x/crypto/ssh"
 )
 

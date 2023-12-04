@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/elfgzp/ssh"
-	"github.com/patsnapops/noop/log"
 	"github.com/robfig/cron"
+	"github.com/xops-infra/noop/log"
+
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/jump"

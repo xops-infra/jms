@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/patsnapops/noop/log"
 	"github.com/xops-infra/jms/utils"
+	"github.com/xops-infra/noop/log"
 )
 
 // CopyID CopyID

@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/elfgzp/ssh"
-	"github.com/patsnapops/noop/log"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/utils"
+	"github.com/xops-infra/noop/log"
 	gossh "golang.org/x/crypto/ssh"
 )
 

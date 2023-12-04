@@ -6,12 +6,12 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
-	"github.com/patsnapops/noop/log"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
+	"github.com/xops-infra/noop/log"
 )
 
 func GetServersMenuV2(user string) []*MenuItem {

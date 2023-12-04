@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: s-ops-jms-statefulset
+  name: jms-statefulset
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: s-ops-jms
-  serviceName: s-ops-jms
+      app: jms
+  serviceName: jms
   template:
     metadata:
       labels:
-        app: s-ops-jms
+        app: jms
     spec:
       nodeSelector:
         env: jms-v2
@@ -51,16 +51,16 @@ spec:
             name: jms-config
         - name: ssh-volume
           persistentVolumeClaim:
-            claimName: s-ops-jms-ssh-claim
+            claimName: jms-ssh-claim
         - name: logs-volume
           hostPath:
-            path: /mnt/logs/s-ops-jms-tools/
+            path: /mnt/logs/jms-tools/
       
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: s-ops-jms-ssh-claim
+  name: jms-ssh-claim
 spec:
   accessModes:
     - ReadWriteOnce
@@ -71,7 +71,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: s-ops-jms
+  name: jms
 spec:
   ports:
     - port: 22222
@@ -79,5 +79,5 @@ spec:
       nodePort: 32222
       protocol: TCP
   selector:
-    app: s-ops-jms
+    app: jms
   type: NodePort

@@ -13,11 +13,11 @@ require (
 	github.com/manifoldco/promptui v0.9.0
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/patsnapops/noop v0.5.0
 	github.com/robfig/cron v1.2.0
 	github.com/spf13/viper v1.16.0
 	github.com/trzsz/trzsz-go v1.1.6
 	github.com/xops-infra/multi-cloud-sdk v0.0.0-20231124062327-e93c68f5c6e0
+	github.com/xops-infra/noop v0.5.1-0.20231107031456-2b6b1ae7e0bb
 	golang.org/x/crypto v0.15.0
 	golang.org/x/term v0.14.0
 	gorm.io/gorm v1.25.5
@@ -75,7 +75,7 @@ require (
 	github.com/trzsz/go-arg v1.5.2 // indirect
 	github.com/trzsz/promptui v0.10.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.25.0 // indirect
+	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/image v0.13.0 // indirect
 	golang.org/x/net v0.18.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect

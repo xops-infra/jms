@@ -12,12 +12,13 @@ import (
 	"github.com/elfgzp/ssh"
 	"github.com/fatih/color"
 	"github.com/helloyi/go-sshclient"
-	"github.com/patsnapops/noop/log"
+	"github.com/xops-infra/noop/log"
+	gossh "golang.org/x/crypto/ssh"
+
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/trzsz"
 	"github.com/xops-infra/jms/utils"
-	gossh "golang.org/x/crypto/ssh"
 )
 
 // GetClientByPasswd GetClientByPasswd

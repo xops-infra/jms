@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/patsnapops/noop/log"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/jms/utils"
+	"github.com/xops-infra/noop/log"
 )
 
 // dingtalkToken 为钉钉机器人的token
