@@ -1,12 +1,8 @@
 package pui
 
 import (
-	"fmt"
-
 	"github.com/elfgzp/ssh"
 )
-
-func defaultShow(int, *MenuItem, *ssh.Session, []*MenuItem) bool { return true }
 
 // MenuItem menu item
 type MenuItem struct {
@@ -35,11 +31,17 @@ var (
 var (
 	MainLabel      = "Please select,ctrl+c to return,ctrl+d to exit"
 	UserLoginLabel = "Please select ssh user to login"
-	InfoLabel      = fmt.Sprint(`1) AnyQuestions can be asked at https://github.com/xops-infra/jms/issues
-2) In the default policy, you are not able to access assets with tag EnvType=prod.
-3) Filter supports fuzzy matching of IP/Name/ID.
-4) Use ctrl+c to return&flash server.
-5) Use ctrl+d to quit.
-6) Filter[nu] nu is the server number you can select.
-`)
+	InfoLabel      = `-----------------------------------------------------------------------
+欢迎使用jms堡垒机连接工具
+1) 问题或者提交BUG，前往 https://github.com/xops-infra/jms/issues；
+2) 默认策略下你讲不能访问机器标签EnvType=prod的机器，Admin组用户除外；
+3) 过滤支持服务器名称、机器ID、IP地址；
+4) 使用 ctrl+c 取消及刷新机器列表；
+5）进入服务器列表页后使用左右按键翻页，上下按键选择；
+6) 使用 ctrl+d 退出；
+7) Filter[nu] 方括号内数量表示你能访问的机器总数；
+-----------------------------------------------------------------------
+请输入关键字，回车进行过滤后选择:
+
+`
 )

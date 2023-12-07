@@ -6,15 +6,16 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
+	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
+	"github.com/xops-infra/noop/log"
+
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/sshd"
-	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
-	"github.com/xops-infra/noop/log"
 )
 
-func GetServersMenuV2(user string) []*MenuItem {
+func GetServersMenuV2(user, timeout string) []*MenuItem {
 	menu := make([]*MenuItem, 0)
 	servers := instance.GetServers()
 	for serverKey, server := range servers {
@@ -33,10 +34,10 @@ func GetServersMenuV2(user string) []*MenuItem {
 			log.Debugf("server info: %v", tea.Prettify(info))
 
 			subMenu := &MenuItem{
-				Label:        fmt.Sprintf("%s %s %10s...", serverKey, server.Host, server.Name),
+				Label:        fmt.Sprintf("%s\t%s\t%s", server.ID, server.Host, server.Name),
 				Info:         info,
 				SubMenuTitle: fmt.Sprintf("%s '%s'", UserLoginLabel, server.Name),
-				GetSubMenu:   GetServerSSHUsersMenu(server),
+				GetSubMenu:   GetServerSSHUsersMenu(server, timeout),
 			}
 			menu = append(menu, subMenu)
 		} else {
@@ -116,7 +117,7 @@ func matchTag(configTag, serverTag model.Tags) bool {
 	return false
 }
 
-func GetServerSSHUsersMenu(server config.Server) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
+func GetServerSSHUsersMenu(server config.Server, timeout string) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		var menu []*MenuItem
 		for key, sshUser := range *server.SSHUsers {
@@ -130,7 +131,7 @@ func GetServerSSHUsersMenu(server config.Server) func(int, *MenuItem, *ssh.Sessi
 				if server.Status != model.InstanceStatusRunning {
 					return fmt.Errorf("%s status %s, can not login", server.Host, strings.ToLower(string(server.Status)))
 				}
-				err := sshd.NewTerminal(server, sshUser, sess)
+				err := sshd.NewTerminal(server, sshUser, sess, timeout)
 				if err != nil {
 					return err
 				}

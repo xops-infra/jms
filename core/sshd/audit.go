@@ -15,7 +15,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("\naudit log dir:", auditDir)
+	fmt.Println("audit log dir:", auditDir)
 }
 
 // new audit log

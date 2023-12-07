@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/elfgzp/ssh"
+	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron"
 	"github.com/xops-infra/noop/log"
 
@@ -25,6 +27,7 @@ var (
 	debug        bool
 	logDir       string
 	withSSHCheck bool
+	timeOut      int // s
 )
 
 func init() {
@@ -33,6 +36,7 @@ func init() {
 	flag.BoolVar(&debug, "debug", false, "debug mode")
 	flag.BoolVar(&withSSHCheck, "with-ssh-check", false, "with ssh check")
 	flag.StringVar(&logDir, "log-dir", "/opt/logs/", "log file")
+	flag.IntVar(&timeOut, "timeout", 1800, "ssh timeout")
 }
 
 func passwordAuth(ctx ssh.Context, pass string) bool {
@@ -69,6 +73,10 @@ func sessionHandler(sess *ssh.Session) {
 	}()
 	user := (*sess).User()
 	remote := (*sess).RemoteAddr()
+	_, found := app.App.UserCache.Get(user)
+	if !found {
+		app.App.UserCache.Add(user, 1, cache.DefaultExpiration)
+	}
 	log.Infof("user: %s, remote addr: %s login success", user, remote)
 	rawCmd := (*sess).RawCommand()
 	cmd, args, err := sshd.ParseRawCommand(rawCmd)
@@ -136,8 +144,8 @@ func execHandler(args []string, sess *ssh.Session) {
 }
 
 func sshHandler(sess *ssh.Session) {
-	jps := jump.Service{}
-	jps.Run(sess)
+	jps := jump.NewService(sess, time.Duration(timeOut)*time.Second)
+	jps.Run()
 }
 
 func scpHandler(args []string, sess *ssh.Session) {
@@ -207,6 +215,8 @@ func main() {
 		sessionHandler(&sess)
 	})
 
+	var wrapped *wrappedConn
+
 	log.Infof("starting ssh server on port %d...\n", port)
 	err := ssh.ListenAndServe(
 		fmt.Sprintf(":%d", port),
@@ -214,8 +224,18 @@ func main() {
 		ssh.PasswordAuth(passwordAuth),
 		ssh.PublicKeyAuth(publicKeyAuth),
 		ssh.HostKeyFile(utils.FilePath(hostKeyFile)),
+		ssh.WrapConn(func(ctx ssh.Context, conn net.Conn) net.Conn {
+			conn.SetDeadline(time.Now().Add(5 * time.Second))
+			wrapped = &wrappedConn{conn, 0}
+			return wrapped
+		}),
 	)
 	if err != nil {
 		log.Panic(err.Error())
 	}
+}
+
+type wrappedConn struct {
+	net.Conn
+	written int32
 }
