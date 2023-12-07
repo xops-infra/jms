@@ -2,11 +2,12 @@ package app
 
 import (
 	"github.com/patrickmn/go-cache"
-	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/utils"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
 	server "github.com/xops-infra/multi-cloud-sdk/pkg/service"
 	"gorm.io/gorm"
+
+	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/utils"
 )
 
 func init() {
@@ -16,14 +17,15 @@ func init() {
 var App *Application
 
 type Application struct {
-	Debug  bool
-	SshDir string
-	DT     *utils.RobotClient
-	Ldap   *utils.Ldap
-	Config *config.Config
-	Server *server.ServerService
-	DB     *gorm.DB
-	Cache  *cache.Cache
+	Debug     bool
+	SshDir    string
+	DT        *utils.RobotClient
+	Ldap      *utils.Ldap
+	Config    *config.Config
+	Server    *server.ServerService
+	DB        *gorm.DB
+	Cache     *cache.Cache
+	UserCache *cache.Cache
 }
 
 const (
@@ -33,11 +35,12 @@ const (
 // Manager,Agent,Worker need to be initialized
 func NewApplication(debug bool, sshDir string) *Application {
 	App = &Application{
-		SshDir: sshDir,
-		Debug:  debug,
-		DB:     utils.NewSQLite(),
-		Config: config.Conf,
-		Cache:  cache.New(cache.NoExpiration, cache.NoExpiration),
+		SshDir:    sshDir,
+		Debug:     debug,
+		DB:        utils.NewSQLite(),
+		Config:    config.Conf,
+		Cache:     cache.New(cache.NoExpiration, cache.NoExpiration),
+		UserCache: cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
 
 	if len(App.Config.Profiles) == 0 {

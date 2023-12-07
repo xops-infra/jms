@@ -5,10 +5,11 @@ import (
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	"github.com/xops-infra/noop/log"
+
+	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/config"
 )
 
 func LoadServer(conf *config.Config) {
@@ -54,6 +55,7 @@ func LoadServer(conf *config.Config) {
 		// log.Infof("instance:%s key: %s ips:%s\n", *instance.Name, *keyName, *instance.PrivateIP[0])
 		sshUser := fmtSuperUser(instance)
 		instanceAll[*instance.PrivateIP[0]] = config.Server{
+			ID:       *instance.InstanceID,
 			Name:     *instance.Name,
 			Host:     *instance.PrivateIP[0],
 			Port:     22,

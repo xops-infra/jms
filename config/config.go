@@ -91,6 +91,7 @@ type User struct {
 
 // Server server
 type Server struct {
+	ID       string
 	Name     string
 	Host     string
 	Port     int

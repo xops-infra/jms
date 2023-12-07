@@ -4,22 +4,64 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
 	"github.com/manifoldco/promptui"
-	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/noop/log"
+
+	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/core/instance"
+	"github.com/xops-infra/jms/core/sshd"
 )
 
 // PUI pui
 type PUI struct {
-	sess *ssh.Session
+	sess       *ssh.Session
+	timeOut    time.Duration
+	lastActive time.Time
 }
 
-// SetSession SetSession
-func (ui *PUI) SetSession(s *ssh.Session) {
-	ui.sess = s
+func NewPui(s *ssh.Session, timeout time.Duration) *PUI {
+	return &PUI{
+		sess:       s,
+		timeOut:    timeout,
+		lastActive: time.Now(),
+	}
+}
+
+func (ui *PUI) SessionWrite(msg string) error {
+	_, err := (*ui.sess).Write([]byte(msg))
+	return err
+}
+
+// exit
+func (ui *PUI) Exit() {
+	ui.SessionWrite(fmt.Sprintf("\n退出时间：%s\n", time.Now().Format("2006-01-02 15:04:05")))
+	err := (*ui.sess).Close()
+	if err == nil {
+		log.Infof("User %s form %s exit", (*ui.sess).User(), (*ui.sess).RemoteAddr().String())
+	}
+}
+
+func (ui *PUI) IsTimeout() bool {
+	_, found := app.App.Cache.Get((*ui.sess).RemoteAddr().String())
+	if found {
+		ui.FlashTimeout()
+		return false
+	}
+	return time.Since(ui.lastActive) > ui.timeOut
+}
+
+// getTimeout
+func (ui *PUI) GetTimeout() string {
+	return fmt.Sprintf("%s", ui.timeOut)
+}
+
+// FlashTimeout flash timeout
+func (ui *PUI) FlashTimeout() {
+	ui.lastActive = time.Now()
 }
 
 // ShowMenu show menu
@@ -27,14 +69,12 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 	for {
 		menuLabels := make([]string, 0)
 		menuItems := make([]*MenuItem, 0)
-
 		if menu == nil {
 			break
 		}
-
 		if strings.HasPrefix(label, MainLabel) {
 			menu = make([]*MenuItem, 0)
-			menu = append(menu, GetServersMenuV2((*ui.sess).User())...)
+			menu = append(menu, GetServersMenuV2((*ui.sess).User(), ui.GetTimeout())...)
 			filter, err := ui.inputFilter(len(menu))
 			if err != nil {
 				continue
@@ -87,7 +127,8 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 				}
 
 			} else if err.Error() == "^D" {
-				(*ui.sess).Close()
+				app.App.UserCache.Delete((*ui.sess).User())
+				ui.Exit()
 				break
 			}
 			log.Errorf("Select menu error %s\n", err)
@@ -99,7 +140,6 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 		}
 
 		selected := menuItems[index]
-
 		log.Debugf("Selected: %+v", tea.Prettify(selected.Info))
 
 		if selected.GetSubMenu != nil {
@@ -117,7 +157,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 				}
 				ui.ShowMenu(subMenuLabel, subMenu, back, append(selectedChain, selected))
 			} else {
-				noSubMenuInfo := "No options under this menu ... "
+				noSubMenuInfo := "No options under this menu ..."
 				if selected.NoSubMenuInfo != "" {
 					noSubMenuInfo = selected.NoSubMenuInfo
 				}
@@ -132,17 +172,22 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			if err != nil {
 				sshd.ErrorInfo(err, ui.sess)
 			}
-			if selected.BackAfterSelected == true {
-				break
-			}
 		}
 	}
 }
 
 // inputFilter input filter
 func (ui *PUI) inputFilter(nu int) (string, error) {
-	// write InfoLabel
-	(*ui.sess).Write([]byte(InfoLabel))
+	ui.FlashTimeout()
+	servers := instance.GetServers()
+	// 发送屏幕清理指令
+	ui.SessionWrite("\033c")
+	// 发送当前时间
+	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
+		time.Now().Format("2006-01-02 15:04:05"), app.App.UserCache.ItemCount(), len(servers),
+	))
+	// 发送欢迎信息
+	ui.SessionWrite(InfoLabel)
 	prompt := promptui.Prompt{
 		Label:  fmt.Sprintf("Filter[%d]", nu),
 		Stdin:  *ui.sess,
@@ -154,7 +199,7 @@ func (ui *PUI) inputFilter(nu int) (string, error) {
 		if err.Error() == "^C" {
 			return "", err
 		} else if err.Error() == "^D" {
-			(*ui.sess).Close()
+			ui.Exit()
 			return "", nil
 		}
 		log.Errorf("Prompt error: %s", err)

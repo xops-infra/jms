@@ -12,12 +12,12 @@ import (
 	"github.com/elfgzp/ssh"
 	"github.com/fatih/color"
 	"github.com/helloyi/go-sshclient"
+	"github.com/patrickmn/go-cache"
 	"github.com/xops-infra/noop/log"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/trzsz"
 	"github.com/xops-infra/jms/utils"
 )
 
@@ -36,8 +36,7 @@ func GetClientByPasswd(username, host string, port int, passwd string) (*sshclie
 }
 
 // NewTerminal NewTerminal
-func NewTerminal(server config.Server, sshUser *config.SSHUser, sess *ssh.Session) error {
-
+func NewTerminal(server config.Server, sshUser *config.SSHUser, sess *ssh.Session, timeout string) error {
 	proxyClient, upstreamClient, err := NewSSHClient(server, sshUser)
 	if err != nil {
 		log.Errorf("NewSSHClient error: %s", err)
@@ -66,29 +65,12 @@ func NewTerminal(server config.Server, sshUser *config.SSHUser, sess *ssh.Sessio
 	upstreamSess.Stdin = *sess
 	upstreamSess.Stderr = writer
 
-	if false {
-		// TODO 未完成
-		serverIn, err := upstreamSess.StdinPipe()
-		if err != nil {
-			return err
-		}
-		serverOut, err := upstreamSess.StdoutPipe()
-		if err != nil {
-			return err
-		}
-
-		if err := trzsz.WithTrzsz(*sess, nil, upstreamClient, upstreamSess, serverIn, serverOut); err != nil {
-			return err
-		}
-	}
-
 	pty, winCh, _ := (*sess).Pty()
 
 	if err := upstreamSess.RequestPty(pty.Term, pty.Window.Height, pty.Window.Width, pty.TerminalModes); err != nil {
 		return err
 	}
 
-	// TODO: 命令录制审计；
 	if err := upstreamSess.Shell(); err != nil {
 		return err
 	}
@@ -98,6 +80,12 @@ func NewTerminal(server config.Server, sshUser *config.SSHUser, sess *ssh.Sessio
 			upstreamSess.WindowChange(win.Height, win.Width)
 		}
 	}()
+	fmt.Println((*sess).Environ(), (*sess).RemoteAddr())
+	err = app.App.Cache.Add((*sess).RemoteAddr().String(), true, cache.DefaultExpiration)
+	if err != nil {
+		log.Errorf("add cache error: %s", err)
+	}
+	defer app.App.Cache.Delete((*sess).RemoteAddr().String())
 
 	if err := upstreamSess.Wait(); err != nil {
 		return err

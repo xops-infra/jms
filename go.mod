@@ -16,7 +16,7 @@ require (
 	github.com/robfig/cron v1.2.0
 	github.com/spf13/viper v1.16.0
 	github.com/trzsz/trzsz-go v1.1.6
-	github.com/xops-infra/multi-cloud-sdk v0.0.0-20231124062327-e93c68f5c6e0
+	github.com/xops-infra/multi-cloud-sdk v0.0.0-20231207074153-fa6ddbbf9118
 	github.com/xops-infra/noop v0.5.1-0.20231107031456-2b6b1ae7e0bb
 	golang.org/x/crypto v0.15.0
 	golang.org/x/term v0.14.0
