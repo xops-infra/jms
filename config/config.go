@@ -19,21 +19,24 @@ func init() {
 
 // Config config
 type Config struct {
-	Policies []Policy              `mapstructure:"policies"`
-	Groups   []Group               `mapstructure:"groups"`   // 支持配置动态加载
-	Profiles []model.ProfileConfig `mapstructure:"profiles"` // 支持配置动态加载
-	Ldap     Ldap                  `mapstructure:"ldap"`     // 支持配置动态加载
-	Proxies  []Proxy               `mapstructure:"proxies"`  // 支持配置动态加载
-	Keys     map[string]string     `mapstructure:"keys"`     // 支持配置动态加载
-	DingTalk DingTalk              `mapstructure:"dingtalk"` // 支持配置动态加载
-	Monitor  Monitor               `mapstructure:"monitor"`  // 支持配置动态加载
+	Profiles     []model.ProfileConfig `mapstructure:"profiles"`     // 支持配置动态加载
+	Ldap         Ldap                  `mapstructure:"ldap"`         // 支持配置动态加载
+	Proxies      []Proxy               `mapstructure:"proxies"`      // 支持配置动态加载
+	Keys         map[string]string     `mapstructure:"keys"`         // 支持配置动态加载
+	DingTalk     DingTalk              `mapstructure:"dingtalk"`     // 支持配置动态加载
+	WithSSHCheck WithSSHCheck          `mapstructure:"withSSHCheck"` // 支持配置动态加载
+	WithPolicy   WithPolicy            `mapstructure:"withPolicy"`
+}
+
+type WithPolicy struct {
+	DBFile string `mapstructure:"dbFile"`
 }
 
 type DingTalk struct {
 	RobotToken string `mapstructure:"robotToken"`
 }
 
-type Monitor struct {
+type WithSSHCheck struct {
 	IPS []string `mapstructure:"ips"`
 }
 

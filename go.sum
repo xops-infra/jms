@@ -204,6 +204,8 @@ github.com/mattn/go-colorable v0.1.13/go.mod h1:7S9/ev0klgBDR4GtXTXX8a3vIGJpMovk
 github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
 github.com/mattn/go-isatty v0.0.19 h1:JITubQf0MOLdlGRuRq+jtsDlekdYPia9ZFsB8h/APPA=
 github.com/mattn/go-isatty v0.0.19/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
+github.com/mattn/go-sqlite3 v1.14.18 h1:JL0eqdCOq6DJVNPSvArO/bIV9/P7fbGrV00LZHc+5aI=
+github.com/mattn/go-sqlite3 v1.14.18/go.mod h1:2eHXhiwb8IkHr+BDWZGa96P6+rkvnG63S2DGjv9HUNg=
 github.com/mitchellh/mapstructure v1.4.3/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
@@ -300,6 +302,8 @@ github.com/xops-infra/multi-cloud-sdk v0.0.0-20231206062008-9d1b7d575402 h1:c2Eh
 github.com/xops-infra/multi-cloud-sdk v0.0.0-20231206062008-9d1b7d575402/go.mod h1:M60GBtU9/aDLmiHDvJXr0yIh/e/INJTmHB8TB0Z6euY=
 github.com/xops-infra/multi-cloud-sdk v0.0.0-20231207074153-fa6ddbbf9118 h1:NFdTBKGQ4xjTyId4BX2mspc4O/qTptpiDc3kLO1jLzg=
 github.com/xops-infra/multi-cloud-sdk v0.0.0-20231207074153-fa6ddbbf9118/go.mod h1:M60GBtU9/aDLmiHDvJXr0yIh/e/INJTmHB8TB0Z6euY=
+github.com/xops-infra/multi-cloud-sdk v0.0.0-20231209121551-37d29dfcda0b h1:Vu4BsmLEA/ct2j99BGuoLeXoVUv2suX8XbcckFrcmyQ=
+github.com/xops-infra/multi-cloud-sdk v0.0.0-20231209121551-37d29dfcda0b/go.mod h1:M60GBtU9/aDLmiHDvJXr0yIh/e/INJTmHB8TB0Z6euY=
 github.com/xops-infra/noop v0.5.1-0.20231107031456-2b6b1ae7e0bb h1:nVS7avZ5PJjp+3CSEqlW3gAXgIWE8geLLgRQObDx14g=
 github.com/xops-infra/noop v0.5.1-0.20231107031456-2b6b1ae7e0bb/go.mod h1:GKKMXuuOVPxrRvKz7qbHCwZ2C/nBNBfabF832Zi/u9A=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
@@ -667,6 +671,8 @@ gopkg.in/yaml.v2 v2.4.0/go.mod h1:RDklbk79AGWmwhnvt/jBztapEOGDOx6ZbXqjP6csGnQ=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+gorm.io/driver/sqlite v1.5.4 h1:IqXwXi8M/ZlPzH/947tn5uik3aYQslP9BVveoax0nV0=
+gorm.io/driver/sqlite v1.5.4/go.mod h1:qxAuCol+2r6PannQDpOP1FP6ag3mKi4esLnB/jHed+4=
 gorm.io/gorm v1.25.5 h1:zR9lOiiYf09VNh5Q1gphfyia1JpiClIWG9hQaxB/mls=
 gorm.io/gorm v1.25.5/go.mod h1:hbnx/Oo0ChWMn1BIhpy1oYozzpM15i4YPuHDmfYtwg8=
 honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=

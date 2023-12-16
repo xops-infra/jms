@@ -59,6 +59,9 @@ func NewTerminal(server config.Server, sshUser *config.SSHUser, sess *ssh.Sessio
 	}
 	defer logFile.Close()
 
+	// 发送屏幕清理指令
+	(*sess).Write([]byte("\033c"))
+
 	// 创建同时写入日志文件和终端的写入器
 	writer := io.MultiWriter(logFile, *sess)
 	upstreamSess.Stdout = writer
@@ -201,5 +204,5 @@ func ErrorInfo(err error, sess *ssh.Session) {
 // Info Info
 func Info(msg string, sess *ssh.Session) {
 	green := color.New(color.FgGreen)
-	green.Fprint(*sess, msg)
+	green.Fprint(*sess, fmt.Sprintf("%s\n", msg))
 }

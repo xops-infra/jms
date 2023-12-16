@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/xops-infra/noop/log"
+
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/jms/utils"
-	"github.com/xops-infra/noop/log"
 )
 
 // dingtalkToken 为钉钉机器人的token
@@ -17,7 +18,7 @@ func ServerLiveness(dingtalkToken string) {
 	servers := GetServers()
 	for _, server := range servers {
 		isIgnore := true
-		for _, checkIp := range app.App.Config.Monitor.IPS {
+		for _, checkIp := range app.App.Config.WithSSHCheck.IPS {
 			if checkIp == server.Host {
 				isIgnore = false
 				break

@@ -11,7 +11,7 @@ type MenuItem struct {
 	IsShow            func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) bool
 	SubMenuTitle      string
 	GetSubMenu        func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem
-	SelectedFunc      func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) error
+	SelectedFunc      func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error)
 	NoSubMenuInfo     string
 	BackAfterSelected bool
 	BackOptionLabel   string
@@ -29,12 +29,17 @@ var (
 )
 
 var (
-	MainLabel      = "Please select,ctrl+c to return,ctrl+d to exit"
-	UserLoginLabel = "Please select ssh user to login"
-	InfoLabel      = `-----------------------------------------------------------------------
+	MainLabel           = "Please select,ctrl+c to return,ctrl+d to exit"
+	ApproveSummaryLabel = "Please check the approve summary"
+	UserLoginLabel      = "Please select ssh user to login"
+	NoPermission        = "No permission,Please apply for permission"
+	SelectServer        = "Please select server for approve"
+	SelectAction        = "Please select action"
+	BybLabel            = "\n拜拜👋! 如果觉得还不错，来点个Star🌟吧！👉 https://github.com/xops-infra/jms 退出时间：%s\n"
+	InfoLabel           = `-----------------------------------------------------------------------
 欢迎使用jms堡垒机连接工具
 1) 问题或者提交BUG，前往 https://github.com/xops-infra/jms/issues；
-2) 默认策略下你讲不能访问机器标签EnvType=prod的机器，Admin组用户除外；
+2) 你可以看到所有服务器，但是在连接或者上传下载时会校验你的权限，如果没有权限可以进行交互申请；
 3) 过滤支持服务器名称、机器ID、IP地址；
 4) 使用 ctrl+c 取消及刷新机器列表；
 5）进入服务器列表页后使用左右按键翻页，上下按键选择；

@@ -27,6 +27,7 @@ var (
 	debug        bool
 	logDir       string
 	withSSHCheck bool
+	withPolicy   bool
 	timeOut      int // s
 )
 
@@ -37,6 +38,7 @@ func init() {
 	flag.BoolVar(&withSSHCheck, "with-ssh-check", false, "with ssh check")
 	flag.StringVar(&logDir, "log-dir", "/opt/logs/", "log file")
 	flag.IntVar(&timeOut, "timeout", 1800, "ssh timeout")
+	flag.BoolVar(&withPolicy, "with-policy", false, "use sqlite to store policy")
 }
 
 func passwordAuth(ctx ssh.Context, pass string) bool {
@@ -154,8 +156,8 @@ func scpHandler(args []string, sess *ssh.Session) {
 
 func startScheduler() {
 	c := cron.New()
-	time.Sleep(10 * time.Second)
-	c.AddFunc("*/50 * * * * *", func() {
+	time.Sleep(10 * time.Second) // 等待app初始化完成
+	c.AddFunc("0 */2 * * * *", func() {
 		instance.LoadServer(app.App.Config)
 	})
 
@@ -191,7 +193,13 @@ func main() {
 		sshd.GenKey(hostKeyFile)
 	}
 
-	app.NewApplication(debug, sshDir).WithDingTalk()
+	_app := app.NewApplication(debug, sshDir).WithDingTalk()
+	if withPolicy {
+		_app.WithPolicy()
+		log.Infof("enable policy,default user: admin/admin")
+	} else {
+		log.Infof("--with-policy=false, this mode any server can be connected")
+	}
 
 	instance.LoadServer(app.App.Config)
 
