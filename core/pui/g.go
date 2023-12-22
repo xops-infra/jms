@@ -75,8 +75,6 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 		log.Debugf("label: %s MainLabel:%s", label, MainLabel)
 		switch label {
 		case MainLabel:
-			// clear
-			ui.SessionWrite("\033c")
 			// 顶级菜单，如果有审批则主页支持选择审批或者服务器
 			menu = make([]*MenuItem, 0)
 			if app.App.PolicyService != nil {

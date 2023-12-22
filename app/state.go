@@ -29,7 +29,7 @@ type Application struct {
 	Config    *config.Config
 	Server    *server.ServerService
 	Cache     *cache.Cache
-	UserCache *cache.Cache
+	UserCache *cache.Cache // 用户缓存,用于显示用户负载
 	// DBIo          db.DbIo
 	PolicyService *policy.PolicyService
 }

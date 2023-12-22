@@ -20,7 +20,7 @@ func init() {
 func TestCreatePolicy(t *testing.T) {
 	expiredAt := time.Now().Add(time.Hour * 24 * 365 * 100)
 	req := policy.CreatePolicyRequest{
-		Name:         tea.String("zhoushoujian-policy"),
+		Name:         tea.String("zhoushoujian-policy-1"),
 		Users:        utils.ArrayString{"zhoushoujian"},
 		Groups:       utils.ArrayString{"admin"},
 		ServerFilter: &utils.ServerFilter{Name: tea.String("*")},
@@ -47,22 +47,26 @@ func TestDeletePolicy(t *testing.T) {
 	}
 }
 
-func TestCreateUser(t *testing.T) {
-	req := policy.UserRequest{
-		Name:   tea.String("zhoushoujian"),
-		Email:  tea.String("zhoushoujian@test.com"),
-		Groups: utils.ArrayString{"admin"},
+func TestUpdateUserGroups(t *testing.T) {
+	err := app.App.PolicyService.UpdateUserGroups("yaolong", utils.ArrayString{
+		"ops",
+	})
+	if err != nil {
+		t.Error(err)
 	}
-	result, err := app.App.PolicyService.CreateUser(&req)
+}
+
+func TestQueryPolicy(t *testing.T) {
+	result, err := app.App.PolicyService.QueryPolicyByUser("yaolong")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Log(result)
+	log.Infof(tea.Prettify(result))
 }
 
-func TestQueryPolicy(t *testing.T) {
-	result, err := app.App.PolicyService.QueryPolicy("zhoushoujian")
+func TestQueryUser(t *testing.T) {
+	result, err := app.App.PolicyService.DescribeUser("yaolong")
 	if err != nil {
 		t.Error(err)
 		return

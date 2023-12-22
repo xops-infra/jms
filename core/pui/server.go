@@ -36,7 +36,7 @@ func GetServersMenuV2(sess *ssh.Session, timeout string) []*MenuItem {
 			Users:     utils.ArrayString{user},
 		})
 	} else {
-		policies, err := app.App.PolicyService.QueryPolicy(user)
+		policies, err := app.App.PolicyService.QueryPolicyWithGroup(user)
 		if err != nil {
 			log.Errorf("query policy error: %s", err)
 		}
@@ -137,6 +137,10 @@ func matchPolicy(user string, inPutAction pl.Action, server config.Server, dbPol
 	if matchPolicyOwner(user, server) {
 		return true
 	}
+	// 用户组一致则有权限
+	if matchUserGroup(user, server) {
+		return true
+	}
 
 	// 再去匹配策略
 	for _, dbPolicy := range dbPolicies {
@@ -186,6 +190,25 @@ func matchPolicy(user string, inPutAction pl.Action, server config.Server, dbPol
 func matchPolicyOwner(user string, server config.Server) bool {
 	if server.Tags.GetOwner() != nil && *server.Tags.GetOwner() == user {
 		return true
+	}
+	return false
+}
+
+// 用户组一致则有权限
+func matchUserGroup(user string, server config.Server) bool {
+	if server.Tags.GetTeam() != nil {
+		user, err := app.App.PolicyService.DescribeUser(user)
+		if err != nil {
+			log.Errorf("matchUserGroup error: %s", err)
+			return false
+		}
+		if user.Groups != nil {
+			for _, group := range user.Groups {
+				if *server.Tags.GetTeam() == group.(string) {
+					return true
+				}
+			}
+		}
 	}
 	return false
 }
@@ -243,13 +266,13 @@ func getServerApproveMenu(server config.Server) func(int, *MenuItem, *ssh.Sessio
 		sshd.ErrorInfo(fmt.Errorf("No permission for %s,Please apply for permission", server.Name), sess)
 		var menu []*MenuItem
 		menu = append(menu, &MenuItem{
-			Label: fmt.Sprintf("Only this server: %s", server.Name),
+			Label: fmt.Sprintf("Only this server: %s", server.Host),
 			Info: map[string]string{
 				serverInfoKey: server.Name,
 			},
 			SubMenuTitle: SelectAction,
 			GetSubMenu: getActionMenu(utils.ServerFilter{
-				Name: tea.String(server.Name),
+				IpAddr: tea.String(server.Host),
 			}),
 		})
 		serverTeam := server.Tags.GetTeam()
@@ -322,6 +345,7 @@ func getSureApplyMenu(serverFilter utils.ServerFilter, actions utils.ArrayString
 				// 产生一个申请权限的任务，等待管理员审核
 				sshd.Info(fmt.Sprintf("审批ID:%s，创建成功！等待管理员审核。", policyId), sess)
 				if false {
+					// TODO: 发送钉钉消息
 					app.App.DT.SendMessage(context.Background(), &utils.SendMessageRequest{
 						AccessToken: app.App.Config.DingTalk.RobotToken,
 						MessageContent: utils.MessageContent{

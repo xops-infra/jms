@@ -19,7 +19,9 @@ ssh-copy-id -p 22222 zhoushoujian@localhost
 ssh -p 22222 zhoushoujian@localhost
 
 # 权限
-# 默认只支持查看机器标签 EnvType!=prod的机器，admin组可以查看所有机器
+# 基于机器标签 tag做了 2 个策略
+# 1. 机器标签Owner=登录用户，可以看到
+# 2. 机器标签Team=登录用户所在的Team，可以看到
 
 # 文件传输
 # 上传 scp -P 22222 本地文件  登录用户@jms域名:远端服务器用户@远端服务器IP地址:远端服务器文件路径

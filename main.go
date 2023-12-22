@@ -17,6 +17,7 @@ import (
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/jump"
+	"github.com/xops-infra/jms/core/policy"
 	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/jms/utils"
 )
@@ -38,7 +39,7 @@ func init() {
 	flag.BoolVar(&withSSHCheck, "with-ssh-check", false, "with ssh check")
 	flag.StringVar(&logDir, "log-dir", "/opt/logs/", "log file")
 	flag.IntVar(&timeOut, "timeout", 1800, "ssh timeout")
-	flag.BoolVar(&withPolicy, "with-policy", false, "use sqlite to store policy")
+	flag.BoolVar(&withPolicy, "with-policy", true, "use sqlite to store policy")
 }
 
 func passwordAuth(ctx ssh.Context, pass string) bool {
@@ -78,6 +79,22 @@ func sessionHandler(sess *ssh.Session) {
 	_, found := app.App.UserCache.Get(user)
 	if !found {
 		app.App.UserCache.Add(user, 1, cache.DefaultExpiration)
+	}
+	// 如果启用 policy策略，默认开始注册登录用户入库
+	if withPolicy {
+		_, err := app.App.PolicyService.CreateUser(&policy.UserRequest{
+			Name: &user,
+		})
+		if err != nil {
+			if !strings.Contains(err.Error(), "user already exists") {
+				log.Error(err.Error())
+			}
+		} else {
+			msg := fmt.Sprintf("首次登录，用户信息%s已入库！组信息请联系管理员维护", user)
+			log.Infof(msg)
+			sshd.Info(msg, sess)
+		}
+
 	}
 	log.Infof("user: %s, remote addr: %s login success", user, remote)
 	rawCmd := (*sess).RawCommand()

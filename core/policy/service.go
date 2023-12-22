@@ -5,7 +5,6 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
-	"github.com/xops-infra/noop/log"
 	"gorm.io/gorm"
 
 	"github.com/xops-infra/jms/utils"
@@ -24,9 +23,12 @@ func NewPolicyService(db *gorm.DB) *PolicyService {
 func (d *PolicyService) NeedApprove(username string) ([]*Policy, error) {
 	// 是否 admin组，且有需要审批的策略
 	var policies []*Policy
-	user, err := d.describeUser(username)
+	user, err := d.DescribeUser(username)
 	if err != nil {
 		return nil, err
+	}
+	if user.Groups == nil {
+		return nil, nil
 	}
 	if user.Groups.Contains("admin") {
 		if err := d.DB.Where("is_enabled = ?", false).Where("approver is null").Find(&policies).Error; err != nil {
@@ -36,12 +38,12 @@ func (d *PolicyService) NeedApprove(username string) ([]*Policy, error) {
 	return policies, nil
 }
 
-func (d *PolicyService) DescribeUser(name string) (*User, error) {
+func (d *PolicyService) DescribeUser(name string) (User, error) {
 	var user User
 	if err := d.DB.Where("username = ?", name).First(&user).Error; err != nil {
-		return nil, err
+		return user, err
 	}
-	return &user, nil
+	return user, nil
 }
 
 func (d *PolicyService) CreateGroup(group *Group) (string, error) {
@@ -65,6 +67,7 @@ func (d *PolicyService) DeleteGroup(name string) error {
 	return d.DB.Update("is_deleted", true).Where("name = ?", name).Error
 }
 
+// 自带校验是否存在
 func (d *PolicyService) CreateUser(req *UserRequest) (string, error) {
 	user := &User{
 		Username: req.Name,
@@ -87,8 +90,13 @@ func (d *PolicyService) CreateUser(req *UserRequest) (string, error) {
 	return user.Id, nil
 }
 
-func (d *PolicyService) UpdateUser(req *UserRequest) error {
-	return d.DB.Model(&User{}).Where("email = ?", req.Email).Update("groups", req.Groups).Error
+// 支持如果没有用户则报错
+func (d *PolicyService) UpdateUserGroups(username string, groups utils.ArrayString) error {
+	user, err := d.DescribeUser(username)
+	if err != nil {
+		return err
+	}
+	return d.DB.Model(&user).Update("groups", groups).Error
 }
 
 func (d *PolicyService) CreatePolicy(req *CreatePolicyRequest) (string, error) {
@@ -148,70 +156,68 @@ func (d *PolicyService) UpdateActionsOfPolicy(name string, actions []string) err
 	return d.DB.Model(&Policy{}).Where("name = ?", name).Update("actions", actions).Error
 }
 
-func (d *PolicyService) describeUser(name string) (*User, error) {
-	var user User
-	if err := d.DB.Where("username = ?", name).First(&user).Error; err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-func (d *PolicyService) QueryPolicy(username string) ([]*Policy, error) {
-	// 查询用户信息
-	user, err := d.describeUser(username)
-	if err != nil {
-		return nil, err
-	}
-	// 查询用户策略
-	return d.queryPolicyByUserAndGroup(username, user.Groups)
-}
-
-// 依据用户和组查询策略
-func (d *PolicyService) queryPolicyByUserAndGroup(user string, groups utils.ArrayString) ([]*Policy, error) {
+// 只查询用户的策略
+func (d *PolicyService) QueryPolicyByUser(username string) ([]*Policy, error) {
+	sql := d.DB.Model(&Policy{}).Where("is_enabled = ?", true)
+	tx := sql.Where("users like ?", fmt.Sprintf("%%%s%%", username))
 	var policies []*Policy
-	sql := d.DB.Model(&Policy{})
-	sql.Where("is_enabled = ?", true)
-	if err := sql.Find(&policies).Error; err != nil {
+	if err := tx.Find(&policies).Error; err != nil {
 		return nil, err
 	}
 	var matchPolicies []*Policy
+	// 精确返回
 	for _, policy := range policies {
-		// 判断策略是否启用
-		if policy.IsEnabled == nil || !*policy.IsEnabled {
-			continue
+		if policy.Users.Contains(username) {
+			matchPolicies = append(matchPolicies, policy)
 		}
-		// 判断策略是否过期
-		if policy.IsExpired() {
-			// 失效删除
-			err := d.DeletePolicy(*policy.Name)
-			if err != nil {
-				log.Errorf("delete expired policy %s error: %v", *policy.Name, err)
-			}
-			continue
-		}
-
-		var isOk bool
-		// 判断用户是否在策略中
-		if policy.Users != nil {
-			if policy.Users.Contains(user) {
-				isOk = true
-			}
-		}
-		if !isOk {
-			log.Debugf("user %s not in policy %s", user, *policy.Name)
-		}
-		// 判断用户所在组是否在策略中
-		for _, group := range groups {
-			if policy.Groups.Contains(group.(string)) {
-				isOk = true
-				break
-			}
-		}
-		if !isOk {
-			log.Debugf("group %s not in policy %s", groups, *policy.Name)
-			continue
-		}
-		matchPolicies = append(matchPolicies, policy)
 	}
 	return matchPolicies, nil
+}
+
+// 查询用户组的策略
+func (d *PolicyService) QueryPolicyByGroup(group string) ([]*Policy, error) {
+	sql := d.DB.Model(&Policy{}).Where("is_enabled = ?", true)
+	tx := sql.Where("groups like ?", fmt.Sprintf("%%%s%%", group))
+	var policies []*Policy
+	if err := tx.Find(&policies).Error; err != nil {
+		return nil, err
+	}
+	var matchPolicies []*Policy
+	// 精确返回
+	for _, policy := range policies {
+		if policy.Groups.Contains(group) {
+			matchPolicies = append(matchPolicies, policy)
+		}
+	}
+	return matchPolicies, nil
+}
+
+// 查询用户和用户组的策略
+func (d *PolicyService) QueryPolicyWithGroup(username string) ([]*Policy, error) {
+	var policies []*Policy
+	// 查询用户信息
+	userPolicies, err := d.QueryPolicyByUser(username)
+	if err != nil {
+		return nil, err
+	}
+	policies = append(policies, userPolicies...)
+
+	// 查询用户信息获取组附加组策略
+	user, err := d.DescribeUser(username)
+	if err != nil {
+		if err != gorm.ErrRecordNotFound {
+			return nil, err
+		} else {
+			return policies, nil
+		}
+	}
+	for _, group := range user.Groups {
+		groupPolicies, err := d.QueryPolicyByGroup(group.(string))
+		if err != nil {
+			return nil, err
+		}
+		policies = append(policies, groupPolicies...)
+	}
+
+	return policies, nil
 }

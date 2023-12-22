@@ -12,8 +12,8 @@ type User struct {
 	UpdatedAt *time.Time        `json:"updated_at" gorm:"column:updated_at"`
 	IsDeleted *bool             `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
 	Username  *string           `json:"username" gorm:"column:username;not null"`
-	Email     *string           `json:"email" gorm:"column:email;not null"`
-	Groups    utils.ArrayString `json:"groups" gorm:"column:groups;type:json;not null"`
+	Email     *string           `json:"email" gorm:"column:email"`
+	Groups    utils.ArrayString `json:"groups" gorm:"column:groups;type:json"`
 }
 
 func (User) TableName() string {
