@@ -3,11 +3,12 @@
 2. 每个团队都有连接资产的需求，需要一个简单的工具来连接资产；
 3. 每个团队都有文件传输的需求，需要一个简单的工具来传输文件；
 4. 介于公司还有大量的海外机器，还会出现访问速度慢的问题，Jumpserver在这块用来异步的 ansible来推送用户经常出现失败的痛点；
-
+## 特别感谢
+- [TNK-Studio/gortal](https://github.com/TNK-Studio/gortal.git)
 ## 设计拓扑
 ![](.excalidraw.png)
 
-## 功能
+## 使用手册
 
 ```bash
 # 设置免密登录
@@ -39,9 +40,12 @@ docker run --rm --network=host -dit -v /root/jms/ssh/:/root/.ssh/ -v /root/jms/j
 
 ![服务日志](log.jpg)
 
-## 开发日志
-cli 部分参阅项目：https://github.com/TNK-Studio/gortal.git
+## 开发计划
+- [ ] 用户首次登录初始化用户信息，配置用户组；
+- [ ] 接入钉钉审批功能；
+- [ ] 优化文件传输方式，支持scp后文件选择传输，简化传输命令；
 
+## 开发日志
 ### 2023-12
 - 优化交互界面；
 - feat:支持会话超时退出功能；
