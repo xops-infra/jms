@@ -8,13 +8,15 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/policy"
 	"github.com/xops-infra/jms/utils"
 )
 
 func init() {
 	log.Default().Init()
-	app.NewApplication(true, "~/.ssh/").WithPolicy()
+	config.Load("/opt/jms/.jms.yml")
+	app.NewSshdApplication(true, "~/.ssh/").WithPolicy()
 }
 
 func TestCreatePolicy(t *testing.T) {
@@ -57,7 +59,7 @@ func TestUpdateUserGroups(t *testing.T) {
 }
 
 func TestQueryPolicy(t *testing.T) {
-	result, err := app.App.PolicyService.QueryPolicyByUser("yaolong")
+	result, err := app.App.PolicyService.QueryAllPolicy()
 	if err != nil {
 		t.Error(err)
 		return

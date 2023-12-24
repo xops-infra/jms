@@ -20,27 +20,31 @@ func init() {
 // Config config
 type Config struct {
 	Profiles     []model.ProfileConfig `mapstructure:"profiles"`     // 支持配置动态加载
-	Ldap         Ldap                  `mapstructure:"ldap"`         // 支持配置动态加载
+	Ldap         Ldap                  `mapstructure:"withLdap"`     // 支持配置动态加载
 	Proxies      []Proxy               `mapstructure:"proxies"`      // 支持配置动态加载
 	Keys         map[string]string     `mapstructure:"keys"`         // 支持配置动态加载
-	DingTalk     DingTalk              `mapstructure:"dingtalk"`     // 支持配置动态加载
+	WithDingTalk WithDingTalk          `mapstructure:"withDingTalk"` // 支持配置动态加载
 	WithSSHCheck WithSSHCheck          `mapstructure:"withSSHCheck"` // 支持配置动态加载
 	WithPolicy   WithPolicy            `mapstructure:"withPolicy"`
 }
 
 type WithPolicy struct {
+	Enable bool   `mapstructure:"enable"`
 	DBFile string `mapstructure:"dbFile"`
 }
 
-type DingTalk struct {
+type WithDingTalk struct {
+	Enable     bool   `mapstructure:"enable"`
 	RobotToken string `mapstructure:"robotToken"`
 }
 
 type WithSSHCheck struct {
-	IPS []string `mapstructure:"ips"`
+	Enable bool     `mapstructure:"enable"`
+	IPS    []string `mapstructure:"ips"`
 }
 
 type Ldap struct {
+	Enable           bool     `mapstructure:"enable"`
 	BindUser         string   `mapstructure:"bindUser"`
 	BindPassword     string   `mapstructure:"bindPassword"`
 	Host             string   `mapstructure:"host"`
@@ -57,8 +61,6 @@ func Load(configFile string) {
 	if strings.HasPrefix(configFile, "~") {
 		configFile = strings.Replace(configFile, "~", homedir, 1)
 	}
-	configFile = strings.TrimSuffix(configFile, "/") + "/.jms.yml"
-	fmt.Printf("config file: %s\n", configFile)
 	viper.SetConfigFile(configFile)
 	viper.SetConfigType("yml")
 

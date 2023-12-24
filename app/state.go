@@ -6,7 +6,6 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
 	server "github.com/xops-infra/multi-cloud-sdk/pkg/service"
-	"github.com/xops-infra/noop/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
@@ -15,9 +14,10 @@ import (
 	"github.com/xops-infra/jms/utils"
 )
 
-func init() {
-	config.Load(appDir)
-}
+const (
+	AppDir   = "/opt/jms/"
+	AuditDir = "/opt/jms/audit/"
+)
 
 var App *Application
 
@@ -34,12 +34,8 @@ type Application struct {
 	PolicyService *policy.PolicyService
 }
 
-const (
-	appDir = "/opt/jms/"
-)
-
 // Manager,Agent,Worker need to be initialized
-func NewApplication(debug bool, sshDir string) *Application {
+func NewSshdApplication(debug bool, sshDir string) *Application {
 	App = &Application{
 		SshDir:    sshDir,
 		Debug:     debug,
@@ -49,16 +45,33 @@ func NewApplication(debug bool, sshDir string) *Application {
 	}
 
 	if len(App.Config.Profiles) == 0 {
-		panic("no profile found")
+		panic("请配置 profiles")
 	}
 
 	cloudIo := io.NewCloudClient(App.Config.Profiles)
 	serverTencent := io.NewTencentClient(cloudIo)
 	serverAws := io.NewAwsClient(cloudIo)
-	App.Ldap = utils.NewLdap(App.Config.Ldap)
 	App.Server = server.NewServer(App.Config.Profiles, serverAws, serverTencent)
 
 	return App
+}
+
+func NewApiApplication() *Application {
+	App = &Application{
+		Config: config.Conf,
+	}
+
+	return App
+}
+
+// withLdap
+func (app *Application) WithLdap() *Application {
+	ldap, err := utils.NewLdap(App.Config.Ldap)
+	if err != nil {
+		panic(err)
+	}
+	app.Ldap = ldap
+	return app
 }
 
 func (app *Application) WithDingTalk() *Application {
@@ -77,10 +90,9 @@ func (app *Application) WithPolicy() *Application {
 		dbFile = "jms.db"
 	}
 	rdb, err := gorm.Open(
-		sqlite.Open(appDir+dbFile),
+		sqlite.Open(AppDir+dbFile),
 		&gorm.Config{},
 	)
-	log.Infof("sqlite file: %s", appDir+dbFile)
 	if err != nil {
 		panic("无法连接到数据库")
 	}

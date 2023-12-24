@@ -3,6 +3,8 @@ package utils
 import (
 	"database/sql/driver"
 	"encoding/json"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // 用来存储json数组，gorm默认不支持
@@ -42,4 +44,16 @@ func (a ServerFilter) Value() (driver.Value, error) {
 func (a *ServerFilter) Scan(value interface{}) error {
 	bytesValue, _ := value.([]byte)
 	return json.Unmarshal(bytesValue, a)
+}
+
+func GeneratePasswd(passwd string) []byte {
+	// 使用bcrypt生成哈希密码
+	hash, _ := bcrypt.GenerateFromPassword([]byte(passwd), bcrypt.DefaultCost)
+	return hash
+}
+
+func CheckPasswd(hashPasswd, passwd string) bool {
+	// 检查密码是否正确
+	err := bcrypt.CompareHashAndPassword([]byte(hashPasswd), []byte(passwd))
+	return err == nil
 }

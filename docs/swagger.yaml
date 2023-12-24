@@ -1,0 +1,120 @@
+definitions:
+  api.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+  policy.CreatePolicyRequest:
+    properties:
+      actions:
+        items: {}
+        type: array
+      expires_at:
+        type: string
+      groups:
+        items: {}
+        type: array
+      name:
+        type: string
+      server_filter:
+        $ref: '#/definitions/utils.ServerFilter'
+      users:
+        items: {}
+        type: array
+    required:
+    - actions
+    - expires_at
+    - name
+    - server_filter
+    type: object
+  utils.ServerFilter:
+    properties:
+      env_type:
+        type: string
+      ip_addr:
+        type: string
+      name:
+        type: string
+      team:
+        type: string
+    type: object
+host: localhost:8013
+info:
+  contact: {}
+  termsOfService: http://swagger.io/terms/
+  title: cbs manager API
+  version: v1
+paths:
+  /api/v1/policy:
+    get:
+      consumes:
+      - application/json
+      description: 获取策略列表，只能差某人或者某个组或者某个策略，不可组合查询，查用户会带出用户所在组的策略
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: name
+        in: query
+        name: name
+        type: string
+      - description: user
+        in: query
+        name: user
+        type: string
+      - description: group
+        in: query
+        name: group
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response'
+      summary: 获取策略列表
+      tags:
+      - Policy
+    post:
+      consumes:
+      - application/json
+      description: 创建策略
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/policy.CreatePolicyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response'
+      summary: 创建策略
+      tags:
+      - Policy
+swagger: "2.0"

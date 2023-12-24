@@ -23,10 +23,10 @@ func GetServersMenuV2(sess *ssh.Session, timeout string) []*MenuItem {
 	user := (*sess).User()
 	menu := make([]*MenuItem, 0)
 	servers := instance.GetServers()
-	var matchPolicies []*pl.Policy
+	var matchPolicies []pl.Policy
 	if app.App.PolicyService == nil {
 		// 如果没有使用数据库，则默认都可见
-		matchPolicies = append(matchPolicies, &pl.Policy{
+		matchPolicies = append(matchPolicies, pl.Policy{
 			Actions: utils.ArrayString{
 				string(pl.Connect),
 				string(pl.Download),
@@ -132,7 +132,7 @@ func sortMenu(menu []*MenuItem) []*MenuItem {
 }
 
 // 连接，上传，下载的时候，需要根据policy来判断是否允许
-func matchPolicy(user string, inPutAction pl.Action, server config.Server, dbPolicies []*pl.Policy) bool {
+func matchPolicy(user string, inPutAction pl.Action, server config.Server, dbPolicies []pl.Policy) bool {
 	// 默认策略优先判断
 	if matchPolicyOwner(user, server) {
 		return true
@@ -238,7 +238,7 @@ func matchServer(filter utils.ServerFilter, server config.Server) bool {
 	return false
 }
 
-func GetServerSSHUsersMenu(server config.Server, timeout string, matchPolicies []*pl.Policy) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
+func GetServerSSHUsersMenu(server config.Server, timeout string, matchPolicies []pl.Policy) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		var menu []*MenuItem
 		subMenu := &MenuItem{}
@@ -347,7 +347,7 @@ func getSureApplyMenu(serverFilter utils.ServerFilter, actions utils.ArrayString
 				if false {
 					// TODO: 发送钉钉消息
 					app.App.DT.SendMessage(context.Background(), &utils.SendMessageRequest{
-						AccessToken: app.App.Config.DingTalk.RobotToken,
+						AccessToken: app.App.Config.WithDingTalk.RobotToken,
 						MessageContent: utils.MessageContent{
 							MsgType: "markdown",
 							MarkDown: utils.MarkDownBody{

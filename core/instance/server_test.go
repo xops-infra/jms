@@ -10,15 +10,15 @@ import (
 
 func init() {
 	log.Default().Init()
-	app.NewApplication(false, "~/.ssh/").WithDingTalk()
+	app.NewSshdApplication(false, "~/.ssh/").WithDingTalk()
 }
 
 func TestServerLiveness(t *testing.T) {
 	instance.LoadServer(app.App.Config)
-	instance.ServerLiveness(app.App.Config.DingTalk.RobotToken)
+	instance.ServerLiveness(app.App.Config.WithDingTalk.RobotToken)
 }
 
 // test sendMessage
 func TestSendMessage(t *testing.T) {
-	instance.SendMessage(app.App.Config.DingTalk.RobotToken, "ssh test")
+	instance.SendMessage(app.App.Config.WithDingTalk.RobotToken, "ssh test")
 }
