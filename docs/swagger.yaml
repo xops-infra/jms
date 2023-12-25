@@ -7,29 +7,57 @@ definitions:
       message:
         type: string
     type: object
-  policy.CreatePolicyRequest:
+  policy.Action:
+    enum:
+    - connect
+    - deny_connect
+    - download
+    - deny_download
+    - upload
+    - deny_upload
+    type: string
+    x-enum-varnames:
+    - Connect
+    - DenyConnect
+    - Download
+    - DenyDownload
+    - Upload
+    - DenyUpload
+  policy.ApprovalMut:
     properties:
       actions:
-        items: {}
+        items:
+          $ref: '#/definitions/policy.Action'
         type: array
-      expires_at:
+      applicant:
         type: string
       groups:
         items: {}
         type: array
       name:
         type: string
+      period:
+        $ref: '#/definitions/policy.Period'
       server_filter:
         $ref: '#/definitions/utils.ServerFilter'
       users:
         items: {}
         type: array
-    required:
-    - actions
-    - expires_at
-    - name
-    - server_filter
     type: object
+  policy.Period:
+    enum:
+    - 1d
+    - 1w
+    - 1m
+    - 1y
+    - ever
+    type: string
+    x-enum-varnames:
+    - OneDay
+    - OneWeek
+    - OneMonth
+    - OneYear
+    - Forever
   utils.ServerFilter:
     properties:
       env_type:
@@ -48,6 +76,40 @@ info:
   title: cbs manager API
   version: v1
 paths:
+  /api/v1/approval:
+    post:
+      consumes:
+      - application/json
+      description: 创建策略
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/policy.ApprovalMut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response'
+      summary: 创建策略
+      tags:
+      - Approval
   /api/v1/policy:
     get:
       consumes:
@@ -61,6 +123,10 @@ paths:
       - description: name
         in: query
         name: name
+        type: string
+      - description: policy id
+        in: query
+        name: id
         type: string
       - description: user
         in: query
@@ -84,21 +150,21 @@ paths:
       summary: 获取策略列表
       tags:
       - Policy
-    post:
+  /api/v1/policy/:id:
+    delete:
       consumes:
       - application/json
-      description: 创建策略
+      description: 删除策略
       parameters:
       - description: token
         in: header
         name: Authorization
         type: string
-      - description: request
-        in: body
-        name: request
+      - description: policy id
+        in: path
+        name: id
         required: true
-        schema:
-          $ref: '#/definitions/policy.CreatePolicyRequest'
+        type: string
       produces:
       - application/json
       responses:
@@ -114,7 +180,45 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/api.Response'
-      summary: 创建策略
+      summary: 删除策略
+      tags:
+      - Policy
+    put:
+      consumes:
+      - application/json
+      description: 更新策略
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: policy id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/policy.ApprovalMut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response'
+      summary: 更新策略
       tags:
       - Policy
 swagger: "2.0"

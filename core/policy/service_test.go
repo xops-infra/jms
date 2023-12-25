@@ -21,7 +21,7 @@ func init() {
 
 func TestCreatePolicy(t *testing.T) {
 	expiredAt := time.Now().Add(time.Hour * 24 * 365 * 100)
-	req := policy.CreatePolicyRequest{
+	req := policy.PolicyMut{
 		Name:         tea.String("zhoushoujian-policy-1"),
 		Users:        utils.ArrayString{"zhoushoujian"},
 		Groups:       utils.ArrayString{"admin"},

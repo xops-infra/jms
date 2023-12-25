@@ -30,6 +30,7 @@ func (Policy) TableName() string {
 }
 
 type Action string
+type Period string
 
 const (
 	Connect      Action = "connect"
@@ -38,6 +39,12 @@ const (
 	DenyDownload Action = "deny_download"
 	Upload       Action = "upload"
 	DenyUpload   Action = "deny_upload"
+
+	OneDay   Period = "1d"
+	OneWeek  Period = "1w"
+	OneMonth Period = "1m"
+	OneYear  Period = "1y"
+	Forever  Period = "ever"
 )
 
 var (
@@ -59,12 +66,12 @@ var (
 		"DownloadAndUpload":  DownloadAndUpload,
 	}
 
-	ExpireTimes = map[string]time.Duration{
-		"1d":   time.Hour * 24,
-		"1w":   time.Hour * 24 * 7,
-		"1m":   time.Hour * 24 * 30,
-		"1y":   time.Hour * 24 * 365,
-		"ever": time.Hour * 24 * 365 * 100,
+	ExpireTimes = map[Period]time.Duration{
+		OneDay:   time.Hour * 24,
+		OneWeek:  time.Hour * 24 * 7,
+		OneMonth: time.Hour * 24 * 30,
+		OneYear:  time.Hour * 24 * 365,
+		Forever:  time.Hour * 24 * 365 * 100,
 	}
 )
 
@@ -72,11 +79,40 @@ type PolicyQueryRequest struct {
 	User *string `json:"user"`
 }
 
-type CreatePolicyRequest struct {
+type PolicyMut struct {
 	Name         *string             `json:"name" binding:"required"`
 	Users        utils.ArrayString   `json:"users"`
 	Groups       utils.ArrayString   `json:"groups"`
 	ServerFilter *utils.ServerFilter `json:"server_filter" binding:"required"`
 	Actions      utils.ArrayString   `json:"actions" binding:"required"`
 	ExpiresAt    *time.Time          `json:"expires_at" binding:"required"`
+}
+
+type ApprovalMut struct {
+	Users        utils.ArrayString   `json:"users"`
+	Groups       utils.ArrayString   `json:"groups"`
+	Applicant    *string             `json:"applicant"`
+	Name         *string             `json:"name"`
+	Period       *Period             `json:"period"`
+	Actions      []Action            `json:"actions"`
+	ServerFilter *utils.ServerFilter `json:"server_filter"`
+}
+
+func (a *ApprovalMut) ToPolicyMut() *PolicyMut {
+	req := &PolicyMut{
+		Name:         a.Name,
+		Users:        a.Users,
+		Groups:       a.Groups,
+		ServerFilter: a.ServerFilter,
+	}
+	if a.Period != nil {
+		expiresAt := time.Now().Add(ExpireTimes[*a.Period])
+		req.ExpiresAt = &expiresAt
+	}
+	if len(a.Actions) > 0 {
+		for _, action := range a.Actions {
+			req.Actions = append(req.Actions, string(action))
+		}
+	}
+	return req
 }

@@ -141,7 +141,7 @@ func (d *PolicyService) UpdateUserGroups(username string, groups utils.ArrayStri
 	return d.DB.Model(&user).Update("groups", groups).Error
 }
 
-func (d *PolicyService) CreatePolicy(req *CreatePolicyRequest) (string, error) {
+func (d *PolicyService) CreatePolicy(req *PolicyMut) (string, error) {
 	// 判断策略是否存在
 	var count int64
 	if err := d.DB.Model(&Policy{}).Where("name = ?", *req.Name).Count(&count).Error; err != nil {
@@ -166,8 +166,16 @@ func (d *PolicyService) CreatePolicy(req *CreatePolicyRequest) (string, error) {
 	return newPolicy.Id, nil
 }
 
-func (d *PolicyService) DeletePolicy(name string) error {
-	return d.DB.Where("name = ?", name).UpdateColumn("is_deleted", true).Error
+func (d *PolicyService) UpdatePolicy(id string, mut *PolicyMut) error {
+	policy, err := d.QueryPolicyById(id)
+	if err != nil {
+		return err
+	}
+	return d.DB.Model(policy).Updates(mut).Error
+}
+
+func (d *PolicyService) DeletePolicy(id string) error {
+	return d.DB.Where("id = ?", id).UpdateColumn("is_deleted", true).Error
 }
 
 func (d *PolicyService) ApprovePolicy(policyName, Approver string, IsEnabled bool) error {
@@ -275,6 +283,15 @@ func (d *PolicyService) QueryPolicyByName(name string) ([]Policy, error) {
 		return nil, err
 	}
 	return policies, nil
+}
+
+// QueryPolicyById
+func (d *PolicyService) QueryPolicyById(id string) (*Policy, error) {
+	var policy Policy
+	if err := d.DB.Where("id = ?", id).First(&policy).Error; err != nil {
+		return nil, err
+	}
+	return &policy, nil
 }
 
 // 查询所有

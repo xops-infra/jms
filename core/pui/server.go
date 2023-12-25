@@ -323,7 +323,7 @@ func getExpireMenu(serverFilter utils.ServerFilter, actions utils.ArrayString) f
 func getSureApplyMenu(serverFilter utils.ServerFilter, actions utils.ArrayString, expiredDuration time.Duration) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		expired := time.Now().Add(expiredDuration)
-		policyNew := &pl.CreatePolicyRequest{
+		policyNew := &pl.PolicyMut{
 			Actions:      actions,
 			Users:        utils.ArrayString{(*sess).User()},
 			ServerFilter: &serverFilter,

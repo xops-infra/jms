@@ -17,6 +17,58 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/approval": {
+            "post": {
+                "description": "创建策略",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Approval"
+                ],
+                "summary": "创建策略",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "token",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "description": "request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/policy.ApprovalMut"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/policy": {
             "get": {
                 "description": "获取策略列表，只能差某人或者某个组或者某个策略，不可组合查询，查用户会带出用户所在组的策略",
@@ -41,6 +93,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "name",
                         "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "policy id",
+                        "name": "id",
                         "in": "query"
                     },
                     {
@@ -70,9 +128,11 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "post": {
-                "description": "创建策略",
+            }
+        },
+        "/api/v1/policy/:id": {
+            "put": {
+                "description": "更新策略",
                 "consumes": [
                     "application/json"
                 ],
@@ -82,7 +142,7 @@ const docTemplate = `{
                 "tags": [
                     "Policy"
                 ],
-                "summary": "创建策略",
+                "summary": "更新策略",
                 "parameters": [
                     {
                         "type": "string",
@@ -91,13 +151,68 @@ const docTemplate = `{
                         "in": "header"
                     },
                     {
+                        "type": "string",
+                        "description": "policy id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
                         "description": "request",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.CreatePolicyRequest"
+                            "$ref": "#/definitions/policy.ApprovalMut"
                         }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除策略",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Policy"
+                ],
+                "summary": "删除策略",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "token",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "policy id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -136,20 +251,35 @@ const docTemplate = `{
                 }
             }
         },
-        "policy.CreatePolicyRequest": {
-            "type": "object",
-            "required": [
-                "actions",
-                "expires_at",
-                "name",
-                "server_filter"
+        "policy.Action": {
+            "type": "string",
+            "enum": [
+                "connect",
+                "deny_connect",
+                "download",
+                "deny_download",
+                "upload",
+                "deny_upload"
             ],
+            "x-enum-varnames": [
+                "Connect",
+                "DenyConnect",
+                "Download",
+                "DenyDownload",
+                "Upload",
+                "DenyUpload"
+            ]
+        },
+        "policy.ApprovalMut": {
+            "type": "object",
             "properties": {
                 "actions": {
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "$ref": "#/definitions/policy.Action"
+                    }
                 },
-                "expires_at": {
+                "applicant": {
                     "type": "string"
                 },
                 "groups": {
@@ -159,6 +289,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "period": {
+                    "$ref": "#/definitions/policy.Period"
+                },
                 "server_filter": {
                     "$ref": "#/definitions/utils.ServerFilter"
                 },
@@ -167,6 +300,23 @@ const docTemplate = `{
                     "items": {}
                 }
             }
+        },
+        "policy.Period": {
+            "type": "string",
+            "enum": [
+                "1d",
+                "1w",
+                "1m",
+                "1y",
+                "ever"
+            ],
+            "x-enum-varnames": [
+                "OneDay",
+                "OneWeek",
+                "OneMonth",
+                "OneYear",
+                "Forever"
+            ]
         },
         "utils.ServerFilter": {
             "type": "object",

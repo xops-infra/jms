@@ -55,14 +55,20 @@ func NewGin() *gin.Engine {
 
 	api := r.Group("/api/v1")
 	p := api.Group("/policy")
+	a := api.Group("/approval")
 	{
 		// group,user
 		// 组管理不走 API 操作。直接走 cli操作。
 	}
 	{
 		// policy
-		p.POST("/", createPolicy)
-		p.GET("/", listPolicy)
+		p.GET("", listPolicy)
+		// p.POST("", createPolicy)
+		p.PUT("/:id", updatePolicy)
+		p.DELETE("/:id", deletePolicy)
+	}
+	{
+		a.POST("", createApproval)
 	}
 	return r
 }
