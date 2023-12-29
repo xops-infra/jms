@@ -23,15 +23,6 @@ func NewPolicyService(db *gorm.DB) *PolicyService {
 
 // InitDefault
 func (d *PolicyService) InitDefault() error {
-	// 创建 admin 组
-	group := &Group{
-		Id:   uuid.NewString(),
-		Name: tea.String("admin"),
-	}
-	if err := d.DB.Create(group).Error; err != nil {
-		return err
-	}
-
 	// 创建 admin 用户
 	user := &User{
 		Id:       uuid.NewString(),
@@ -84,41 +75,42 @@ func (d *PolicyService) DescribeUser(name string) (User, error) {
 	return user, nil
 }
 
-func (d *PolicyService) CreateGroup(group *Group) (string, error) {
-	// 判断组是否存在
-	var count int64
-	if err := d.DB.Model(&Group{}).Where("name = ?", group.Name).Count(&count).Error; err != nil {
-		return "", err
+func (d *PolicyService) QueryUserByGroup(group string) ([]User, error) {
+	var users []User
+	if err := d.DB.Where("groups like ?", fmt.Sprintf("%%%s%%", group)).Find(&users).Error; err != nil {
+		return nil, err
 	}
-	if count > 0 {
-		return "", fmt.Errorf("group already exists")
+	// 提高准确度
+	var matchUsers []User
+	for _, user := range users {
+		if user.Groups.Contains(group) {
+			matchUsers = append(matchUsers, user)
+		}
 	}
-
-	group.Id = uuid.NewString()
-	if d.DB.Create(group).Error != nil {
-		return "", d.DB.Error
-	}
-	return group.Id, nil
+	return matchUsers, nil
 }
 
-func (d *PolicyService) DeleteGroup(name string) error {
-	return d.DB.Update("is_deleted", true).Where("name = ?", name).Error
+func (d *PolicyService) QueryAllUser() ([]User, error) {
+	var users []User
+	if err := d.DB.Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
 }
 
 // 自带校验是否存在
-func (d *PolicyService) CreateUser(req *CreateUserRequest) (string, error) {
+func (d *PolicyService) CreateUser(req *UserMut) (string, error) {
 	user := &User{
-		Username: req.Name,
+		Username: req.Username,
 		Email:    req.Email,
 		Groups:   req.Groups,
-		Passwd:   utils.GeneratePasswd(*req.Passwd),
 	}
-	if req.IsLdap != nil {
-		user.IsLdap = req.IsLdap
+	if req.Passwd != nil {
+		user.Passwd = utils.GeneratePasswd(*req.Passwd)
 	}
 	// 判断用户是否存在
 	var count int64
-	if err := d.DB.Model(&User{}).Where("username = ?", req.Name).Count(&count).Error; err != nil {
+	if err := d.DB.Model(&User{}).Where("username = ?", req.Username).Count(&count).Error; err != nil {
 		return "", err
 	}
 	if count > 0 {
@@ -133,12 +125,19 @@ func (d *PolicyService) CreateUser(req *CreateUserRequest) (string, error) {
 }
 
 // 支持如果没有用户则报错
-func (d *PolicyService) UpdateUserGroups(username string, groups utils.ArrayString) error {
-	user, err := d.DescribeUser(username)
+func (d *PolicyService) UpdateUser(id string, req UserMut) error {
+	return d.DB.Model(&User{}).Where("id = ?", id).Updates(req).Error
+}
+
+func (d *PolicyService) PatchUserGroup(id string, req *UserPatchMut) error {
+	// 先依据 id查到用户
+	var user User
+	err := d.DB.Model(&User{}).Where("id = ?", id).First(&user).Error
 	if err != nil {
 		return err
 	}
-	return d.DB.Model(&user).Update("groups", groups).Error
+	user.Groups = append(user.Groups, req.Groups...)
+	return d.DB.Model(&user).Where("id = ?", id).Update("groups", user.Groups).Error
 }
 
 func (d *PolicyService) CreatePolicy(req *PolicyMut) (string, error) {
@@ -172,6 +171,17 @@ func (d *PolicyService) UpdatePolicy(id string, mut *PolicyMut) error {
 		return err
 	}
 	return d.DB.Model(policy).Updates(mut).Error
+}
+
+func (d *PolicyService) UpdatePolicyStatus(id string, mut ApprovalResult) error {
+	policy, err := d.QueryPolicyById(id)
+	if err != nil {
+		return err
+	}
+	return d.DB.Model(policy).Updates(map[string]interface{}{
+		"is_enabled": mut.IsPass,
+		"approver":   mut.Applicant,
+	}).Error
 }
 
 func (d *PolicyService) DeletePolicy(id string) error {

@@ -44,6 +44,13 @@ definitions:
         items: {}
         type: array
     type: object
+  policy.ApprovalResult:
+    properties:
+      applicant:
+        type: string
+      is_pass:
+        type: boolean
+    type: object
   policy.Period:
     enum:
     - 1d
@@ -58,6 +65,20 @@ definitions:
     - OneMonth
     - OneYear
     - Forever
+  policy.UserMut:
+    properties:
+      email:
+        type: string
+      groups:
+        items: {}
+        type: array
+      passwd:
+        type: string
+      username:
+        type: string
+    required:
+    - username
+    type: object
   utils.ServerFilter:
     properties:
       env_type:
@@ -107,14 +128,53 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/api.Response'
-      summary: 创建策略
+      summary: 创建审批策略
+      tags:
+      - Approval
+  /api/v1/approval/:id:
+    patch:
+      consumes:
+      - application/json
+      description: 更新审批结果，可以是同意或者拒绝
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: approval id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/policy.ApprovalResult'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response'
+      summary: 更新审批
       tags:
       - Approval
   /api/v1/policy:
     get:
       consumes:
       - application/json
-      description: 获取策略列表，只能差某人或者某个组或者某个策略，不可组合查询，查用户会带出用户所在组的策略
+      description: 获取策略列表，只能查某人或者某个组或者某个策略，不可组合查询，查用户会带出用户所在组的策略
       parameters:
       - description: token
         in: header
@@ -221,4 +281,113 @@ paths:
       summary: 更新策略
       tags:
       - Policy
+  /api/v1/user:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户列表
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: name
+        in: query
+        name: name
+        type: string
+      - description: group
+        in: query
+        name: group
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response'
+      summary: 获取用户列表
+      tags:
+      - User
+  /api/v1/user/:id:
+    patch:
+      consumes:
+      - application/json
+      description: 支持数组会与现有组进行合并
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: user id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/policy.UserMut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response'
+      summary: 追加用户组
+      tags:
+      - User
+    put:
+      consumes:
+      - application/json
+      description: 更新用户
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: user id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/policy.UserMut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response'
+      summary: 更新用户
+      tags:
+      - User
 swagger: "2.0"

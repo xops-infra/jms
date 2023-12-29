@@ -98,7 +98,7 @@ func (app *Application) WithPolicy() *Application {
 	}
 	// 初始化数据库
 	rdb.AutoMigrate(
-		&policy.Policy{}, &policy.User{}, &policy.Group{},
+		&policy.Policy{}, &policy.User{},
 	)
 	App.PolicyService = policy.NewPolicyService(rdb)
 	return app

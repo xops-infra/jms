@@ -54,11 +54,15 @@ func NewGin() *gin.Engine {
 	})
 
 	api := r.Group("/api/v1")
+
 	p := api.Group("/policy")
 	a := api.Group("/approval")
+	u := api.Group("/user")
 	{
-		// group,user
-		// 组管理不走 API 操作。直接走 cli操作。
+		u.GET("", listUser)
+		// u.POST("", createUser) // ad用户登录后自动创建用户
+		u.PATCH("/:id", updateUserGroup)
+		u.PUT("/:id", updateUser)
 	}
 	{
 		// policy
@@ -69,6 +73,8 @@ func NewGin() *gin.Engine {
 	}
 	{
 		a.POST("", createApproval)
+		a.PATCH("/", updateApproval)
 	}
+
 	return r
 }

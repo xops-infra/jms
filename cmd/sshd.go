@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
 	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron"
@@ -198,9 +197,8 @@ func sessionHandler(sess *ssh.Session) {
 	}
 	// 如果启用 policy策略，默认开始注册登录用户入库
 	if withPolicy {
-		_, err := app.App.PolicyService.CreateUser(&policy.CreateUserRequest{
-			Name:   &user,
-			IsLdap: tea.Bool(true),
+		_, err := app.App.PolicyService.CreateUser(&policy.UserMut{
+			Username: &user,
 		})
 		if err != nil {
 			if !strings.Contains(err.Error(), "user already exists") {

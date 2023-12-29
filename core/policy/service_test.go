@@ -50,8 +50,8 @@ func TestDeletePolicy(t *testing.T) {
 }
 
 func TestUpdateUserGroups(t *testing.T) {
-	err := app.App.PolicyService.UpdateUserGroups("yaolong", utils.ArrayString{
-		"ops",
+	err := app.App.PolicyService.UpdateUser("yaolong", policy.UserMut{
+		Groups: utils.ArrayString{"admin"},
 	})
 	if err != nil {
 		t.Error(err)

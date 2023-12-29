@@ -116,3 +116,8 @@ func (a *ApprovalMut) ToPolicyMut() *PolicyMut {
 	}
 	return req
 }
+
+type ApprovalResult struct {
+	Applicant *string `json:"applicant"`
+	IsPass    *bool   `json:"is_pass"`
+}
