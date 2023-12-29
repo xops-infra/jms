@@ -73,8 +73,7 @@ func NewGin() *gin.Engine {
 	}
 	{
 		a.POST("", createApproval)
-		a.PATCH("/", updateApproval)
+		a.PATCH("/:id", updateApproval)
 	}
-
 	return r
 }
