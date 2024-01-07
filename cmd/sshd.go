@@ -71,7 +71,7 @@ var sshdCmd = &cobra.Command{
 
 		_app := app.NewSshdApplication(debug, sshDir)
 
-		if app.App.Config.WithDingTalk.Enable {
+		if app.App.Config.WithSSHCheck.Enable {
 			log.Infof("enable dingtalk")
 			_app.WithDingTalk()
 		}
@@ -90,7 +90,7 @@ var sshdCmd = &cobra.Command{
 			log.Infof("with ssh check,5min check once")
 			go func() {
 				for {
-					instance.ServerLiveness(app.App.Config.WithDingTalk.RobotToken)
+					instance.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
 					time.Sleep(5 * time.Minute)
 				}
 			}()

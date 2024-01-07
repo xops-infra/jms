@@ -347,7 +347,7 @@ func getSureApplyMenu(serverFilter utils.ServerFilter, actions utils.ArrayString
 				if false {
 					// TODO: 发送钉钉消息
 					app.App.DT.SendMessage(context.Background(), &utils.SendMessageRequest{
-						AccessToken: app.App.Config.WithDingTalk.RobotToken,
+						AccessToken: app.App.Config.WithSSHCheck.Alert.RobotToken,
 						MessageContent: utils.MessageContent{
 							MsgType: "markdown",
 							MarkDown: utils.MarkDownBody{

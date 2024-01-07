@@ -3,9 +3,10 @@ package instance_test
 import (
 	"testing"
 
+	"github.com/xops-infra/noop/log"
+
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/instance"
-	"github.com/xops-infra/noop/log"
 )
 
 func init() {
@@ -15,10 +16,10 @@ func init() {
 
 func TestServerLiveness(t *testing.T) {
 	instance.LoadServer(app.App.Config)
-	instance.ServerLiveness(app.App.Config.WithDingTalk.RobotToken)
+	instance.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
 }
 
 // test sendMessage
 func TestSendMessage(t *testing.T) {
-	instance.SendMessage(app.App.Config.WithDingTalk.RobotToken, "ssh test")
+	instance.SendMessage(app.App.Config.WithSSHCheck.Alert.RobotToken, "ssh test")
 }

@@ -66,7 +66,7 @@ func NewApiApplication() *Application {
 
 // withLdap
 func (app *Application) WithLdap() *Application {
-	ldap, err := utils.NewLdap(App.Config.Ldap)
+	ldap, err := utils.NewLdap(App.Config.WithLdap)
 	if err != nil {
 		panic(err)
 	}

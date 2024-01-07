@@ -19,13 +19,12 @@ func init() {
 
 // Config config
 type Config struct {
-	Profiles     []model.ProfileConfig `mapstructure:"profiles"`     // 支持配置动态加载
-	Ldap         Ldap                  `mapstructure:"withLdap"`     // 支持配置动态加载
-	Proxies      []Proxy               `mapstructure:"proxies"`      // 支持配置动态加载
-	Keys         map[string]string     `mapstructure:"keys"`         // 支持配置动态加载
-	WithDingTalk WithDingTalk          `mapstructure:"withDingTalk"` // 支持配置动态加载
-	WithSSHCheck WithSSHCheck          `mapstructure:"withSSHCheck"` // 支持配置动态加载
-	WithPolicy   WithPolicy            `mapstructure:"withPolicy"`
+	Profiles     []model.ProfileConfig `mapstructure:"profiles"`     // 云账号配置，用来自动同步云服务器信息
+	Proxies      []Proxy               `mapstructure:"proxies"`      // ssh代理
+	Keys         map[string]string     `mapstructure:"keys"`         // ssh key pair
+	WithLdap     WithLdap              `mapstructure:"withLdap"`     // 配置ldap
+	WithSSHCheck WithSSHCheck          `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
+	WithPolicy   WithPolicy            `mapstructure:"withPolicy"`   // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
 }
 
 type WithPolicy struct {
@@ -33,17 +32,18 @@ type WithPolicy struct {
 	DBFile string `mapstructure:"dbFile"`
 }
 
-type WithDingTalk struct {
-	Enable     bool   `mapstructure:"enable"`
-	RobotToken string `mapstructure:"robotToken"`
-}
-
 type WithSSHCheck struct {
 	Enable bool     `mapstructure:"enable"`
+	Alert  SSHAlert `mapstructure:"alert"`
 	IPS    []string `mapstructure:"ips"`
 }
 
-type Ldap struct {
+// 目前只支持钉钉机器人群告警
+type SSHAlert struct {
+	RobotToken string `mapstructure:"robotToken"`
+}
+
+type WithLdap struct {
 	Enable           bool     `mapstructure:"enable"`
 	BindUser         string   `mapstructure:"bindUser"`
 	BindPassword     string   `mapstructure:"bindPassword"`

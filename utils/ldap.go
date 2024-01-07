@@ -11,10 +11,10 @@ import (
 
 type Ldap struct {
 	Conn   *ldap.Conn
-	Config config.Ldap
+	Config config.WithLdap
 }
 
-func NewLdap(config config.Ldap) (*Ldap, error) {
+func NewLdap(config config.WithLdap) (*Ldap, error) {
 	ldapConn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", config.Host, config.Port))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to LDAP server: %s", err.Error())
