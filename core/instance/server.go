@@ -53,14 +53,17 @@ func LoadServer(conf *config.Config) {
 			continue
 		}
 		// log.Infof("instance:%s key: %s ips:%s\n", *instance.Name, *keyName, *instance.PrivateIP[0])
+		if len(instance.PrivateIP) < 1 || instance.Tags == nil {
+			continue
+		}
 		sshUser := fmtSuperUser(instance)
 		instanceAll[*instance.PrivateIP[0]] = config.Server{
 			ID:       *instance.InstanceID,
-			Name:     *instance.Name,
+			Name:     tea.StringValue(instance.Name),
 			Host:     *instance.PrivateIP[0],
 			Port:     22,
 			Profile:  instance.Profile,
-			Region:   *instance.Region,
+			Region:   tea.StringValue(instance.Region),
 			Status:   instance.Status,
 			KeyPair:  keyName,
 			SSHUsers: &sshUser,
