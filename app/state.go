@@ -22,14 +22,15 @@ const (
 var App *Application
 
 type Application struct {
-	Debug     bool
-	SshDir    string
-	DT        *utils.RobotClient
-	Ldap      *utils.Ldap
-	Config    *config.Config
-	Server    *server.ServerService
-	Cache     *cache.Cache
-	UserCache *cache.Cache // 用户缓存,用于显示用户负载
+	Debug                 bool
+	WithApiServerApproval bool // 是否启用 api server,默认 false 启用自身 cli权限申请管理的一套机制，如果启用则完全交给外部通过调用 API来管理
+	SshDir                string
+	DT                    *utils.RobotClient
+	Ldap                  *utils.Ldap
+	Config                *config.Config
+	Server                *server.ServerService
+	Cache                 *cache.Cache
+	UserCache             *cache.Cache // 用户缓存,用于显示用户负载
 	// DBIo          db.DbIo
 	PolicyService *policy.PolicyService
 }

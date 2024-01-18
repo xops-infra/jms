@@ -18,6 +18,7 @@ require (
 	github.com/spf13/viper v1.16.0
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
+	github.com/swaggo/swag v1.8.12
 	github.com/xops-infra/ginx v0.2.2-0.20231107031346-72ed7cc8fe6c
 	github.com/xops-infra/http-headers v0.0.0-20230213021202-2b827f3526a0
 	github.com/xops-infra/multi-cloud-sdk v0.0.0-20231209121551-37d29dfcda0b
@@ -89,7 +90,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
-	github.com/swaggo/swag v1.8.12 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.762 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm v1.0.748 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.0.762 // indirect

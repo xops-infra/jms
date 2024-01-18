@@ -77,7 +77,8 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 		case MainLabel:
 			// 顶级菜单，如果有审批则主页支持选择审批或者服务器
 			menu = make([]*MenuItem, 0)
-			if app.App.PolicyService != nil {
+
+			if app.App.PolicyService != nil && !app.App.WithApiServerApproval {
 				policies, err := app.App.PolicyService.NeedApprove((*ui.sess).User())
 				if err != nil {
 					log.Errorf("Get need approve policy for admin error: %s", err)
@@ -87,6 +88,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 					menu = append(menu, GetApproveMenu(policies)...)
 				}
 			}
+
 			menu = append(menu, GetServersMenuV2(ui.sess, ui.GetTimeout())...)
 			filter, err := ui.inputFilter(len(menu))
 			if err != nil {

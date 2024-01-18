@@ -24,11 +24,11 @@ import (
 )
 
 var (
-	sshDir     string
-	logDir     string
-	withPolicy bool
-	timeOut    int // s
-	sshdPort   int
+	sshDir                string
+	logDir                string
+	withApiServerApproval bool // 是否启用 api server,默认 false 启用自身 cli权限申请管理的一套机制，如果启用则完全交给外部通过调用 API来管理
+	timeOut               int  // s
+	sshdPort              int
 )
 
 var sshdCmd = &cobra.Command{
@@ -81,6 +81,14 @@ var sshdCmd = &cobra.Command{
 			log.Infof("enable policy,default user: admin/admin")
 		} else {
 			log.Infof("--with-policy=false, this mode any server can be connected")
+		}
+
+		if withApiServerApproval {
+			if !app.App.Config.WithPolicy.Enable {
+				log.Panicf("with-api-server-approval must be used with --with-policy=true")
+			}
+			log.Infof("enable api manager approval")
+			_app.WithApiServerApproval = true
 		}
 
 		instance.LoadServer(app.App.Config)
@@ -145,11 +153,11 @@ func init() {
 	sshdCmd.Flags().IntVar(&sshdPort, "port", 22222, "ssh port")
 	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/jms/logs/", "log dir")
 	sshdCmd.Flags().IntVar(&timeOut, "timeout", 1800, "ssh timeout")
-	sshdCmd.Flags().BoolVar(&withPolicy, "with-policy", true, "use sqlite to store policy")
+	sshdCmd.Flags().BoolVarP(&withApiServerApproval, "with-api-server-approval", "a", false, "use api server to manage cli approval")
 }
 
 func passwordAuth(ctx ssh.Context, pass string) bool {
-	if withPolicy {
+	if app.App.Config.WithPolicy.Enable {
 		// 如果启用 policy策略，登录时需要验证用户密码
 		_, err := app.App.PolicyService.Login(ctx.User(), pass)
 		if err != nil {
@@ -196,7 +204,7 @@ func sessionHandler(sess *ssh.Session) {
 		app.App.UserCache.Add(user, 1, cache.DefaultExpiration)
 	}
 	// 如果启用 policy策略，默认开始注册登录用户入库
-	if withPolicy {
+	if app.App.Config.WithPolicy.Enable {
 		_, err := app.App.PolicyService.CreateUser(&policy.UserMut{
 			Username: &user,
 		})
