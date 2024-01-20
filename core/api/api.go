@@ -22,17 +22,16 @@ import (
 // @Param name query string false "name"
 // @Param id query string false "policy id"
 // @Param user query string false "user"
-// @Param group query string false "group"
 // @Success 200 {object} Response
 // @Failure 500 {object} Response
 // @Router /api/v1/policy [get]
 func listPolicy(c *gin.Context) {
 	user := c.Query("user")
-	group := c.Query("group")
+	// group := c.Query("group")
 	name := c.Query("name")
 	id := c.Query("id")
 	if user != "" {
-		policies, err := app.App.PolicyService.QueryPolicyWithGroup(user)
+		policies, err := app.App.PolicyService.QueryPolicyByUser(user)
 		if err != nil {
 			c.JSON(500, NewErrorResponse(500, err.Error()))
 			return
@@ -40,15 +39,15 @@ func listPolicy(c *gin.Context) {
 		c.JSON(200, NewSuccessResponse(policies))
 		return
 	}
-	if group != "" {
-		policies, err := app.App.PolicyService.QueryPolicyByGroup(group)
-		if err != nil {
-			c.JSON(500, NewErrorResponse(500, err.Error()))
-			return
-		}
-		c.JSON(200, NewSuccessResponse(policies))
-		return
-	}
+	// if group != "" {
+	// 	policies, err := app.App.PolicyService.QueryPolicyByGroup(group)
+	// 	if err != nil {
+	// 		c.JSON(500, NewErrorResponse(500, err.Error()))
+	// 		return
+	// 	}
+	// 	c.JSON(200, NewSuccessResponse(policies))
+	// 	return
+	// }
 	if name != "" {
 		policies, err := app.App.PolicyService.QueryPolicyByName(name)
 		if err != nil {

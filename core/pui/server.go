@@ -21,6 +21,8 @@ import (
 )
 
 func GetServersMenuV2(sess *ssh.Session, timeout string) []*MenuItem {
+	timeStart := time.Now()
+	defer log.Infof("GetServersMenuV2 cost %s", time.Since(timeStart))
 	user := (*sess).User()
 	menu := make([]*MenuItem, 0)
 	servers := instance.GetServers()
@@ -28,16 +30,12 @@ func GetServersMenuV2(sess *ssh.Session, timeout string) []*MenuItem {
 	if app.App.PolicyService == nil {
 		// 如果没有使用数据库，则默认都可见
 		matchPolicies = append(matchPolicies, pl.Policy{
-			Actions: utils.ArrayString{
-				string(pl.Connect),
-				string(pl.Download),
-				string(pl.Upload),
-			},
+			Actions:   pl.All,
 			IsEnabled: tea.Bool(true),
-			Users:     utils.ArrayString{user},
+			Users:     utils.ArrayString{tea.String(user)},
 		})
 	} else {
-		policies, err := app.App.PolicyService.QueryPolicyWithGroup(user)
+		policies, err := app.App.PolicyService.QueryPolicyByUser(user)
 		if err != nil {
 			log.Errorf("query policy error: %s", err)
 		}
@@ -326,7 +324,7 @@ func getSureApplyMenu(serverFilter utils.ServerFilter, actions utils.ArrayString
 		expired := time.Now().Add(expiredDuration)
 		policyNew := &pl.PolicyMut{
 			Actions:      actions,
-			Users:        utils.ArrayString{(*sess).User()},
+			Users:        utils.ArrayString{tea.String((*sess).User())},
 			ServerFilter: &serverFilter,
 			ExpiresAt:    &expired,
 			Name:         tea.String(fmt.Sprintf("%s-%s", (*sess).User(), time.Now().Format("20060102_1504"))),

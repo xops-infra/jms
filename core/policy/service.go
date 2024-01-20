@@ -28,7 +28,7 @@ func (d *PolicyService) InitDefault() error {
 		ID:       uuid.NewString(),
 		Username: tea.String("admin"),
 		Email:    tea.String("admin@example.com"),
-		Groups:   utils.ArrayString{"admin"},
+		Groups:   utils.ArrayString{tea.String("admin")},
 		Passwd:   utils.GeneratePasswd("admin"),
 	}
 	if err := d.DB.Create(user).Error; err != nil {
@@ -152,11 +152,11 @@ func (d *PolicyService) CreatePolicy(req *PolicyMut, approval_id *string) (strin
 		return "", fmt.Errorf("policy already exists")
 	}
 	newPolicy := &Policy{
-		ID:           uuid.NewString(),
-		Name:         req.Name,
-		IsEnabled:    tea.Bool(false), // 默认不启用，需要审批
-		Users:        req.Users,
-		Groups:       req.Groups,
+		ID:        uuid.NewString(),
+		Name:      req.Name,
+		IsEnabled: tea.Bool(false), // 默认不启用，需要审批
+		Users:     req.Users,
+		// Groups:       req.Groups,
 		Actions:      req.Actions,
 		ServerFilter: req.ServerFilter,
 		ExpiresAt:    req.ExpiresAt,
@@ -222,12 +222,12 @@ func (d *PolicyService) UpdateActionsOfPolicy(name string, actions []string) err
 // 只查询用户的策略
 func (d *PolicyService) QueryPolicyByUser(username string) ([]Policy, error) {
 	sql := d.DB.Model(&Policy{}).Where("is_deleted = ?", false)
-	tx := sql.Where("users like ?", fmt.Sprintf("%%%s%%", username))
 	var policies []Policy
-	if err := tx.Find(&policies).Error; err != nil {
+	if err := sql.Find(&policies).Error; err != nil {
 		return nil, err
 	}
 	var matchPolicies []Policy
+	log.Debugf("policies: %v", tea.Prettify(policies))
 	// 精确返回
 	for _, policy := range policies {
 		if policy.Users.Contains(username) {
@@ -238,52 +238,52 @@ func (d *PolicyService) QueryPolicyByUser(username string) ([]Policy, error) {
 	return matchPolicies, nil
 }
 
-// 查询用户组的策略
-func (d *PolicyService) QueryPolicyByGroup(group string) ([]Policy, error) {
-	sql := d.DB.Model(&Policy{}).Where("is_deleted = ?", false)
-	tx := sql.Where("groups like ?", fmt.Sprintf("%%%s%%", group))
-	var policies []Policy
-	if err := tx.Find(&policies).Error; err != nil {
-		return nil, err
-	}
-	var matchPolicies []Policy
-	// 精确返回
-	for _, policy := range policies {
-		if policy.Groups.Contains(group) {
-			matchPolicies = append(matchPolicies, policy)
-		}
-	}
-	return matchPolicies, nil
-}
+// // 查询用户组的策略
+// func (d *PolicyService) QueryPolicyByGroup(group string) ([]Policy, error) {
+// 	sql := d.DB.Model(&Policy{}).Where("is_deleted = ?", false)
+// 	tx := sql.Where("groups like ?", fmt.Sprintf("%%%s%%", group))
+// 	var policies []Policy
+// 	if err := tx.Find(&policies).Error; err != nil {
+// 		return nil, err
+// 	}
+// 	var matchPolicies []Policy
+// 	// 精确返回
+// 	for _, policy := range policies {
+// 		if policy.Groups.Contains(group) {
+// 			matchPolicies = append(matchPolicies, policy)
+// 		}
+// 	}
+// 	return matchPolicies, nil
+// }
 
 // 查询用户和用户组的策略
-func (d *PolicyService) QueryPolicyWithGroup(username string) ([]Policy, error) {
-	var policies []Policy
-	// 查询用户信息
-	userPolicies, err := d.QueryPolicyByUser(username)
-	if err != nil {
-		return nil, err
-	}
-	policies = append(policies, userPolicies...)
+// func (d *PolicyService) QueryPolicyWithGroup(username string) ([]Policy, error) {
+// 	var policies []Policy
+// 	// 查询用户信息
+// 	userPolicies, err := d.QueryPolicyByUser(username)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	policies = append(policies, userPolicies...)
 
-	// 查询用户信息获取组附加组策略
-	user, err := d.DescribeUser(username)
-	if err != nil {
-		if err != gorm.ErrRecordNotFound {
-			return nil, err
-		} else {
-			return policies, nil
-		}
-	}
-	for _, group := range user.Groups {
-		groupPolicies, err := d.QueryPolicyByGroup(group.(string))
-		if err != nil {
-			return nil, err
-		}
-		policies = append(policies, groupPolicies...)
-	}
-	return policies, nil
-}
+// 	// 查询用户信息获取组附加组策略
+// 	user, err := d.DescribeUser(username)
+// 	if err != nil {
+// 		if err != gorm.ErrRecordNotFound {
+// 			return nil, err
+// 		} else {
+// 			return policies, nil
+// 		}
+// 	}
+// 	for _, group := range user.Groups {
+// 		groupPolicies, err := d.QueryPolicyByGroup(group.(string))
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		policies = append(policies, groupPolicies...)
+// 	}
+// 	return policies, nil
+// }
 
 // 查询策略名称
 func (d *PolicyService) QueryPolicyByName(name string) ([]Policy, error) {

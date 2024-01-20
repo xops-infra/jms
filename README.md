@@ -74,10 +74,13 @@ docker run --rm --network=host -dit -v /root/jms/ssh/:/root/.ssh/ -v /root/jms/j
 ## 开发计划
 - [√] API 管理 Policy；
 - [ ] 用户首次登录初始化用户信息，配置用户组；
-- [ ] 接入钉钉审批功能；
+- [√] 接入钉钉审批功能；
 - [ ] 优化文件传输方式，支持scp后文件选择传输，简化传输命令；
 
 ## 开发日志
+### 2024-01
+- feat: 支持钉钉审批功能：
+
 ### 2023-12
 - feat: 增加API管理；
 - chore: 优化交互界面；

@@ -7,6 +7,5 @@ services:
       - "22222:22222"
     volumes: 
       - "/data/ssh:/root/.ssh"
-      - "/data/jms.yml:/root/.jms.yml"
-      - "/data/s-ops-jms/:/opt/jms/"
+      - "/opt/jms/:/opt/jms/"
       - "/mnt/logs/s-ops-jms/:/opt/logs/"

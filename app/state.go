@@ -7,8 +7,11 @@ import (
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
 	server "github.com/xops-infra/multi-cloud-sdk/pkg/service"
+	"github.com/xops-infra/noop/log"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/policy"
@@ -93,17 +96,29 @@ func (app *Application) WithDingTalk() *Application {
 
 // 启用 Policy 规则的情况下，使用数据库记录规则信息
 func (app *Application) WithPolicy() *Application {
-	dbFile := config.Conf.WithPolicy.DBFile
-	if !strings.HasSuffix(dbFile, ".db") {
-		panic("db file must be end with .db")
+	// 优先匹配 pg
+	var dialector gorm.Dialector
+	if app.Config.WithPolicy.PG.Database != "" {
+		log.Infof("with policy pg database: %s", app.Config.WithPolicy.PG.Database)
+		dialector = postgres.Open(app.Config.WithPolicy.PG.GetUrl())
+	} else {
+		dbFile := config.Conf.WithPolicy.DBFile
+		if !strings.HasSuffix(dbFile, ".db") {
+			panic("db file must be end with .db")
+		}
+		if dbFile == "" {
+			dbFile = "jms.db"
+		}
+		dialector = sqlite.Open(AppDir + dbFile)
 	}
-	if dbFile == "" {
-		dbFile = "jms.db"
+
+	gormConfig := &gorm.Config{}
+	if !app.Debug {
+		log.Infof("set gorm logger to silent")
+		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
 	}
-	rdb, err := gorm.Open(
-		sqlite.Open(AppDir+dbFile),
-		&gorm.Config{},
-	)
+
+	rdb, err := gorm.Open(dialector)
 	if err != nil {
 		panic("无法连接到数据库")
 	}

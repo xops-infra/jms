@@ -13,7 +13,6 @@ type Policy struct {
 	IsDeleted    *bool               `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
 	Name         *string             `json:"name" gorm:"column:name;not null"`
 	Users        utils.ArrayString   `json:"users" gorm:"column:users;type:json;not null"`
-	Groups       utils.ArrayString   `json:"groups" gorm:"column:groups;type:json;not null"`
 	ServerFilter *utils.ServerFilter `json:"server_filter" gorm:"column:server_filter;type:json;not null"`
 	Actions      utils.ArrayString   `json:"actions" gorm:"column:actions;type:json;not null"`
 	ExpiresAt    *time.Time          `json:"expires_at" gorm:"column:expires_at;not null"`

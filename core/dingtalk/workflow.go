@@ -20,6 +20,10 @@ func CreateApproval(applicant string, values []dt.FormComponentValue) (string, e
 		return "", err
 	}
 	log.Debugf(tea.Prettify(user), tea.Prettify(values))
+	if user.DingtalkID == nil || user.DingtalkDeptID == nil {
+		return "", fmt.Errorf("get user %s dingtalkid or dingtalkdeptid failed", applicant)
+	}
+
 	return app.App.DingTalkClient.Workflow.CreateProcessInstance(&dt.CreateProcessInstanceInput{
 		ProcessCode:         app.App.Config.WithDingtalk.ProcessCode,
 		OriginatorUserID:    tea.StringValue(user.DingtalkID),

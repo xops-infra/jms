@@ -7,6 +7,7 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 )
@@ -36,8 +37,27 @@ type WithDingtalk struct {
 }
 
 type WithPolicy struct {
-	Enable bool   `mapstructure:"enable"`
-	DBFile string `mapstructure:"dbFile"`
+	Enable bool     `mapstructure:"enable"`
+	DBFile string   `mapstructure:"dbFile"`
+	PG     PGConfig `mapstructure:"pg"`
+}
+
+type PGConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Database string `mapstructure:"database"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+}
+
+func (c *PGConfig) GetUrl() string {
+	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai",
+		c.Host,
+		c.Username,
+		c.Password,
+		c.Database,
+		cast.ToString(c.Port),
+	)
 }
 
 type WithSSHCheck struct {

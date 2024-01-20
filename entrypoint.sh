@@ -14,9 +14,4 @@ if [ -n "$DEBUG" ]; then
     DEBUG="--debug"
 fi
 
-# with-ssh-check
-if [ -n "$WITH_SSH_CHECK" ]; then
-    WITH_SSH_CHECK="--with-ssh-check"
-fi
-
-/usr/bin/jms-go $SSH_DIR_FLAG $DEBUG $WITH_SSH_CHECK
+/usr/bin/jms-go sshd $SSH_DIR_FLAG $DEBUG
