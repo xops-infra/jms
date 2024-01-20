@@ -43,6 +43,7 @@ func LoadUsers() error {
 	startTime := time.Now()
 	log.Infof("load dingtalk users start")
 	for depart := range departIDChan {
+		log.Infof("load depart %d", depart)
 		departRes, err := app.App.DingTalkClient.Depart.GetDepartmentIDs(&dt.GetDepartmentsIDInput{
 			DeptID: depart,
 		}, app.App.DingTalkClient.AccessToken.Token)
@@ -152,13 +153,17 @@ func LoadApproval() {
 		if !resp.Success {
 			continue
 		}
-		if resp.Result.Result != nil && *resp.Result.Status == "COMPLETED" {
+		if resp.Result.Result != nil {
+
 			update := ApprovalResult{
 				Applicant: tea.String(fmt.Sprintf("%s: %s", "BusinessId", *resp.Result.BusinessId)),
 				IsPass:    tea.Bool(false),
 			}
-			if *resp.Result.Result == "agree" {
+			if *resp.Result.Status == "COMPLETED" && *resp.Result.Result == "agree" {
 				update.IsPass = tea.Bool(true)
+			}
+			if *resp.Result.Status == "TERMINATED" {
+				update.Applicant = tea.String("BusinessId: TERMINATED")
 			}
 			err = app.App.PolicyService.UpdatePolicyStatus(policy.ID, update)
 			if err != nil {

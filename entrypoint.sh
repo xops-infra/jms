@@ -14,4 +14,8 @@ if [ -n "$DEBUG" ]; then
     DEBUG="--debug"
 fi
 
-/usr/bin/jms-go sshd $SSH_DIR_FLAG $DEBUG
+if [ -n "$API" ]; then
+    /usr/bin/jms-go api $DEBUG
+else
+    /usr/bin/jms-go sshd $SSH_DIR_FLAG $DEBUG
+fi

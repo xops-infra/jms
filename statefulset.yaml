@@ -1,7 +1,8 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: jms-statefulset
+  name: s-ops-jms-statefulset
+  namespace: ops-qa
 spec:
   replicas: 1
   selector:
@@ -19,13 +20,9 @@ spec:
         - name: jms-api
           image: zhoushoujian/jms:latest
           imagePullPolicy: Always
-          cmd:
-            - jms-go api
           env:
-            - name : WITH_SSH_CHECK
+            - name: API
               value: "true"
-            - name: SSH_DIR
-              value: /opt/jms/.ssh/
           volumeMounts:
             - mountPath: /opt/jms/.jms.yml
               subPath: .jms.yml
@@ -33,7 +30,6 @@ spec:
               readOnly: true
             - mountPath: /opt/jms/
               name: ssh-volume
-
           resources:
             limits:
               cpu: 1
@@ -82,7 +78,7 @@ spec:
             name: jms-config
         - name: ssh-volume
           persistentVolumeClaim:
-            claimName: jms-ssh-claim
+            claimName: s-ops-jms-ssh-claim
         - name: logs-volume
           hostPath:
             path: /mnt/logs/jms-tools/
@@ -91,18 +87,20 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: jms-ssh-claim
+  name: s-ops-jms-ssh-claim
+  namespace: ops-qa
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
+      storage: 80Gi
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: jms
+  name: s-ops-jms
+  namespace: ops-qa
 spec:
   ports:
     - port: 22222
@@ -110,7 +108,7 @@ spec:
       nodePort: 32222
       protocol: TCP
       name: ssh
-    - port: 80
+    - port: 8013
       targetPort: 8013
       protocol: TCP
       name: api

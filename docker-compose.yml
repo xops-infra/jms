@@ -6,6 +6,6 @@ services:
     ports: 
       - "22222:22222"
     volumes: 
-      - "/data/ssh:/root/.ssh"
+      - "~/.ssh/:/root/.ssh"
       - "/opt/jms/:/opt/jms/"
       - "/mnt/logs/s-ops-jms/:/opt/logs/"
