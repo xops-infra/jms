@@ -1,9 +1,15 @@
 package api
 
 import (
+	"strings"
+
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/gin-gonic/gin"
+	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
+	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/policy"
 )
 
@@ -150,14 +156,76 @@ func createApproval(c *gin.Context) {
 		c.JSON(400, NewErrorResponse(400, err.Error()))
 		return
 	}
-	policyId, err := app.App.PolicyService.CreatePolicy(req.ToPolicyMut())
-	if err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
-		return
+	defer func() {
+		if err := recover(); err != nil {
+			c.JSON(500, NewErrorResponse(500, err.(error).Error()))
+			log.Errorf("create approval error: %s", err)
+			return
+		}
+	}()
+	// 如果启用了审批，创建审批
+	if app.App.Config.WithDingtalk.Enable {
+		values := []dt.FormComponentValue{}
+		if req.Groups != nil {
+			var vString []string
+			for _, v := range req.Groups {
+				vString = append(vString, v.(string))
+			}
+			values = append(values, dt.FormComponentValue{
+				Name:  tea.String("Teams"),
+				Value: tea.String(strings.Join(vString, ",")),
+			})
+		}
+		if req.ServerFilter != nil {
+			values = append(values, dt.FormComponentValue{
+				Name:  tea.String("Assets"),
+				Value: tea.String(tea.Prettify(req.ServerFilter)),
+			})
+		}
+		if req.Period != nil {
+			values = append(values, dt.FormComponentValue{
+				Name:  tea.String("DateExpired"),
+				Value: tea.String(string(*req.Period)),
+			})
+		}
+		values = append(values, dt.FormComponentValue{
+			Name:  tea.String("Comment"),
+			Value: tea.String("来自API接口发起的策略申请"),
+		})
+		if req.Actions != nil {
+			var vString []string
+			for _, v := range req.Actions {
+				vString = append(vString, string(v))
+			}
+			values = append(values, dt.FormComponentValue{
+				Name:  tea.String("Actions"),
+				Value: tea.String(strings.Join(vString, ",")),
+			})
+		}
+		processid, err := dingtalk.CreateApproval(*req.Applicant, values)
+		if err != nil {
+			log.Errorf("dingtalk.CreateApproval error: %s", err)
+			c.JSON(500, NewErrorResponse(500, err.Error()))
+			return
+		}
+		policyId, err := app.App.PolicyService.CreatePolicy(req.ToPolicyMut(), &processid)
+		if err != nil {
+			c.JSON(500, NewErrorResponse(500, err.Error()))
+			return
+		}
+		c.JSON(200, NewSuccessResponse(gin.H{
+			"policy_id": policyId,
+		}))
+	} else {
+		policyId, err := app.App.PolicyService.CreatePolicy(req.ToPolicyMut(), nil)
+		if err != nil {
+			c.JSON(500, NewErrorResponse(500, err.Error()))
+			return
+		}
+		c.JSON(200, NewSuccessResponse(gin.H{
+			"policy_id": policyId,
+		}))
 	}
-	c.JSON(200, NewSuccessResponse(gin.H{
-		"policy_id": policyId,
-	}))
 }
 
 // @Summary 更新审批

@@ -11,7 +11,7 @@ import (
 
 func init() {
 	log.Default().Init()
-	app.NewSshdApplication(false, "~/.ssh/").WithDingTalk()
+	app.NewSshdApplication(false, "~/.ssh/").WithRobot()
 }
 
 func TestServerLiveness(t *testing.T) {

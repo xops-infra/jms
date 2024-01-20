@@ -16,6 +16,37 @@ spec:
       nodeSelector:
         env: jms-v2
       containers:
+        - name: jms-api
+          image: zhoushoujian/jms:latest
+          imagePullPolicy: Always
+          cmd:
+            - jms-go api
+          env:
+            - name : WITH_SSH_CHECK
+              value: "true"
+            - name: SSH_DIR
+              value: /opt/jms/.ssh/
+          volumeMounts:
+            - mountPath: /opt/jms/.jms.yml
+              subPath: .jms.yml
+              name: jms-config-volume
+              readOnly: true
+            - mountPath: /opt/jms/
+              name: ssh-volume
+
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 0.1
+              memory: 256Mi
+          ports:
+            - name: api
+              containerPort: 8013
+              protocol: TCP
+
+
         - name: jms
           image: zhoushoujian/jms:latest
           imagePullPolicy: Always
@@ -78,6 +109,11 @@ spec:
       targetPort: 22222
       nodePort: 32222
       protocol: TCP
+      name: ssh
+    - port: 80
+      targetPort: 8013
+      protocol: TCP
+      name: api
   selector:
     app: jms
   type: NodePort

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/sshd"
-	"github.com/xops-infra/jms/utils"
 )
 
 // dingtalkToken 为钉钉机器人的token
@@ -70,11 +70,11 @@ func ServerLiveness(dingtalkToken string) {
 
 // 发送到群里
 func SendMessage(token, msg string) {
-	err := app.App.DT.SendMessage(context.Background(), &utils.SendMessageRequest{
+	err := app.App.RobotClient.SendMessage(context.Background(), &dt.SendMessageRequest{
 		AccessToken: token,
-		MessageContent: utils.MessageContent{
+		MessageContent: dt.MessageContent{
 			MsgType: "text",
-			Text: utils.TextBody{
+			Text: dt.TextBody{
 				Content: msg,
 			},
 		},

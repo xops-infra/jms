@@ -1,18 +1,19 @@
 package pui
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
+	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/instance"
 	pl "github.com/xops-infra/jms/core/policy"
 	"github.com/xops-infra/jms/core/sshd"
@@ -336,7 +337,38 @@ func getSureApplyMenu(serverFilter utils.ServerFilter, actions utils.ArrayString
 			Label: "确定",
 			SelectedFunc: func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
 				log.Infof("create policy: %s", tea.Prettify(policyNew))
-				policyId, err := app.App.PolicyService.CreatePolicy(policyNew)
+				var approval_id string
+				if app.App.Config.WithDingtalk.Enable {
+					id, err := dingtalk.CreateApproval((*sess).User(), []dt.FormComponentValue{
+						{
+							Name:  tea.String("Teams"),
+							Value: tea.String(tea.Prettify(policyNew.Groups)),
+						},
+						{
+							Name:  tea.String("Assets"),
+							Value: tea.String(tea.Prettify(policyNew.ServerFilter)),
+						},
+						{
+							Name:  tea.String("DateExpired"),
+							Value: tea.String(policyNew.ExpiresAt.Format(time.RFC3339)),
+						},
+						{
+							Name:  tea.String("Actions"),
+							Value: tea.String(tea.Prettify(policyNew.Actions)),
+						},
+						{
+							Name:  tea.String("Comment"),
+							Value: tea.String("来自PUI发起的策略申请"),
+						},
+					})
+					if err != nil {
+						log.Errorf("dingtalk.CreateApproval error: %s", err)
+						return false, err
+					}
+					approval_id = id
+					sshd.Info(fmt.Sprintf("成功创建钉钉审批:%s 等等管理员审批 完成后策略自动生效", id), sess)
+				}
+				policyId, err := app.App.PolicyService.CreatePolicy(policyNew, &approval_id)
 				if err != nil {
 					log.Errorf("create policy error: %s", err)
 					return false, err
@@ -346,16 +378,8 @@ func getSureApplyMenu(serverFilter utils.ServerFilter, actions utils.ArrayString
 				sshd.Info(fmt.Sprintf("审批ID:%s，创建成功！等待管理员审核。", policyId), sess)
 				if false {
 					// TODO: 发送钉钉消息
-					app.App.DT.SendMessage(context.Background(), &utils.SendMessageRequest{
-						AccessToken: app.App.Config.WithSSHCheck.Alert.RobotToken,
-						MessageContent: utils.MessageContent{
-							MsgType: "markdown",
-							MarkDown: utils.MarkDownBody{
-								Title: "JMS申请权限",
-								Text:  fmt.Sprintf("### 新增JMS权限申请，请处理\n - 工单ID:%s\n```json\n%s\n```", policyId, tea.Prettify(policyNew)),
-							},
-						},
-					})
+					instance.SendMessage(app.App.Config.WithSSHCheck.Alert.RobotToken,
+						fmt.Sprintf("新增审批ID:%s，创建成功！等待管理员审核。\n%s", policyId, tea.Prettify(policyNew)))
 				}
 				return true, nil
 			}})

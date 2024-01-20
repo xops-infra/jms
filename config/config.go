@@ -25,6 +25,14 @@ type Config struct {
 	WithLdap     WithLdap              `mapstructure:"withLdap"`     // 配置ldap
 	WithSSHCheck WithSSHCheck          `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
 	WithPolicy   WithPolicy            `mapstructure:"withPolicy"`   // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
+	WithDingtalk WithDingtalk          `mapstructure:"withDingtalk"` // 配置钉钉审批流程
+}
+
+type WithDingtalk struct {
+	Enable      bool   `mapstructure:"enable"`
+	AppKey      string `mapstructure:"appKey"`
+	AppSecret   string `mapstructure:"appSecret"`
+	ProcessCode string `mapstructure:"processCode"` // 审批流程编码
 }
 
 type WithPolicy struct {

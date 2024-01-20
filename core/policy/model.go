@@ -7,7 +7,7 @@ import (
 )
 
 type Policy struct {
-	Id           string              `json:"id" gorm:"column:id;primary_key;not null"`
+	ID           string              `json:"id" gorm:"column:id;primary_key;not null"`
 	CreatedAt    *time.Time          `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt    *time.Time          `json:"updated_at" gorm:"column:updated_at"`
 	IsDeleted    *bool               `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
@@ -17,7 +17,8 @@ type Policy struct {
 	ServerFilter *utils.ServerFilter `json:"server_filter" gorm:"column:server_filter;type:json;not null"`
 	Actions      utils.ArrayString   `json:"actions" gorm:"column:actions;type:json;not null"`
 	ExpiresAt    *time.Time          `json:"expires_at" gorm:"column:expires_at;not null"`
-	Approver     *string             `json:"approver" gorm:"column:approver"` // 审批人
+	Approver     *string             `json:"approver" gorm:"column:approver"`       // 审批人
+	ApprovalID   *string             `json:"approval_id" gorm:"column:approval_id"` // 审批ID
 	IsEnabled    *bool               `json:"is_enabled" gorm:"column:is_enabled;default:false;not null"`
 }
 
@@ -91,7 +92,7 @@ type PolicyMut struct {
 type ApprovalMut struct {
 	Users        utils.ArrayString   `json:"users"`
 	Groups       utils.ArrayString   `json:"groups"`
-	Applicant    *string             `json:"applicant"`
+	Applicant    *string             `json:"applicant" binding:"required"` // 申请人AD名
 	Name         *string             `json:"name"`
 	Period       *Period             `json:"period"`
 	Actions      []Action            `json:"actions"`

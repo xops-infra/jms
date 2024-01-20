@@ -16,6 +16,7 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	appConfig "github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/jump"
 	"github.com/xops-infra/jms/core/policy"
@@ -24,11 +25,10 @@ import (
 )
 
 var (
-	sshDir                string
-	logDir                string
-	withApiServerApproval bool // 是否启用 api server,默认 false 启用自身 cli权限申请管理的一套机制，如果启用则完全交给外部通过调用 API来管理
-	timeOut               int  // s
-	sshdPort              int
+	sshDir   string
+	logDir   string
+	timeOut  int // s
+	sshdPort int
 )
 
 var sshdCmd = &cobra.Command{
@@ -73,6 +73,11 @@ var sshdCmd = &cobra.Command{
 
 		if app.App.Config.WithSSHCheck.Enable {
 			log.Infof("enable dingtalk")
+			_app.WithRobot()
+		}
+
+		if app.App.Config.WithDingtalk.Enable {
+			log.Infof("enable dingtalk")
 			_app.WithDingTalk()
 		}
 
@@ -83,12 +88,11 @@ var sshdCmd = &cobra.Command{
 			log.Infof("--with-policy=false, this mode any server can be connected")
 		}
 
-		if withApiServerApproval {
+		if app.App.Config.WithDingtalk.Enable {
 			if !app.App.Config.WithPolicy.Enable {
 				log.Panicf("with-api-server-approval must be used with --with-policy=true")
 			}
-			log.Infof("enable api manager approval")
-			_app.WithApiServerApproval = true
+			log.Infof("enable api dingtalk Approve")
 		}
 
 		instance.LoadServer(app.App.Config)
@@ -153,7 +157,6 @@ func init() {
 	sshdCmd.Flags().IntVar(&sshdPort, "port", 22222, "ssh port")
 	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/jms/logs/", "log dir")
 	sshdCmd.Flags().IntVar(&timeOut, "timeout", 1800, "ssh timeout")
-	sshdCmd.Flags().BoolVarP(&withApiServerApproval, "with-api-server-approval", "a", false, "use api server to manage cli approval")
 }
 
 func passwordAuth(ctx ssh.Context, pass string) bool {
@@ -300,6 +303,17 @@ func startScheduler() {
 	c.AddFunc("0 */2 * * * *", func() {
 		instance.LoadServer(app.App.Config)
 	})
+	if app.App.Config.WithDingtalk.Enable {
+		c.AddFunc("0 0 2 * * *", func() {
+			err := dingtalk.LoadUsers()
+			if err != nil {
+				log.Error(err.Error())
+			}
+		})
+		c.AddFunc("0 * * * * *", func() {
+			dingtalk.LoadApproval()
+		})
+	}
 
 	c.Start()
 	select {}

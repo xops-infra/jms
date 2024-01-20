@@ -25,7 +25,7 @@ func NewPolicyService(db *gorm.DB) *PolicyService {
 func (d *PolicyService) InitDefault() error {
 	// 创建 admin 用户
 	user := &User{
-		Id:       uuid.NewString(),
+		ID:       uuid.NewString(),
 		Username: tea.String("admin"),
 		Email:    tea.String("admin@example.com"),
 		Groups:   utils.ArrayString{"admin"},
@@ -101,9 +101,11 @@ func (d *PolicyService) QueryAllUser() ([]User, error) {
 // 自带校验是否存在
 func (d *PolicyService) CreateUser(req *UserMut) (string, error) {
 	user := &User{
-		Username: req.Username,
-		Email:    req.Email,
-		Groups:   req.Groups,
+		Username:       req.Username,
+		Email:          req.Email,
+		Groups:         req.Groups,
+		DingtalkID:     req.DingtalkID,
+		DingtalkDeptID: req.DingtalkDeptID,
 	}
 	if req.Passwd != nil {
 		user.Passwd = utils.GeneratePasswd(*req.Passwd)
@@ -117,11 +119,11 @@ func (d *PolicyService) CreateUser(req *UserMut) (string, error) {
 		return "", fmt.Errorf("user already exists")
 	}
 
-	user.Id = uuid.NewString()
+	user.ID = uuid.NewString()
 	if d.DB.Create(user).Error != nil {
 		return "", d.DB.Error
 	}
-	return user.Id, nil
+	return user.ID, nil
 }
 
 // 支持如果没有用户则报错
@@ -140,7 +142,7 @@ func (d *PolicyService) PatchUserGroup(id string, req *UserPatchMut) error {
 	return d.DB.Model(&user).Where("id = ?", id).Update("groups", user.Groups).Error
 }
 
-func (d *PolicyService) CreatePolicy(req *PolicyMut) (string, error) {
+func (d *PolicyService) CreatePolicy(req *PolicyMut, approval_id *string) (string, error) {
 	// 判断策略是否存在
 	var count int64
 	if err := d.DB.Model(&Policy{}).Where("name = ?", *req.Name).Count(&count).Error; err != nil {
@@ -150,7 +152,7 @@ func (d *PolicyService) CreatePolicy(req *PolicyMut) (string, error) {
 		return "", fmt.Errorf("policy already exists")
 	}
 	newPolicy := &Policy{
-		Id:           uuid.NewString(),
+		ID:           uuid.NewString(),
 		Name:         req.Name,
 		IsEnabled:    tea.Bool(false), // 默认不启用，需要审批
 		Users:        req.Users,
@@ -158,11 +160,12 @@ func (d *PolicyService) CreatePolicy(req *PolicyMut) (string, error) {
 		Actions:      req.Actions,
 		ServerFilter: req.ServerFilter,
 		ExpiresAt:    req.ExpiresAt,
+		ApprovalID:   approval_id,
 	}
 	if d.DB.Create(newPolicy).Error != nil {
 		return "", d.DB.Error
 	}
-	return newPolicy.Id, nil
+	return newPolicy.ID, nil
 }
 
 func (d *PolicyService) UpdatePolicy(id string, mut *PolicyMut) error {

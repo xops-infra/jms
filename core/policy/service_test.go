@@ -33,7 +33,7 @@ func TestCreatePolicy(t *testing.T) {
 		},
 		ExpiresAt: &expiredAt,
 	}
-	result, err := app.App.PolicyService.CreatePolicy(&req)
+	result, err := app.App.PolicyService.CreatePolicy(&req, nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -68,7 +68,7 @@ func TestQueryPolicy(t *testing.T) {
 }
 
 func TestQueryUser(t *testing.T) {
-	result, err := app.App.PolicyService.DescribeUser("yaolong")
+	result, err := app.App.PolicyService.DescribeUser("zhoushoujian")
 	if err != nil {
 		t.Error(err)
 		return

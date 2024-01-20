@@ -51,7 +51,7 @@ to quickly create a Cobra application.`,
 		}
 
 		// init app
-		app.NewApiApplication().WithPolicy()
+		app.NewApiApplication().WithPolicy().WithDingTalk()
 
 		log.Infof("api server start on port: %d", apiPort)
 		g := api.NewGin()

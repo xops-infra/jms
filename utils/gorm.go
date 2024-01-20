@@ -3,7 +3,9 @@ package utils
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -35,6 +37,11 @@ type ServerFilter struct {
 	IpAddr  *string `json:"ip_addr" `
 	EnvType *string `json:"env_type"`
 	Team    *string `json:"team"`
+}
+
+func (a ServerFilter) ToString() string {
+	return fmt.Sprintf("Name:%s IP:%s Env:%s Team:%s",
+		tea.StringValue(a.Name), tea.StringValue(a.IpAddr), tea.StringValue(a.EnvType), tea.StringValue(a.Team))
 }
 
 func (a ServerFilter) Value() (driver.Value, error) {
