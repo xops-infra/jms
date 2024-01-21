@@ -18,10 +18,20 @@ import (
 	"github.com/xops-infra/jms/utils"
 )
 
-const (
+var (
 	AppDir   = "/opt/jms/"
 	AuditDir = "/opt/jms/audit/"
 )
+
+func init() {
+	// set default
+	if config.Conf.APPSet.Audit.Dir != "" {
+		AuditDir = config.Conf.APPSet.Audit.Dir
+	}
+	if config.Conf.APPSet.HomeDir != "" {
+		AppDir = config.Conf.APPSet.HomeDir
+	}
+}
 
 var App *Application
 

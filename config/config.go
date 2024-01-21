@@ -20,6 +20,7 @@ func init() {
 
 // Config config
 type Config struct {
+	APPSet       APPSet                `mapstructure:"appSet"`       // 全局配置
 	Profiles     []model.ProfileConfig `mapstructure:"profiles"`     // 云账号配置，用来自动同步云服务器信息
 	Proxies      []Proxy               `mapstructure:"proxies"`      // ssh代理
 	Keys         map[string]string     `mapstructure:"keys"`         // ssh key pair
@@ -27,6 +28,18 @@ type Config struct {
 	WithSSHCheck WithSSHCheck          `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
 	WithPolicy   WithPolicy            `mapstructure:"withPolicy"`   // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
 	WithDingtalk WithDingtalk          `mapstructure:"withDingtalk"` // 配置钉钉审批流程
+}
+
+type APPSet struct {
+	HomeDir string `mapstructure:"homeDir"` // 主目录,默认/opt/jms/
+	Audit   Audit  `mapstructure:"audit"`   // 回放日志配置
+}
+
+type Audit struct {
+	Enable   bool   `mapstructure:"enable"`   // 是否启用
+	Cron     string `mapstructure:"cron"`     // 定时任务默认 "0 0 3 * * *" 表示每天凌晨 3 点触发
+	Dir      string `mapstructure:"dir"`      // 日志目录,默认/opt/jms/audit/
+	KeepDays int    `mapstructure:"keepDays"` // 保留天数,默认 3 个月
 }
 
 type WithDingtalk struct {

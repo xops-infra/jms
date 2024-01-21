@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
 	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron"
@@ -312,6 +313,16 @@ func startScheduler() {
 		})
 		c.AddFunc("0 * * * * *", func() {
 			dingtalk.LoadApproval()
+		})
+	}
+	if app.App.Config.APPSet.Audit.Enable {
+		log.Infof("enabled audit log archiver,config: %s", tea.Prettify(app.App.Config.APPSet.Audit))
+		cron := "0 0 3 * * *"
+		if app.App.Config.APPSet.Audit.Cron != "" {
+			cron = app.App.Config.APPSet.Audit.Cron
+		}
+		c.AddFunc(cron, func() {
+			sshd.AuditLogArchiver()
 		})
 	}
 

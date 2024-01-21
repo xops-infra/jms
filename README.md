@@ -80,6 +80,7 @@ docker run --rm --network=host -dit -v /root/jms/ssh/:/root/.ssh/ -v /root/jms/j
 ## 开发日志
 ### 2024-01
 - feat: 支持钉钉审批功能：
+- feat: 支持audit日志定时清理
 
 ### 2023-12
 - feat: 增加API管理；
