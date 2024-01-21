@@ -20,10 +20,9 @@ import (
 	"github.com/xops-infra/jms/utils"
 )
 
-func GetServersMenuV2(sess *ssh.Session, timeout string) []*MenuItem {
+func GetServersMenuV2(sess *ssh.Session, user pl.User, timeout string) []*MenuItem {
 	timeStart := time.Now()
 	defer log.Infof("GetServersMenuV2 cost %s", time.Since(timeStart))
-	user := (*sess).User()
 	menu := make([]*MenuItem, 0)
 	servers := instance.GetServers()
 	var matchPolicies []pl.Policy
@@ -32,10 +31,10 @@ func GetServersMenuV2(sess *ssh.Session, timeout string) []*MenuItem {
 		matchPolicies = append(matchPolicies, pl.Policy{
 			Actions:   pl.All,
 			IsEnabled: tea.Bool(true),
-			Users:     utils.ArrayString{tea.String(user)},
+			Users:     utils.ArrayString{tea.String(*user.Username)},
 		})
 	} else {
-		policies, err := app.App.PolicyService.QueryPolicyByUser(user)
+		policies, err := app.App.PolicyService.QueryPolicyByUser(*user.Username)
 		if err != nil {
 			log.Errorf("query policy error: %s", err)
 		}
@@ -131,7 +130,7 @@ func sortMenu(menu []*MenuItem) []*MenuItem {
 }
 
 // 连接，上传，下载的时候，需要根据policy来判断是否允许
-func matchPolicy(user string, inPutAction pl.Action, server config.Server, dbPolicies []pl.Policy) bool {
+func matchPolicy(user pl.User, inPutAction pl.Action, server config.Server, dbPolicies []pl.Policy) bool {
 	// 默认策略优先判断
 	if matchPolicyOwner(user, server) {
 		return true
@@ -186,28 +185,30 @@ func matchPolicy(user string, inPutAction pl.Action, server config.Server, dbPol
 }
 
 // Owner和用户一样则有权限
-func matchPolicyOwner(user string, server config.Server) bool {
-	if server.Tags.GetOwner() != nil && *server.Tags.GetOwner() == user {
+func matchPolicyOwner(user pl.User, server config.Server) bool {
+	if server.Tags.GetOwner() != nil && *server.Tags.GetOwner() == *user.Username {
 		return true
 	}
 	return false
 }
 
 // 用户组一致则有权限
-func matchUserGroup(user string, server config.Server) bool {
-	if server.Tags.GetTeam() != nil {
-		user, err := app.App.PolicyService.DescribeUser(user)
-		if err != nil {
-			log.Errorf("matchUserGroup error: %s", err)
-			return false
+// admin有所有权限
+func matchUserGroup(user pl.User, server config.Server) bool {
+	if user.Groups != nil {
+		if user.Groups.Contains("admin") {
+			return true
 		}
-		if user.Groups != nil {
+		if server.Tags.GetTeam() != nil {
 			for _, group := range user.Groups {
 				if *server.Tags.GetTeam() == group.(string) {
 					return true
 				}
 			}
+		} else {
+			return false
 		}
+
 	}
 	return false
 }

@@ -65,6 +65,11 @@ func (ui *PUI) FlashTimeout() {
 
 // ShowMenu show menu
 func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, selectedChain []*MenuItem) {
+	user, err := app.App.PolicyService.DescribeUser((*ui.sess).User())
+	if err != nil {
+		log.Errorf("DescribeUser error: %s", err)
+		sshd.ErrorInfo(err, ui.sess)
+	}
 	for {
 		menuLabels := make([]string, 0) // 菜单，用于显示
 		menuItems := make([]*MenuItem, 0)
@@ -89,7 +94,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 				}
 			}
 
-			menu = append(menu, GetServersMenuV2(ui.sess, ui.GetTimeout())...)
+			menu = append(menu, GetServersMenuV2(ui.sess, user, ui.GetTimeout())...)
 			filter, err := ui.inputFilter(len(menu))
 			if err != nil {
 				break
