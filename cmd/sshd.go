@@ -161,17 +161,17 @@ func init() {
 }
 
 func passwordAuth(ctx ssh.Context, pass string) bool {
-	if app.App.Config.WithPolicy.Enable {
-		// 如果启用 policy策略，登录时需要验证用户密码
-		_, err := app.App.PolicyService.Login(ctx.User(), pass)
-		if err != nil {
-			log.Error(err.Error())
-			return false
-		}
-		return true
+	if app.App.Config.WithLdap.Enable {
+		err := app.App.Ldap.Login(ctx.User(), pass)
+		return err == nil
 	}
-	err := app.App.Ldap.Login(ctx.User(), pass)
-	return err == nil
+	// 如果启用 policy策略，登录时需要验证用户密码
+	_, err := app.App.PolicyService.Login(ctx.User(), pass)
+	if err != nil {
+		log.Error(err.Error())
+		return false
+	}
+	return true
 }
 
 func publicKeyAuth(ctx ssh.Context, key ssh.PublicKey) bool {
