@@ -7,6 +7,7 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 )
@@ -19,25 +20,72 @@ func init() {
 
 // Config config
 type Config struct {
-	Policies []Policy              `mapstructure:"policies"`
-	Groups   []Group               `mapstructure:"groups"`   // 支持配置动态加载
-	Profiles []model.ProfileConfig `mapstructure:"profiles"` // 支持配置动态加载
-	Ldap     Ldap                  `mapstructure:"ldap"`     // 支持配置动态加载
-	Proxies  []Proxy               `mapstructure:"proxies"`  // 支持配置动态加载
-	Keys     map[string]string     `mapstructure:"keys"`     // 支持配置动态加载
-	DingTalk DingTalk              `mapstructure:"dingtalk"` // 支持配置动态加载
-	Monitor  Monitor               `mapstructure:"monitor"`  // 支持配置动态加载
+	APPSet       APPSet                `mapstructure:"appSet"`       // 全局配置
+	Profiles     []model.ProfileConfig `mapstructure:"profiles"`     // 云账号配置，用来自动同步云服务器信息
+	Proxies      []Proxy               `mapstructure:"proxies"`      // ssh代理
+	Keys         map[string]string     `mapstructure:"keys"`         // ssh key pair
+	WithLdap     WithLdap              `mapstructure:"withLdap"`     // 配置ldap
+	WithSSHCheck WithSSHCheck          `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
+	WithPolicy   WithPolicy            `mapstructure:"withPolicy"`   // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
+	WithDingtalk WithDingtalk          `mapstructure:"withDingtalk"` // 配置钉钉审批流程
 }
 
-type DingTalk struct {
+type APPSet struct {
+	HomeDir string `mapstructure:"homeDir"` // 主目录,默认/opt/jms/
+	Audit   Audit  `mapstructure:"audit"`   // 回放日志配置
+}
+
+type Audit struct {
+	Enable   bool   `mapstructure:"enable"`   // 是否启用
+	Cron     string `mapstructure:"cron"`     // 定时任务默认 "0 0 3 * * *" 表示每天凌晨 3 点触发
+	Dir      string `mapstructure:"dir"`      // 日志目录,默认/opt/jms/audit/
+	KeepDays int    `mapstructure:"keepDays"` // 保留天数,默认 3 个月
+}
+
+type WithDingtalk struct {
+	Enable      bool   `mapstructure:"enable"`
+	AppKey      string `mapstructure:"appKey"`
+	AppSecret   string `mapstructure:"appSecret"`
+	ProcessCode string `mapstructure:"processCode"` // 审批流程编码
+}
+
+type WithPolicy struct {
+	Enable bool     `mapstructure:"enable"`
+	DBFile string   `mapstructure:"dbFile"`
+	PG     PGConfig `mapstructure:"pg"`
+}
+
+type PGConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Database string `mapstructure:"database"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+}
+
+func (c *PGConfig) GetUrl() string {
+	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai",
+		c.Host,
+		c.Username,
+		c.Password,
+		c.Database,
+		cast.ToString(c.Port),
+	)
+}
+
+type WithSSHCheck struct {
+	Enable bool     `mapstructure:"enable"`
+	Alert  SSHAlert `mapstructure:"alert"`
+	IPS    []string `mapstructure:"ips"`
+}
+
+// 目前只支持钉钉机器人群告警
+type SSHAlert struct {
 	RobotToken string `mapstructure:"robotToken"`
 }
 
-type Monitor struct {
-	IPS []string `mapstructure:"ips"`
-}
-
-type Ldap struct {
+type WithLdap struct {
+	Enable           bool     `mapstructure:"enable"`
 	BindUser         string   `mapstructure:"bindUser"`
 	BindPassword     string   `mapstructure:"bindPassword"`
 	Host             string   `mapstructure:"host"`
@@ -54,8 +102,6 @@ func Load(configFile string) {
 	if strings.HasPrefix(configFile, "~") {
 		configFile = strings.Replace(configFile, "~", homedir, 1)
 	}
-	configFile = strings.TrimSuffix(configFile, "/") + "/.jms.yml"
-	fmt.Printf("config file: %s\n", configFile)
 	viper.SetConfigFile(configFile)
 	viper.SetConfigType("yml")
 

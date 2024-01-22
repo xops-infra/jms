@@ -4,40 +4,39 @@ import (
 	"fmt"
 
 	"github.com/go-ldap/ldap"
-	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/noop/log"
+
+	"github.com/xops-infra/jms/config"
 )
 
 type Ldap struct {
 	Conn   *ldap.Conn
-	Config config.Ldap
+	Config config.WithLdap
 }
 
-func NewLdap(config config.Ldap) *Ldap {
-	log.Debugf("LDAP config: %+v", config)
+func NewLdap(config config.WithLdap) (*Ldap, error) {
 	ldapConn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", config.Host, config.Port))
 	if err != nil {
-		fmt.Println(fmt.Sprintf("%s:%d", config.Host, config.Port))
-		log.Panicf("Failed to connect to LDAP server: %s", err)
+		return nil, fmt.Errorf("Failed to connect to LDAP server: %s", err.Error())
 	}
 	err = ldapConn.Bind(config.BindUser, config.BindPassword)
 	if err != nil {
-		log.Panicf("Bind to LDAP server failed: %s", err)
+		return nil, fmt.Errorf("Bind to LDAP server failed: %s", err.Error())
 	}
 	return &Ldap{
 		Conn:   ldapConn,
 		Config: config,
-	}
+	}, nil
 }
 
 func (l *Ldap) refreshLdap() error {
 	ldapConn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", l.Config.Host, l.Config.Port))
 	if err != nil {
-		return fmt.Errorf("Failed to connect to LDAP server: %s", err)
+		return fmt.Errorf("Failed to connect to LDAP server: %s", err.Error())
 	}
 	err = ldapConn.Bind(l.Config.BindUser, l.Config.BindPassword)
 	if err != nil {
-		return fmt.Errorf("Bind to LDAP server failed: %s", err)
+		return fmt.Errorf("Bind to LDAP server failed: %s", err.Error())
 	}
 	l.Conn = ldapConn
 	return nil

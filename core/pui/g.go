@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
 	"github.com/manifoldco/promptui"
 	"github.com/xops-infra/noop/log"
@@ -38,7 +37,7 @@ func (ui *PUI) SessionWrite(msg string) error {
 
 // exit
 func (ui *PUI) Exit() {
-	ui.SessionWrite(fmt.Sprintf("\n退出时间：%s\n", time.Now().Format("2006-01-02 15:04:05")))
+	ui.SessionWrite(fmt.Sprintf(BybLabel, time.Now().Format("2006-01-02 15:04:05")))
 	err := (*ui.sess).Close()
 	if err == nil {
 		log.Infof("User %s form %s exit", (*ui.sess).User(), (*ui.sess).RemoteAddr().String())
@@ -66,32 +65,50 @@ func (ui *PUI) FlashTimeout() {
 
 // ShowMenu show menu
 func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, selectedChain []*MenuItem) {
+	user, err := app.App.PolicyService.DescribeUser((*ui.sess).User())
+	if err != nil {
+		log.Errorf("DescribeUser error: %s", err)
+		sshd.ErrorInfo(err, ui.sess)
+	}
 	for {
-		menuLabels := make([]string, 0)
+		menuLabels := make([]string, 0) // 菜单，用于显示
 		menuItems := make([]*MenuItem, 0)
 		if menu == nil {
 			break
 		}
-		if strings.HasPrefix(label, MainLabel) {
+		// 返回顶级菜单
+		log.Debugf("label: %s MainLabel:%s", label, MainLabel)
+		switch label {
+		case MainLabel:
+			// 顶级菜单，如果有审批则主页支持选择审批或者服务器
 			menu = make([]*MenuItem, 0)
-			menu = append(menu, GetServersMenuV2((*ui.sess).User(), ui.GetTimeout())...)
+
+			if app.App.PolicyService != nil && !app.App.Config.WithPolicy.Enable {
+				policies, err := app.App.PolicyService.NeedApprove((*ui.sess).User())
+				if err != nil {
+					log.Errorf("Get need approve policy for admin error: %s", err)
+				}
+				if len(policies) > 0 {
+					sshd.Info(fmt.Sprintf("作为管理员，有新的审批工单（%d）待处理。", len(policies)), ui.sess)
+					menu = append(menu, GetApproveMenu(policies)...)
+				}
+			}
+
+			menu = append(menu, GetServersMenuV2(ui.sess, user, ui.GetTimeout())...)
 			filter, err := ui.inputFilter(len(menu))
 			if err != nil {
-				continue
+				break
 			}
 			for index, menuItem := range menu {
 				if menuItem.IsShow == nil || menuItem.IsShow(index, menuItem, ui.sess, selectedChain) {
-					log.Debugf("index: %d label: %s", index, menuItem.Label)
 					if !strings.Contains(menuItem.Label, filter) {
 						continue
 					}
 					menuLabels = append(menuLabels, menuItem.Label)
 					menuItems = append(menuItems, menuItem)
 				}
-
 			}
-
-		} else {
+		default:
 			for index, menuItem := range menu {
 				if menuItem.IsShow == nil || menuItem.IsShow(index, menuItem, ui.sess, selectedChain) {
 					log.Debugf("index: %d label: %s", index, menuItem.Label)
@@ -101,11 +118,12 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			}
 		}
 
+		// fmt.Println("menuLabels: ", tea.Prettify(menuLabels))
 		if len(menuLabels) == 0 {
 			continue
 		}
-		menuLabels = append(menuLabels, BackOptionLabel)
-		backIndex := len(menuLabels) - 1
+		menuLabels = append(menuLabels, BackOptionLabel) // 添加返回选项
+		backIndex := len(menuLabels) - 1                 // 返回选项的索引
 		menuPui := promptui.Select{
 			Label:  label,
 			Size:   15,
@@ -114,9 +132,8 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			Stdout: *ui.sess,
 		}
 
+		// get sub menu label
 		index, subMenuLabel, err := menuPui.Run()
-
-		log.Debugf("Selected index: %d subMenuLabel: %+v err: %v", index, subMenuLabel, err)
 		if err != nil {
 			// ^C ^D is not error
 			if err.Error() == "^C" {
@@ -134,16 +151,14 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			log.Errorf("Select menu error %s\n", err)
 			break
 		}
-
 		if index == backIndex {
+			// 返回上一级菜单
 			break
 		}
 
+		// get sub menu
 		selected := menuItems[index]
-		log.Debugf("Selected: %+v", tea.Prettify(selected.Info))
-
 		if selected.GetSubMenu != nil {
-
 			getSubMenu := selected.GetSubMenu
 			subMenu := getSubMenu(index, selected, ui.sess, selectedChain)
 
@@ -165,12 +180,16 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			}
 		}
 
+		// run selected func
 		if selected.SelectedFunc != nil {
 			selectedFunc := selected.SelectedFunc
 			log.Debugf("Run selectFunc %+v", selectedFunc)
-			err := selectedFunc(index, selected, ui.sess, selectedChain)
+			isTop, err := selectedFunc(index, selected, ui.sess, selectedChain)
 			if err != nil {
 				sshd.ErrorInfo(err, ui.sess)
+			}
+			if isTop {
+				label = MainLabel
 			}
 		}
 	}
@@ -181,7 +200,6 @@ func (ui *PUI) inputFilter(nu int) (string, error) {
 	ui.FlashTimeout()
 	servers := instance.GetServers()
 	// 发送屏幕清理指令
-	ui.SessionWrite("\033c")
 	// 发送当前时间
 	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
 		time.Now().Format("2006-01-02 15:04:05"), app.App.UserCache.ItemCount(), len(servers),
@@ -197,6 +215,7 @@ func (ui *PUI) inputFilter(nu int) (string, error) {
 	if err != nil {
 		// ^C ^D is not error
 		if err.Error() == "^C" {
+			ui.SessionWrite("\033c") // clear
 			return "", err
 		} else if err.Error() == "^D" {
 			ui.Exit()

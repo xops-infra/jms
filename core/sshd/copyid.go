@@ -6,8 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/xops-infra/jms/utils"
 	"github.com/xops-infra/noop/log"
+
+	"github.com/xops-infra/jms/utils"
 )
 
 // CopyID CopyID

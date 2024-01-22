@@ -1,7 +1,8 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: jms-statefulset
+  name: s-ops-jms-statefulset
+  namespace: ops-qa
 spec:
   replicas: 1
   selector:
@@ -16,6 +17,32 @@ spec:
       nodeSelector:
         env: jms-v2
       containers:
+        - name: jms-api
+          image: zhoushoujian/jms:latest
+          imagePullPolicy: Always
+          env:
+            - name: API
+              value: "true"
+          volumeMounts:
+            - mountPath: /opt/jms/.jms.yml
+              subPath: .jms.yml
+              name: jms-config-volume
+              readOnly: true
+            - mountPath: /opt/jms/
+              name: ssh-volume
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 0.1
+              memory: 256Mi
+          ports:
+            - name: api
+              containerPort: 8013
+              protocol: TCP
+
+
         - name: jms
           image: zhoushoujian/jms:latest
           imagePullPolicy: Always
@@ -51,7 +78,7 @@ spec:
             name: jms-config
         - name: ssh-volume
           persistentVolumeClaim:
-            claimName: jms-ssh-claim
+            claimName: s-ops-jms-ssh-claim
         - name: logs-volume
           hostPath:
             path: /mnt/logs/jms-tools/
@@ -60,24 +87,31 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: jms-ssh-claim
+  name: s-ops-jms-ssh-claim
+  namespace: ops-qa
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
+      storage: 80Gi
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: jms
+  name: s-ops-jms
+  namespace: ops-qa
 spec:
   ports:
     - port: 22222
       targetPort: 22222
       nodePort: 32222
       protocol: TCP
+      name: ssh
+    - port: 8013
+      targetPort: 8013
+      protocol: TCP
+      name: api
   selector:
     app: jms
   type: NodePort
