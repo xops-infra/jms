@@ -154,16 +154,20 @@ func LoadApproval() {
 			continue
 		}
 		if resp.Result.Result != nil {
-
 			update := ApprovalResult{
 				Applicant: tea.String(fmt.Sprintf("%s: %s", "BusinessId", *resp.Result.BusinessId)),
 				IsPass:    tea.Bool(false),
 			}
-			if *resp.Result.Status == "COMPLETED" && *resp.Result.Result == "agree" {
-				update.IsPass = tea.Bool(true)
-			}
-			if *resp.Result.Status == "TERMINATED" {
+			switch *resp.Result.Status {
+			case "COMPLETED":
+				if *resp.Result.Result == "agree" {
+					update.IsPass = tea.Bool(true)
+				}
+			case "TERMINATED":
 				update.Applicant = tea.String("BusinessId: TERMINATED")
+				update.IsPass = tea.Bool(false)
+			default:
+				continue
 			}
 			err = app.App.PolicyService.UpdatePolicyStatus(policy.ID, update)
 			if err != nil {

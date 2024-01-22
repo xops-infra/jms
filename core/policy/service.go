@@ -220,6 +220,7 @@ func (d *PolicyService) UpdateActionsOfPolicy(name string, actions []string) err
 }
 
 // 只查询用户的策略
+// 支持policy users 包含*的情况，表示都能命中
 func (d *PolicyService) QueryPolicyByUser(username string) ([]Policy, error) {
 	sql := d.DB.Model(&Policy{}).Where("is_deleted = ?", false)
 	var policies []Policy

@@ -81,6 +81,7 @@ docker run --rm --network=host -dit -v /root/jms/ssh/:/root/.ssh/ -v /root/jms/j
 ### 2024-01
 - feat: 支持钉钉审批功能：
 - feat: 支持audit日志定时清理
+- feat: 支持服务器标签EnvType !不等于的匹配规则
 
 ### 2023-12
 - feat: 增加API管理；

@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"golang.org/x/crypto/bcrypt"
@@ -24,7 +25,7 @@ func (a *ArrayString) Scan(value interface{}) error {
 
 func (a ArrayString) Contains(value string) bool {
 	for _, item := range a {
-		if item == value {
+		if item == value || strings.Contains(item.(string), "*") {
 			return true
 		}
 	}

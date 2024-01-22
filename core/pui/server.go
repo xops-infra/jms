@@ -147,7 +147,7 @@ func matchPolicy(user pl.User, inPutAction pl.Action, server config.Server, dbPo
 		}
 		// Check server filter first. If there is no match, continue to next policy.
 		if dbPolicy.ServerFilter != nil {
-			if !matchServer(*dbPolicy.ServerFilter, server) {
+			if !MatchServer(*dbPolicy.ServerFilter, server) {
 				continue
 			}
 		}
@@ -213,7 +213,9 @@ func matchUserGroup(user pl.User, server config.Server) bool {
 	return false
 }
 
-func matchServer(filter utils.ServerFilter, server config.Server) bool {
+// 支持!开头的反向匹配
+// 默认没有匹配到标签的允许访问
+func MatchServer(filter utils.ServerFilter, server config.Server) bool {
 	if filter.Name != nil {
 		if *filter.Name == "*" || *filter.Name == server.Name {
 			return true
@@ -225,11 +227,24 @@ func matchServer(filter utils.ServerFilter, server config.Server) bool {
 		}
 	}
 	if filter.EnvType != nil {
+		if server.Tags.GetEnvType() == nil {
+			return true
+		}
+		if strings.HasPrefix(*filter.EnvType, "!") {
+			if strings.TrimPrefix(*filter.EnvType, "!") == *server.Tags.GetEnvType() {
+				return false
+			} else {
+				return true
+			}
+		}
 		if *filter.EnvType == "*" || *filter.EnvType == *server.Tags.GetEnvType() {
 			return true
 		}
 	}
 	if filter.Team != nil {
+		if server.Tags.GetTeam() == nil {
+			return true
+		}
 		if *filter.Team == "*" || *filter.Team == *server.Tags.GetTeam() {
 			return true
 		}
