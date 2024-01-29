@@ -305,7 +305,7 @@ func listUser(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "user id"
-// @Param request body policy.UserMut true "request"
+// @Param request body policy.UserPatchMut true "request"
 // @Success 200 {object} Response
 // @Failure 400 {object} Response
 // @Failure 500 {object} Response

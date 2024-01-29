@@ -156,7 +156,7 @@ func init() {
 	rootCmd.AddCommand(sshdCmd)
 	sshdCmd.Flags().StringVar(&sshDir, "ssh-dir", "~/.ssh/", "ssh dir")
 	sshdCmd.Flags().IntVar(&sshdPort, "port", 22222, "ssh port")
-	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/jms/logs/", "log dir")
+	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/logs/apps/", "log dir")
 	sshdCmd.Flags().IntVar(&timeOut, "timeout", 1800, "ssh timeout")
 }
 
