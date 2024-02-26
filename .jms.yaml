@@ -34,9 +34,13 @@ withSSHCheck:
   ips:
     - "10.x.x.x"
 
-withPolicy:
-  enable: true
-  dbFile: "jms.db"
+enable: true
+  pg:
+    host: "pg"
+    port: 5432
+    username: "postgres"
+    password: "postgres"
+    database: "jms"
 
 withLdap:
   enable: true

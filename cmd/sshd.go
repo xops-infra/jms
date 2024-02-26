@@ -70,7 +70,8 @@ var sshdCmd = &cobra.Command{
 			sshd.GenKey(hostKeyFile)
 		}
 
-		_app := app.NewSshdApplication(debug, sshDir)
+		// init app
+		_app := app.NewSshdApplication(debug, sshDir).WithLdap()
 
 		if app.App.Config.WithSSHCheck.Enable {
 			log.Infof("enable dingtalk")
