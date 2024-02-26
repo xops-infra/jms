@@ -3,6 +3,7 @@ services:
   pg:
     image: postgres
     restart: always
+    hostname: pg
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -10,6 +11,8 @@ services:
     ports:
       - "5432:5432"
   jms:
+    depends_on:
+      - pg
     restart: always
     image: zhoushoujian/jms:latest
     ports: 
