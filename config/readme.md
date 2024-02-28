@@ -37,7 +37,8 @@ withSSHCheck:
   ips:
     - "10.x.x.x"
 
-enable: true
+withPolicy:
+  enable: true
   pg:
     host: "pg"
     port: 5432

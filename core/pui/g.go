@@ -6,12 +6,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
 	"github.com/manifoldco/promptui"
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/instance"
+	"github.com/xops-infra/jms/core/policy"
 	"github.com/xops-infra/jms/core/sshd"
 )
 
@@ -65,11 +67,19 @@ func (ui *PUI) FlashTimeout() {
 
 // ShowMenu show menu
 func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, selectedChain []*MenuItem) {
-	user, err := app.App.PolicyService.DescribeUser((*ui.sess).User())
-	if err != nil {
-		log.Errorf("DescribeUser error: %s", err)
-		sshd.ErrorInfo(err, ui.sess)
+	user := policy.User{
+		Username: tea.String((*ui.sess).User()),
 	}
+
+	if app.App.Config.WithPolicy.Enable {
+		_user, err := app.App.PolicyService.DescribeUser((*ui.sess).User())
+		if err != nil {
+			log.Errorf("DescribeUser error: %s", err)
+			sshd.ErrorInfo(err, ui.sess)
+		}
+		user = _user
+	}
+
 	for {
 		menuLabels := make([]string, 0) // 菜单，用于显示
 		menuItems := make([]*MenuItem, 0)
@@ -93,8 +103,8 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 					menu = append(menu, GetApproveMenu(policies)...)
 				}
 			}
-
 			menu = append(menu, GetServersMenuV2(ui.sess, user, ui.GetTimeout())...)
+
 			filter, err := ui.inputFilter(len(menu))
 			if err != nil {
 				break

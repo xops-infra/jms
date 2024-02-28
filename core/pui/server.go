@@ -131,6 +131,10 @@ func sortMenu(menu []*MenuItem) []*MenuItem {
 
 // 连接，上传，下载的时候，需要根据policy来判断是否允许
 func matchPolicy(user pl.User, inPutAction pl.Action, server config.Server, dbPolicies []pl.Policy) bool {
+	// 是否启用策略
+	if !app.App.Config.WithPolicy.Enable {
+		return true
+	}
 	// 默认策略优先判断
 	if matchPolicyOwner(user, server) {
 		return true
