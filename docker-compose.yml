@@ -22,6 +22,6 @@ services:
       - API=false # true为api模式，false为ssh服务模式
       # - SSH_DIR=/root/.ssh
     volumes: 
-      - "~/jms/.ssh/:/root/.ssh"
-      - "~/jms/:/opt/jms/"
-      - "~/jms/logs/:/opt/logs/"
+      - "/opt/jms/.ssh/:/root/.ssh"
+      - "/opt/jms/:/opt/jms/"
+      - "/opt/jms/logs/:/opt/logs/"

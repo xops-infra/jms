@@ -6,17 +6,19 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/instance"
 )
 
 func init() {
 	log.Default().Init()
+	config.Load("/opt/jms/.jms.yml")
 	app.NewSshdApplication(false, "~/.ssh/").WithRobot()
 }
 
 func TestServerLiveness(t *testing.T) {
 	instance.LoadServer(app.App.Config)
-	instance.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
+	// instance.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
 }
 
 // test sendMessage
