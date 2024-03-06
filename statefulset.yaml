@@ -11,6 +11,7 @@ spec:
   serviceName: jms
   template:
     metadata:
+      name: jms
       labels:
         app: jms
     spec:

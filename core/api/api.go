@@ -91,7 +91,7 @@ func listPolicy(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "policy id"
-// @Param request body policy.ApprovalMut true "request"
+// @Param request body policy.PolicyMut true "request"
 // @Success 200 {object} Response
 // @Failure 400 {object} Response
 // @Failure 500 {object} Response
@@ -102,12 +102,12 @@ func updatePolicy(c *gin.Context) {
 		c.JSON(400, NewErrorResponse(400, "id is empty"))
 		return
 	}
-	var req *policy.ApprovalMut
+	var req *policy.PolicyMut
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, NewErrorResponse(400, err.Error()))
 		return
 	}
-	if err := app.App.PolicyService.UpdatePolicy(id, req.ToPolicyMut()); err != nil {
+	if err := app.App.PolicyService.UpdatePolicy(id, req); err != nil {
 		c.JSON(500, NewErrorResponse(500, err.Error()))
 		return
 	}
@@ -263,7 +263,7 @@ func updateApproval(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param Authorization header string false "token"
-// @Param name query string false "name"
+// @Param name query string false "name 支持用户名或者email查询"
 // @Param group query string false "group"
 // @Success 200 {object} Response
 // @Failure 500 {object} Response
@@ -277,7 +277,10 @@ func listUser(c *gin.Context) {
 			c.JSON(500, NewErrorResponse(500, err.Error()))
 			return
 		}
-		c.JSON(200, NewSuccessResponse(users))
+		c.JSON(200, NewSuccessResponse(map[string]any{
+			"total": 1,
+			"items": users,
+		}))
 		return
 	}
 	if group != "" {
@@ -286,7 +289,10 @@ func listUser(c *gin.Context) {
 			c.JSON(500, NewErrorResponse(500, err.Error()))
 			return
 		}
-		c.JSON(200, NewSuccessResponse(users))
+		c.JSON(200, NewSuccessResponse(map[string]any{
+			"total": len(users),
+			"items": users,
+		}))
 		return
 	}
 	// 否则查询所有
@@ -295,7 +301,10 @@ func listUser(c *gin.Context) {
 		c.JSON(500, NewErrorResponse(500, err.Error()))
 		return
 	}
-	c.JSON(200, NewSuccessResponse(users))
+	c.JSON(200, NewSuccessResponse(map[string]any{
+		"total": len(users),
+		"items": users,
+	}))
 }
 
 // @Summary 追加用户组

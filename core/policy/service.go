@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
@@ -69,6 +70,12 @@ func (d *PolicyService) NeedApprove(username string) ([]*Policy, error) {
 
 func (d *PolicyService) DescribeUser(name string) (User, error) {
 	var user User
+	if strings.Contains(name, "@") {
+		if err := d.DB.Where("email = ?", name).First(&user).Error; err != nil {
+			return user, err
+		}
+		return user, nil
+	}
 	if err := d.DB.Where("username = ?", name).First(&user).Error; err != nil {
 		return user, err
 	}
@@ -77,7 +84,8 @@ func (d *PolicyService) DescribeUser(name string) (User, error) {
 
 func (d *PolicyService) QueryUserByGroup(group string) ([]User, error) {
 	var users []User
-	if err := d.DB.Where("groups like ?", fmt.Sprintf("%%%s%%", group)).Find(&users).Error; err != nil {
+	// json 字段不支持like查询
+	if err := d.DB.Find(&users).Error; err != nil {
 		return nil, err
 	}
 	// 提高准确度

@@ -312,6 +312,7 @@ func startScheduler() {
 				log.Error(err.Error())
 			}
 		})
+		// 定时获取审批列表状态
 		c.AddFunc("0 * * * * *", func() {
 			dingtalk.LoadApproval()
 		})

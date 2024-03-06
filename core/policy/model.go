@@ -1,8 +1,10 @@
 package policy
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/xops-infra/jms/utils"
 )
 
@@ -80,30 +82,39 @@ type PolicyQueryRequest struct {
 }
 
 type PolicyMut struct {
-	Name         *string             `json:"name" binding:"required"`
+	Name         *string             `json:"name"`
 	Users        utils.ArrayString   `json:"users"`
 	Groups       utils.ArrayString   `json:"groups"`
-	ServerFilter *utils.ServerFilter `json:"server_filter" binding:"required"`
-	Actions      utils.ArrayString   `json:"actions" binding:"required"`
-	ExpiresAt    *time.Time          `json:"expires_at" binding:"required"`
+	ServerFilter *utils.ServerFilter `json:"server_filter"`
+	Actions      utils.ArrayString   `json:"actions"`
+	ExpiresAt    *time.Time          `json:"expires_at"`
+	IsEnabled    *bool               `json:"is_enabled"`
 }
 
 type ApprovalMut struct {
-	Users        utils.ArrayString   `json:"users"`
+	Users        utils.ArrayString   `json:"users" binding:"required"`
 	Groups       utils.ArrayString   `json:"groups"`
-	Applicant    *string             `json:"applicant" binding:"required"` // 申请人AD名
+	Applicant    *string             `json:"applicant" binding:"required"` // 申请人AD名,或者email
 	Name         *string             `json:"name"`
-	Period       *Period             `json:"period"`
-	Actions      []Action            `json:"actions"`
-	ServerFilter *utils.ServerFilter `json:"server_filter"`
+	Period       *Period             `json:"period"`  // 审批周期，默认一周
+	Actions      []Action            `json:"actions"` // 申请动作，默认只有connect
+	ServerFilter *utils.ServerFilter `json:"server_filter" binding:"required"`
 }
 
 func (a *ApprovalMut) ToPolicyMut() *PolicyMut {
+	defalutPeriod := time.Now().Add(ExpireTimes[OneWeek]) // 默认一周
 	req := &PolicyMut{
-		Name:         a.Name,
+		Name:         tea.String(fmt.Sprintf("%s-%s", *a.Applicant, time.Now().Format("20060102150405"))),
 		Users:        a.Users,
 		Groups:       a.Groups,
 		ServerFilter: a.ServerFilter,
+		ExpiresAt:    &defalutPeriod,
+		Actions: utils.ArrayString{
+			Connect,
+		},
+	}
+	if a.Name == nil {
+		req.Name = a.Name
 	}
 	if a.Period != nil {
 		expiresAt := time.Now().Add(ExpireTimes[*a.Period])

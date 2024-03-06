@@ -376,7 +376,7 @@ func getSureApplyMenu(serverFilter utils.ServerFilter, actions utils.ArrayString
 						},
 						{
 							Name:  tea.String("Comment"),
-							Value: tea.String("来自PUI发起的策略申请"),
+							Value: tea.String("来自jmsCli发起的策略申请"),
 						},
 					})
 					if err != nil {

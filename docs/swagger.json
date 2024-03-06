@@ -156,12 +156,6 @@
                         "description": "user",
                         "name": "user",
                         "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "group",
-                        "name": "group",
-                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -213,7 +207,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.ApprovalMut"
+                            "$ref": "#/definitions/policy.PolicyMut"
                         }
                     }
                 ],
@@ -309,7 +303,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "name",
+                        "description": "name 支持用户名或者email查询",
                         "name": "name",
                         "in": "query"
                     },
@@ -426,7 +420,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.UserMut"
+                            "$ref": "#/definitions/policy.UserPatchMut"
                         }
                     }
                 ],
@@ -487,14 +481,21 @@
         },
         "policy.ApprovalMut": {
             "type": "object",
+            "required": [
+                "applicant",
+                "server_filter",
+                "users"
+            ],
             "properties": {
                 "actions": {
+                    "description": "申请动作，默认只有connect",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/policy.Action"
                     }
                 },
                 "applicant": {
+                    "description": "申请人AD名,或者email",
                     "type": "string"
                 },
                 "groups": {
@@ -505,7 +506,12 @@
                     "type": "string"
                 },
                 "period": {
-                    "$ref": "#/definitions/policy.Period"
+                    "description": "审批周期，默认一周",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/policy.Period"
+                        }
+                    ]
                 },
                 "server_filter": {
                     "$ref": "#/definitions/utils.ServerFilter"
@@ -544,12 +550,47 @@
                 "Forever"
             ]
         },
+        "policy.PolicyMut": {
+            "type": "object",
+            "properties": {
+                "actions": {
+                    "type": "array",
+                    "items": {}
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {}
+                },
+                "is_enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "server_filter": {
+                    "$ref": "#/definitions/utils.ServerFilter"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {}
+                }
+            }
+        },
         "policy.UserMut": {
             "type": "object",
             "required": [
                 "username"
             ],
             "properties": {
+                "dingtalk_dept_id": {
+                    "type": "string"
+                },
+                "dingtalk_id": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -562,6 +603,15 @@
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "policy.UserPatchMut": {
+            "type": "object",
+            "properties": {
+                "groups": {
+                    "type": "array",
+                    "items": {}
                 }
             }
         },
