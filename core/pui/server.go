@@ -13,28 +13,28 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/instance"
-	pl "github.com/xops-infra/jms/core/policy"
 	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/jms/utils"
 )
 
-func GetServersMenuV2(sess *ssh.Session, user pl.User, timeout string) []*MenuItem {
+func GetServersMenuV2(sess *ssh.Session, user db.User, timeout string) []*MenuItem {
 	timeStart := time.Now()
-	defer log.Infof("GetServersMenuV2 cost %s", time.Since(timeStart))
+	defer log.Debugf("GetServersMenuV2 cost %s", time.Since(timeStart).String())
 	menu := make([]*MenuItem, 0)
 	servers := instance.GetServers()
-	var matchPolicies []pl.Policy
-	if app.App.PolicyService == nil {
+	var matchPolicies []db.Policy
+	if app.App.DBService == nil {
 		// 如果没有使用数据库，则默认都可见
-		matchPolicies = append(matchPolicies, pl.Policy{
-			Actions:   pl.All,
+		matchPolicies = append(matchPolicies, db.Policy{
+			Actions:   db.All,
 			IsEnabled: tea.Bool(true),
 			Users:     utils.ArrayString{tea.String(*user.Username)},
 		})
 	} else {
-		policies, err := app.App.PolicyService.QueryPolicyByUser(*user.Username)
+		policies, err := app.App.DBService.QueryPolicyByUser(*user.Username)
 		if err != nil {
 			log.Errorf("query policy error: %s", err)
 		}
@@ -62,7 +62,7 @@ func GetServersMenuV2(sess *ssh.Session, user pl.User, timeout string) []*MenuIt
 		}
 
 		// 判断机器权限进入不同菜单
-		if !matchPolicy(user, pl.Connect, server, matchPolicies) {
+		if !matchPolicy(user, db.Connect, server, matchPolicies) {
 			subMenu.Label = fmt.Sprintf("%s\t[x]\t%s\t%s", server.ID, server.Host, server.Name)
 			subMenu.SubMenuTitle = SelectServer
 			subMenu.GetSubMenu = getServerApproveMenu(server)
@@ -75,7 +75,7 @@ func GetServersMenuV2(sess *ssh.Session, user pl.User, timeout string) []*MenuIt
 	return menu
 }
 
-func GetApproveMenu(policies []*pl.Policy) []*MenuItem {
+func GetApproveMenu(policies []*db.Policy) []*MenuItem {
 	var menu []*MenuItem
 	for _, policy := range policies {
 		menu = append(menu, &MenuItem{
@@ -90,14 +90,14 @@ func GetApproveMenu(policies []*pl.Policy) []*MenuItem {
 	return menu
 }
 
-func getApproveSubMenu(policy *pl.Policy) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
+func getApproveSubMenu(policy *db.Policy) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		sshd.Info(tea.Prettify(policy), sess)
 		var menu []*MenuItem
 		menu = append(menu, &MenuItem{
 			Label: "Approve",
 			SelectedFunc: func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
-				err := app.App.PolicyService.ApprovePolicy(*policy.Name, (*sess).User(), true)
+				err := app.App.DBService.ApprovePolicy(*policy.Name, (*sess).User(), true)
 				if err != nil {
 					return false, err
 				}
@@ -107,7 +107,7 @@ func getApproveSubMenu(policy *pl.Policy) func(int, *MenuItem, *ssh.Session, []*
 		menu = append(menu, &MenuItem{
 			Label: "Reject",
 			SelectedFunc: func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
-				err := app.App.PolicyService.ApprovePolicy(*policy.Name, (*sess).User(), false)
+				err := app.App.DBService.ApprovePolicy(*policy.Name, (*sess).User(), false)
 				if err != nil {
 					return false, err
 				}
@@ -130,7 +130,7 @@ func sortMenu(menu []*MenuItem) []*MenuItem {
 }
 
 // 连接，上传，下载的时候，需要根据policy来判断是否允许
-func matchPolicy(user pl.User, inPutAction pl.Action, server config.Server, dbPolicies []pl.Policy) bool {
+func matchPolicy(user db.User, inPutAction db.Action, server config.Server, dbPolicies []db.Policy) bool {
 	// 是否启用策略
 	if !app.App.Config.WithPolicy.Enable {
 		return true
@@ -161,25 +161,25 @@ func matchPolicy(user pl.User, inPutAction pl.Action, server config.Server, dbPo
 		}
 		// Check deny actions first. If there is a match, return false.
 		for _, action := range dbPolicy.Actions {
-			if action == string(pl.DenyConnect) && inPutAction == pl.Connect {
+			if action == string(db.DenyConnect) && inPutAction == db.Connect {
 				return false
 			}
-			if action == string(pl.DenyDownload) && inPutAction == pl.Download {
+			if action == string(db.DenyDownload) && inPutAction == db.Download {
 				return false
 			}
-			if action == string(pl.DenyUpload) && inPutAction == pl.Upload {
+			if action == string(db.DenyUpload) && inPutAction == db.Upload {
 				return false
 			}
 		}
 		// Check allow actions next. If there is a match, return true.
 		for _, action := range dbPolicy.Actions {
-			if action == string(pl.Connect) && inPutAction == pl.Connect {
+			if action == string(db.Connect) && inPutAction == db.Connect {
 				return true
 			}
-			if action == string(pl.Download) && inPutAction == pl.Download {
+			if action == string(db.Download) && inPutAction == db.Download {
 				return true
 			}
-			if action == string(pl.Upload) && inPutAction == pl.Upload {
+			if action == string(db.Upload) && inPutAction == db.Upload {
 				return true
 			}
 		}
@@ -189,7 +189,7 @@ func matchPolicy(user pl.User, inPutAction pl.Action, server config.Server, dbPo
 }
 
 // Owner和用户一样则有权限
-func matchPolicyOwner(user pl.User, server config.Server) bool {
+func matchPolicyOwner(user db.User, server config.Server) bool {
 	if server.Tags.GetOwner() != nil && *server.Tags.GetOwner() == *user.Username {
 		return true
 	}
@@ -198,7 +198,7 @@ func matchPolicyOwner(user pl.User, server config.Server) bool {
 
 // 用户组一致则有权限
 // admin有所有权限
-func matchUserGroup(user pl.User, server config.Server) bool {
+func matchUserGroup(user db.User, server config.Server) bool {
 	if user.Groups != nil {
 		if user.Groups.Contains("admin") {
 			return true
@@ -257,7 +257,7 @@ func MatchServer(filter utils.ServerFilter, server config.Server) bool {
 	return false
 }
 
-func GetServerSSHUsersMenu(server config.Server, timeout string, matchPolicies []pl.Policy) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
+func GetServerSSHUsersMenu(server config.Server, timeout string, matchPolicies []db.Policy) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		var menu []*MenuItem
 		subMenu := &MenuItem{}
@@ -314,7 +314,7 @@ func getActionMenu(serverFilter utils.ServerFilter) func(int, *MenuItem, *ssh.Se
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		sshd.Info("申请行为，包括连接，上传和下载文件的权限。", sess)
 		var menu []*MenuItem
-		for key, value := range pl.DefaultPolicies {
+		for key, value := range db.DefaultPolicies {
 			menu = append(menu, &MenuItem{
 				Label:      fmt.Sprintf("申请 %s 权限", key),
 				GetSubMenu: getExpireMenu(serverFilter, value),
@@ -328,7 +328,7 @@ func getExpireMenu(serverFilter utils.ServerFilter, actions utils.ArrayString) f
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		var menu []*MenuItem
 		sshd.Info("选择策略生效周期，到期后会自动删除策略。", sess)
-		for expiredKey, value := range pl.ExpireTimes {
+		for expiredKey, value := range db.ExpireTimes {
 			menu = append(menu, &MenuItem{
 				Label:        fmt.Sprintf("策略有效期 %s", expiredKey),
 				SubMenuTitle: "Summary",
@@ -342,7 +342,7 @@ func getExpireMenu(serverFilter utils.ServerFilter, actions utils.ArrayString) f
 func getSureApplyMenu(serverFilter utils.ServerFilter, actions utils.ArrayString, expiredDuration time.Duration) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		expired := time.Now().Add(expiredDuration)
-		policyNew := &pl.PolicyMut{
+		policyNew := &db.PolicyMut{
 			Actions:      actions,
 			Users:        utils.ArrayString{tea.String((*sess).User())},
 			ServerFilter: &serverFilter,
@@ -386,7 +386,7 @@ func getSureApplyMenu(serverFilter utils.ServerFilter, actions utils.ArrayString
 					approval_id = id
 					sshd.Info(fmt.Sprintf("成功创建钉钉审批:%s 等等管理员审批 完成后策略自动生效", id), sess)
 				}
-				policyId, err := app.App.PolicyService.CreatePolicy(policyNew, &approval_id)
+				policyId, err := app.App.DBService.CreatePolicy(policyNew, &approval_id)
 				if err != nil {
 					log.Errorf("create policy error: %s", err)
 					return false, err

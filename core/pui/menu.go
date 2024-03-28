@@ -35,7 +35,7 @@ var (
 	NoPermission        = "No permission,Please apply for permission"
 	SelectServer        = "Please select server for approve"
 	SelectAction        = "Please select action"
-	BybLabel            = "\n拜拜👋! 退出时间：%s\n"
+	BybLabel            = "\n拜拜👋! 如果觉得还不错，来点个Star🌟吧！👉 https://github.com/xops-infra/jms 退出时间：%s\n"
 	InfoLabel           = `-----------------------------------------------------------------------
 欢迎使用jms堡垒机连接工具
 1) 问题或者提交BUG，前往 https://github.com/xops-infra/jms/issues；

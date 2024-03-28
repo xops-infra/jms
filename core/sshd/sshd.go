@@ -189,7 +189,7 @@ func geSigner(identityFile string) (gossh.Signer, error) {
 // ParseRawCommand ParseRawCommand
 func ParseRawCommand(command string) (string, []string, error) {
 	parts := strings.Split(command, " ")
-
+	log.Debugf("parts: %v\n", parts)
 	if len(parts) < 1 {
 		return "", nil, errors.New("No command in payload: " + command)
 	}

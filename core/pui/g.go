@@ -12,8 +12,8 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/core/instance"
-	"github.com/xops-infra/jms/core/policy"
 	"github.com/xops-infra/jms/core/sshd"
 )
 
@@ -67,12 +67,12 @@ func (ui *PUI) FlashTimeout() {
 
 // ShowMenu show menu
 func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, selectedChain []*MenuItem) {
-	user := policy.User{
+	user := db.User{
 		Username: tea.String((*ui.sess).User()),
 	}
 
 	if app.App.Config.WithPolicy.Enable {
-		_user, err := app.App.PolicyService.DescribeUser((*ui.sess).User())
+		_user, err := app.App.DBService.DescribeUser((*ui.sess).User())
 		if err != nil {
 			log.Errorf("DescribeUser error: %s", err)
 			sshd.ErrorInfo(err, ui.sess)
@@ -93,8 +93,8 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			// 顶级菜单，如果有审批则主页支持选择审批或者服务器
 			menu = make([]*MenuItem, 0)
 
-			if app.App.PolicyService != nil && !app.App.Config.WithPolicy.Enable {
-				policies, err := app.App.PolicyService.NeedApprove((*ui.sess).User())
+			if app.App.DBService != nil && !app.App.Config.WithPolicy.Enable {
+				policies, err := app.App.DBService.NeedApprove((*ui.sess).User())
 				if err != nil {
 					log.Errorf("Get need approve policy for admin error: %s", err)
 				}
@@ -203,6 +203,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			}
 		}
 	}
+	log.Debugf("pui exit")
 }
 
 // inputFilter input filter

@@ -58,6 +58,7 @@ func NewGin() *gin.Engine {
 	p := api.Group("/policy")
 	a := api.Group("/approval")
 	u := api.Group("/user")
+	k := api.Group("/key")
 	{
 		u.GET("", listUser)
 		// u.POST("", createUser) // ad用户登录后自动创建用户
@@ -72,8 +73,16 @@ func NewGin() *gin.Engine {
 		p.DELETE("/:id", deletePolicy)
 	}
 	{
+		// approval
 		a.POST("", createApproval)
 		a.PATCH("/:id", updateApproval)
+	}
+	{
+		// key
+		k.GET("", listKey)
+		k.POST("", createKey)
+		k.DELETE("/:id", deleteKey)
+
 	}
 	return r
 }

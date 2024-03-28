@@ -17,10 +17,10 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	appConfig "github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/jump"
-	"github.com/xops-infra/jms/core/policy"
 	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/jms/utils"
 )
@@ -167,7 +167,7 @@ func passwordAuth(ctx ssh.Context, pass string) bool {
 		return err == nil
 	}
 	// 如果启用 policy策略，登录时需要验证用户密码
-	_, err := app.App.PolicyService.Login(ctx.User(), pass)
+	_, err := app.App.DBService.Login(ctx.User(), pass)
 	if err != nil {
 		log.Error(err.Error())
 		return false
@@ -210,7 +210,7 @@ func sessionHandler(sess *ssh.Session) {
 	}
 	// 如果启用 policy策略，默认开始注册登录用户入库
 	if app.App.Config.WithPolicy.Enable {
-		_, err := app.App.PolicyService.CreateUser(&policy.UserMut{
+		_, err := app.App.DBService.CreateUser(&db.UserMut{
 			Username: &user,
 		})
 		if err != nil {
@@ -226,6 +226,7 @@ func sessionHandler(sess *ssh.Session) {
 	}
 	log.Infof("user: %s, remote addr: %s login success", user, remote)
 	rawCmd := (*sess).RawCommand()
+	log.Debugf("rawCmd: %s\n", rawCmd)
 	cmd, args, err := sshd.ParseRawCommand(rawCmd)
 	if err != nil {
 		sshd.ErrorInfo(err, sess)
@@ -296,7 +297,11 @@ func sshHandler(sess *ssh.Session) {
 }
 
 func scpHandler(args []string, sess *ssh.Session) {
-	sshd.ExecuteSCP(args, sess)
+	err := sshd.ExecuteSCP(args, sess)
+	if err != nil {
+		sshd.ErrorInfo(err, sess)
+		return
+	}
 }
 
 func startScheduler() {

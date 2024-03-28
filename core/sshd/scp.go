@@ -83,26 +83,30 @@ func (r *response) GetMessage() string {
 
 // ExecuteSCP ExecuteSCP
 func ExecuteSCP(args []string, clientSess *ssh.Session) error {
-	flag := args[0]
-	switch flag {
-	case "-t":
-		err := copyToServer(args, clientSess)
-		if err != nil {
-			replyErr(*clientSess, err)
-			return err
+	for _, arg := range args {
+		if arg == "-t" || arg == "-f" {
+			log.Debugf("arg: %s", arg)
+			switch arg {
+			case "-t":
+				err := copyToServer(args, clientSess)
+				if err != nil {
+					replyErr(*clientSess, err)
+					return err
+				}
+				(*clientSess).Close()
+				return nil
+			case "-f":
+				err := copyFromServer(args, clientSess)
+				if err != nil {
+					replyErr(*clientSess, err)
+					return err
+				}
+				(*clientSess).Close()
+				return nil
+			}
 		}
-	case "-f":
-		err := copyFromServer(args, clientSess)
-		if err != nil {
-			replyErr(*clientSess, err)
-			return err
-		}
-		(*clientSess).Close()
-	default:
-		return errors.New("this feature is not currently supported")
 	}
-
-	return nil
+	return errors.New("this feature is not currently supported")
 }
 
 func copyToServer(args []string, clientSess *ssh.Session) error {

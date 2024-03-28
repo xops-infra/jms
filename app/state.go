@@ -5,6 +5,7 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
+	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
 	server "github.com/xops-infra/multi-cloud-sdk/pkg/service"
 	"github.com/xops-infra/noop/log"
@@ -14,7 +15,6 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/policy"
 	"github.com/xops-infra/jms/utils"
 )
 
@@ -45,8 +45,7 @@ type Application struct {
 	Server         *server.ServerService
 	Cache          *cache.Cache
 	UserCache      *cache.Cache // 用户缓存,用于显示用户负载
-	// DBIo          db.DbIo
-	PolicyService *policy.PolicyService
+	DBService      *db.DBService
 }
 
 // Manager,Agent,Worker need to be initialized
@@ -134,8 +133,8 @@ func (app *Application) WithPolicy() *Application {
 	}
 	// 初始化数据库
 	rdb.AutoMigrate(
-		&policy.Policy{}, &policy.User{},
+		&db.Policy{}, &db.User{},
 	)
-	App.PolicyService = policy.NewPolicyService(rdb)
+	App.DBService = db.NewDbService(rdb)
 	return app
 }

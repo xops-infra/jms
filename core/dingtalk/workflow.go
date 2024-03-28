@@ -11,11 +11,11 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/core/policy"
+	. "github.com/xops-infra/jms/core/db"
 )
 
 func CreateApproval(applicant string, values []dt.FormComponentValue) (string, error) {
-	user, err := app.App.PolicyService.DescribeUser(applicant)
+	user, err := app.App.DBService.DescribeUser(applicant)
 	if err != nil {
 		return "", err
 	}
@@ -93,11 +93,11 @@ func getDepart(c chan int64) {
 
 func saveDingtalkUsers(users []*dt.UserInfo) error {
 	for _, user := range users {
-		u, err := app.App.PolicyService.DescribeUser(strings.Split(user.Email, "@")[0])
+		u, err := app.App.DBService.DescribeUser(strings.Split(user.Email, "@")[0])
 		if err != nil {
 			if strings.Contains(err.Error(), "record not found") {
 				// create
-				_, err = app.App.PolicyService.CreateUser(&UserMut{
+				_, err = app.App.DBService.CreateUser(&UserMut{
 					Username:       tea.String(strings.Split(user.Email, "@")[0]),
 					Email:          tea.String(user.Email),
 					Passwd:         tea.String(user.Email),
@@ -112,7 +112,7 @@ func saveDingtalkUsers(users []*dt.UserInfo) error {
 			return err
 		}
 		// update
-		err = app.App.PolicyService.UpdateUser(u.ID, UserMut{
+		err = app.App.DBService.UpdateUser(u.ID, UserMut{
 			Username:       tea.String(strings.Split(user.Email, "@")[0]),
 			Email:          tea.String(user.Email),
 			DingtalkDeptID: tea.String(strconv.FormatInt(user.DeptIDList[0], 10)),
@@ -132,7 +132,7 @@ func LoadApproval() {
 	var successes []string
 	app.App.DingTalkClient.SetAccessToken() // 更新 token
 	// 获取审批列表
-	policies, err := app.App.PolicyService.QueryAllPolicy()
+	policies, err := app.App.DBService.QueryAllPolicy()
 	if err != nil {
 		log.Errorf("QueryAllPolicy failed! %s", err)
 		return
@@ -169,7 +169,7 @@ func LoadApproval() {
 			default:
 				continue
 			}
-			err = app.App.PolicyService.UpdatePolicyStatus(policy.ID, update)
+			err = app.App.DBService.UpdatePolicyStatus(policy.ID, update)
 			if err != nil {
 				log.Errorf("UpdatePolicyStatus failed! %s", err)
 				continue
