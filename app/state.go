@@ -108,7 +108,7 @@ func (app *Application) WithPolicy() *Application {
 	// 优先匹配 pg
 	var dialector gorm.Dialector
 	if app.Config.WithPolicy.PG.Database != "" {
-		log.Infof("with policy pg database: %s", app.Config.WithPolicy.PG.Database)
+		log.Infof("with policy pg database: %s", app.Config.WithPolicy.PG.GetUrl())
 		dialector = postgres.Open(app.Config.WithPolicy.PG.GetUrl())
 	} else {
 		dbFile := config.Conf.WithPolicy.DBFile
@@ -123,17 +123,16 @@ func (app *Application) WithPolicy() *Application {
 
 	gormConfig := &gorm.Config{}
 	if !app.Debug {
-		log.Infof("set gorm logger to silent")
 		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
 	}
 
-	rdb, err := gorm.Open(dialector)
+	rdb, err := gorm.Open(dialector, gormConfig)
 	if err != nil {
 		panic("无法连接到数据库")
 	}
 	// 初始化数据库
 	rdb.AutoMigrate(
-		&db.Policy{}, &db.User{},
+		&db.Policy{}, &db.User{}, &db.Key{},
 	)
 	App.DBService = db.NewDbService(rdb)
 	return app

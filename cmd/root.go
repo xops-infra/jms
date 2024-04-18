@@ -45,6 +45,6 @@ func init() {
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	// 全局参数
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "debug mode")
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug mode")
 	rootCmd.PersistentFlags().StringVar(&config, "config", "/opt/jms/.jms.yml", "config file (default is /opt/jms/.jms.yml)")
 }

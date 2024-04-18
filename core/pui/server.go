@@ -44,7 +44,9 @@ func GetServersMenuV2(sess *ssh.Session, user db.User, timeout string) []*MenuIt
 	for _, server := range servers {
 		// 默认都可见，连接的时候再判断是否允许
 		info := make(map[string]string, 0)
-		info[serverInfoKey] = *server.KeyPair
+		for _, key := range server.KeyPairs {
+			info[serverInfoKey] += " " + *key
+		}
 		info[serverHost] = server.Host
 		for _, sshUser := range *server.SSHUsers {
 			info[serverUser] += fmt.Sprintf("%s: %s", sshUser.SSHUsername, sshUser.IdentityFile)

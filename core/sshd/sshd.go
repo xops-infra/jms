@@ -1,6 +1,7 @@
 package sshd
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -111,9 +112,11 @@ func NewSSHClient(server config.Server, sshUser *config.SSHUser) (*gossh.Client,
 		return ProxyClient(server, sshUser)
 	}
 	log.Debugf("direct connect: %s:%d\n", server.Host, server.Port)
-	signer, err := geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(sshUser.IdentityFile, "/"))
-	if err != nil {
-		return nil, nil, err
+	var signer gossh.Signer
+	if sshUser.Base64Pem != "" {
+		signer, _ = getSignerFromBase64(sshUser.Base64Pem)
+	} else {
+		signer, _ = geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(sshUser.IdentityFile, "/"))
 	}
 	config := &gossh.ClientConfig{
 		User: sshUser.SSHUsername,
@@ -128,9 +131,11 @@ func NewSSHClient(server config.Server, sshUser *config.SSHUser) (*gossh.Client,
 }
 
 func ProxyClient(instance config.Server, sshUser *config.SSHUser) (*gossh.Client, *gossh.Client, error) {
-	signerProxy, err := geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(instance.Proxy.SSHUsers.IdentityFile, "/"))
-	if err != nil {
-		return nil, nil, err
+	var signerProxy gossh.Signer
+	if instance.Proxy.SSHUsers.Base64Pem != "" {
+		signerProxy, _ = getSignerFromBase64(instance.Proxy.SSHUsers.Base64Pem)
+	} else {
+		signerProxy, _ = geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(instance.Proxy.SSHUsers.IdentityFile, "/"))
 	}
 	proxyConfig := &gossh.ClientConfig{
 		User: instance.Proxy.SSHUsers.SSHUsername,
@@ -145,11 +150,13 @@ func ProxyClient(instance config.Server, sshUser *config.SSHUser) (*gossh.Client
 		return nil, nil, err
 	}
 
-	signer, err := geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(sshUser.IdentityFile, "/"))
-	if err != nil {
-		log.Errorf("signer error: %s", err)
-		return nil, nil, err
+	var signer gossh.Signer
+	if sshUser.Base64Pem != "" {
+		signer, _ = getSignerFromBase64(sshUser.Base64Pem)
+	} else {
+		signer, _ = geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(sshUser.IdentityFile, "/"))
 	}
+
 	config := &gossh.ClientConfig{
 		User: sshUser.SSHUsername,
 		Auth: []gossh.AuthMethod{
@@ -180,6 +187,20 @@ func geSigner(identityFile string) (gossh.Signer, error) {
 		return nil, err
 	}
 	signer, err := gossh.ParsePrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+	return signer, nil
+}
+
+func getSignerFromBase64(key string) (gossh.Signer, error) {
+	// bas64 decode
+	base64Pem, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("base64Pem: %s\n", base64Pem)
+	signer, err := gossh.ParsePrivateKey([]byte(base64Pem))
 	if err != nil {
 		return nil, err
 	}

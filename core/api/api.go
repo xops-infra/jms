@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -33,21 +34,12 @@ func listPolicy(c *gin.Context) {
 	if user != "" {
 		policies, err := app.App.DBService.QueryPolicyByUser(user)
 		if err != nil {
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(policies))
+		c.JSON(200, policies)
 		return
 	}
-	// if group != "" {
-	// 	policies, err := app.App.PolicyService.QueryPolicyByGroup(group)
-	// 	if err != nil {
-	// 		c.JSON(500, NewErrorResponse(500, err.Error()))
-	// 		return
-	// 	}
-	// 	c.JSON(200, NewSuccessResponse(policies))
-	// 	return
-	// }
 	if name != "" {
 		policies, err := app.App.DBService.QueryPolicyByName(name)
 		if err != nil {
@@ -57,7 +49,7 @@ func listPolicy(c *gin.Context) {
 			})
 			return
 		}
-		c.JSON(200, NewSuccessResponse(policies))
+		c.JSON(200, policies)
 		return
 	}
 	if id != "" {
@@ -69,7 +61,7 @@ func listPolicy(c *gin.Context) {
 			})
 			return
 		}
-		c.JSON(200, NewSuccessResponse(policy))
+		c.JSON(200, policy)
 		return
 	}
 	// 否则查询所有
@@ -81,7 +73,7 @@ func listPolicy(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(200, NewSuccessResponse(policies))
+	c.JSON(200, policies)
 }
 
 // @Summary 更新策略
@@ -99,19 +91,19 @@ func listPolicy(c *gin.Context) {
 func updatePolicy(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(400, NewErrorResponse(400, "id is empty"))
+		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
 	var req *db.PolicyMut
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, NewErrorResponse(400, err.Error()))
+		c.JSON(400, err.Error())
 		return
 	}
 	if err := app.App.DBService.UpdatePolicy(id, req); err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(nil))
+	c.String(200, "success")
 }
 
 // @Summary 删除策略
@@ -128,14 +120,14 @@ func updatePolicy(c *gin.Context) {
 func deletePolicy(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(400, NewErrorResponse(400, "id is empty"))
+		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
 	if err := app.App.DBService.DeletePolicy(id); err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(nil))
+	c.String(200, "success")
 }
 
 // @Summary 创建审批策略
@@ -152,16 +144,9 @@ func deletePolicy(c *gin.Context) {
 func createApproval(c *gin.Context) {
 	var req db.ApprovalMut
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, NewErrorResponse(400, err.Error()))
+		c.JSON(400, err.Error())
 		return
 	}
-	defer func() {
-		if err := recover(); err != nil {
-			c.JSON(500, NewErrorResponse(500, err.(error).Error()))
-			log.Errorf("create approval error: %s", err)
-			return
-		}
-	}()
 	// 如果启用了审批，创建审批
 	if app.App.Config.WithDingtalk.Enable {
 		values := []dt.FormComponentValue{}
@@ -204,26 +189,22 @@ func createApproval(c *gin.Context) {
 		processid, err := dingtalk.CreateApproval(*req.Applicant, values)
 		if err != nil {
 			log.Errorf("dingtalk.CreateApproval error: %s", err)
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
 		policyId, err := app.App.DBService.CreatePolicy(req.ToPolicyMut(), &processid)
 		if err != nil {
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(gin.H{
-			"policy_id": policyId,
-		}))
+		c.JSON(200, policyId)
 	} else {
 		policyId, err := app.App.DBService.CreatePolicy(req.ToPolicyMut(), nil)
 		if err != nil {
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(gin.H{
-			"policy_id": policyId,
-		}))
+		c.String(200, policyId)
 	}
 }
 
@@ -242,19 +223,19 @@ func createApproval(c *gin.Context) {
 func updateApproval(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(400, NewErrorResponse(400, "id is empty"))
+		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
 	var req *db.ApprovalResult
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, NewErrorResponse(400, err.Error()))
+		c.JSON(400, err.Error())
 		return
 	}
 	if err := app.App.DBService.UpdatePolicyStatus(id, *req); err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(nil))
+	c.String(200, "success")
 }
 
 // @Summary 获取用户列表
@@ -265,7 +246,7 @@ func updateApproval(c *gin.Context) {
 // @Param Authorization header string false "token"
 // @Param name query string false "name 支持用户名或者email查询"
 // @Param group query string false "group"
-// @Success 200 {object} Response
+// @Success 200 {object} []db.User
 // @Failure 500 {object} Response
 // @Router /api/v1/user [get]
 func listUser(c *gin.Context) {
@@ -274,37 +255,28 @@ func listUser(c *gin.Context) {
 	if name != "" {
 		users, err := app.App.DBService.DescribeUser(name)
 		if err != nil {
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(map[string]any{
-			"total": 1,
-			"items": users,
-		}))
+		c.JSON(200, users)
 		return
 	}
 	if group != "" {
 		users, err := app.App.DBService.QueryUserByGroup(group)
 		if err != nil {
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(map[string]any{
-			"total": len(users),
-			"items": users,
-		}))
+		c.JSON(200, users)
 		return
 	}
 	// 否则查询所有
 	users, err := app.App.DBService.QueryAllUser()
 	if err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(map[string]any{
-		"total": len(users),
-		"items": users,
-	}))
+	c.JSON(200, users)
 }
 
 // @Summary 追加用户组
@@ -322,19 +294,19 @@ func listUser(c *gin.Context) {
 func updateUserGroup(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(400, NewErrorResponse(400, "id is empty"))
+		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
 	var req *db.UserPatchMut
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, NewErrorResponse(400, err.Error()))
+		c.JSON(400, err.Error())
 		return
 	}
 	if err := app.App.DBService.PatchUserGroup(id, req); err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(nil))
+	c.String(200, "success")
 }
 
 // @Summary 更新用户
@@ -352,17 +324,17 @@ func updateUserGroup(c *gin.Context) {
 func updateUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(400, NewErrorResponse(400, "id is empty"))
+		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
 	var req *db.UserMut
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, NewErrorResponse(400, err.Error()))
+		c.JSON(400, err.Error())
 		return
 	}
 	if err := app.App.DBService.UpdateUser(id, *req); err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(nil))
+	c.String(200, "success")
 }

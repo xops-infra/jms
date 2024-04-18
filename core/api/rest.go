@@ -16,22 +16,6 @@ type Response struct {
 	Data    any    `json:"data"`
 }
 
-func NewSuccessResponse(data any) Response {
-	return Response{
-		Code:    200,
-		Message: "success",
-		Data:    data,
-	}
-}
-
-func NewErrorResponse(code int, message string) Response {
-	return Response{
-		Code:    code,
-		Message: message,
-		Data:    nil,
-	}
-}
-
 func NewGin() *gin.Engine {
 	r := gin.Default()
 	middleware.AttachTo(r).
@@ -80,8 +64,8 @@ func NewGin() *gin.Engine {
 	{
 		// key
 		k.GET("", listKey)
-		k.POST("", createKey)
-		k.DELETE("/:id", deleteKey)
+		k.POST("", addKey)
+		k.DELETE("/:uuid", deleteKey)
 
 	}
 	return r

@@ -10,6 +10,7 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/core/db"
 )
 
 func LoadServer(conf *config.Config) {
@@ -18,6 +19,13 @@ func LoadServer(conf *config.Config) {
 			log.Errorf("LoadServer panic: %v", err)
 		}
 	}()
+
+	// get keys from db
+	keys, err := app.App.DBService.InternalLoad()
+	if err != nil {
+		log.Panicf("load keys failed: %v", err)
+	}
+	app.App.Cache.Set("keys", keys, 0)
 
 	instanceAll := make(map[string]config.Server, 0)
 	startTime := time.Now()
@@ -33,16 +41,15 @@ func LoadServer(conf *config.Config) {
 			// }
 			continue
 		}
-		var keyName *string
+		var keyName []*string
 		for _, key := range instance.KeyName {
 			if key == nil {
 				break
 			}
 			// 解决 key大写不识别问题
 			key = tea.String(strings.ToLower(*key))
-			if _, ok := conf.Keys[*key]; ok {
-				keyName = key
-				break
+			if _, ok := keys[*key]; ok {
+				keyName = append(keyName, tea.String(keys[*key].KeyName))
 			} else {
 				log.Warnf("instance:%s key: %s not found in config.yml\n", *instance.Name, *key)
 				continue
@@ -65,21 +72,14 @@ func LoadServer(conf *config.Config) {
 			Profile:  instance.Profile,
 			Region:   tea.StringValue(instance.Region),
 			Status:   instance.Status,
-			KeyPair:  keyName,
+			KeyPairs: keyName,
 			SSHUsers: &sshUser,
 			Tags:     *instance.Tags,
 			Proxy:    fmtProxy(instance, conf),
 		}
 		log.Debugf(tea.Prettify(instanceAll[*instance.InstanceID].SSHUsers))
 	}
-	_, found := app.App.Cache.Get("servers")
-	if found {
-		app.App.Cache.Delete("servers")
-	}
-	err := app.App.Cache.Add("servers", instanceAll, 0)
-	if err != nil {
-		log.Errorf("app.App.Cache.Add error: %s", err)
-	}
+	app.App.Cache.Set("servers", instanceAll, 0)
 	log.Infof("%s len: %d", time.Since(startTime), len(instances))
 }
 
@@ -91,9 +91,15 @@ func GetServers() map[string]config.Server {
 	return servers.(map[string]config.Server)
 }
 
-// getKeyPair
-func getKeyPair(keyNames []*string) *string {
-	configKeys := app.App.Config.Keys
+// 通过机器的密钥对 Key Name 获取对应的密钥Pem的路径
+func getKeyPair(keyNames []*string) []db.Key {
+	keysAll := make([]db.Key, 0)
+
+	keys, ok := app.App.Cache.Get("keys")
+	if !ok {
+		return keysAll
+	}
+	configKeys := keys.(map[string]db.Key)
 
 	for _, keyName := range keyNames {
 		if keyName == nil {
@@ -101,31 +107,36 @@ func getKeyPair(keyNames []*string) *string {
 		}
 		lowKey := strings.ToLower(*keyName)
 		if _, ok := configKeys[lowKey]; ok {
-			return tea.String(configKeys[lowKey])
+			keysAll = append(keysAll, configKeys[lowKey])
 		}
 	}
-	return nil
+	return keysAll
 }
 
 // fmtSuperUser 支持多用户选择
 func fmtSuperUser(instance *model.Instance) map[string]*config.SSHUser {
-	keyPath := getKeyPair(instance.KeyName)
+	keys := getKeyPair(instance.KeyName)
 	sshUser := make(map[string]*config.SSHUser, 0)
 	log.Debugf("platform: %s\n", *instance.Platform)
-	if strings.Contains(*instance.Platform, "Ubuntu") {
-		sshUser["ubuntu"] = &config.SSHUser{
-			SSHUsername:  "ubuntu",
-			IdentityFile: tea.StringValue(keyPath),
-		}
-	} else if *instance.Platform == "Linux/UNIX" {
-		sshUser["ec2-user"] = &config.SSHUser{
-			SSHUsername:  "ec2-user",
-			IdentityFile: tea.StringValue(keyPath),
-		}
-	} else {
-		sshUser["root"] = &config.SSHUser{
-			SSHUsername:  "root",
-			IdentityFile: tea.StringValue(keyPath),
+	for _, key := range keys {
+		if strings.Contains(*instance.Platform, "Ubuntu") {
+			sshUser["ubuntu"] = &config.SSHUser{
+				SSHUsername:  "ubuntu",
+				IdentityFile: key.KeyName,
+				Base64Pem:    key.PemMd5,
+			}
+		} else if *instance.Platform == "Linux/UNIX" {
+			sshUser["ec2-user"] = &config.SSHUser{
+				SSHUsername:  "ec2-user",
+				IdentityFile: key.KeyName,
+				Base64Pem:    key.PemMd5,
+			}
+		} else {
+			sshUser["root"] = &config.SSHUser{
+				SSHUsername:  "root",
+				IdentityFile: key.KeyName,
+				Base64Pem:    key.PemMd5,
+			}
 		}
 	}
 	return sshUser

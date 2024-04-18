@@ -7,7 +7,7 @@ definitions:
       message:
         type: string
     type: object
-  policy.Action:
+  db.Action:
     enum:
     - connect
     - deny_connect
@@ -23,12 +23,30 @@ definitions:
     - DenyDownload
     - Upload
     - DenyUpload
-  policy.ApprovalMut:
+  db.AddKeyRequest:
+    properties:
+      key_id:
+        description: 云上的key id，比如 skey-123456
+        type: string
+      key_name:
+        description: 云上下载下来的名字，比如 jms-key.pem
+        type: string
+      pem_md5:
+        description: md5
+        type: string
+      profile:
+        description: 云账号的 profile，比如 aws, aliyun
+        type: string
+    required:
+    - key_id
+    - pem_md5
+    type: object
+  db.ApprovalMut:
     properties:
       actions:
         description: 申请动作，默认只有connect
         items:
-          $ref: '#/definitions/policy.Action'
+          $ref: '#/definitions/db.Action'
         type: array
       applicant:
         description: 申请人AD名,或者email
@@ -40,7 +58,7 @@ definitions:
         type: string
       period:
         allOf:
-        - $ref: '#/definitions/policy.Period'
+        - $ref: '#/definitions/db.Period'
         description: 审批周期，默认一周
       server_filter:
         $ref: '#/definitions/utils.ServerFilter'
@@ -52,14 +70,14 @@ definitions:
     - server_filter
     - users
     type: object
-  policy.ApprovalResult:
+  db.ApprovalResult:
     properties:
       applicant:
         type: string
       is_pass:
         type: boolean
     type: object
-  policy.Period:
+  db.Period:
     enum:
     - 1d
     - 1w
@@ -73,7 +91,7 @@ definitions:
     - OneMonth
     - OneYear
     - Forever
-  policy.PolicyMut:
+  db.PolicyMut:
     properties:
       actions:
         items: {}
@@ -93,7 +111,37 @@ definitions:
         items: {}
         type: array
     type: object
-  policy.UserMut:
+  db.User:
+    properties:
+      created_at:
+        type: string
+      dingtalk_dept_id:
+        type: string
+      dingtalk_id:
+        type: string
+      email:
+        type: string
+      groups:
+        description: 组不在 jms维护这里只需要和机器 tag:Team 匹配即可。
+        items: {}
+        type: array
+      id:
+        type: string
+      is_deleted:
+        type: boolean
+      is_ldap:
+        type: boolean
+      passwd:
+        description: 密码计算为md5保存
+        items:
+          type: integer
+        type: array
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  db.UserMut:
     properties:
       dingtalk_dept_id:
         type: string
@@ -111,7 +159,7 @@ definitions:
     required:
     - username
     type: object
-  policy.UserPatchMut:
+  db.UserPatchMut:
     properties:
       groups:
         items: {}
@@ -150,7 +198,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/policy.ApprovalMut'
+          $ref: '#/definitions/db.ApprovalMut'
       produces:
       - application/json
       responses:
@@ -189,7 +237,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/policy.ApprovalResult'
+          $ref: '#/definitions/db.ApprovalResult'
       produces:
       - application/json
       responses:
@@ -208,6 +256,86 @@ paths:
       summary: 更新审批
       tags:
       - Approval
+  /api/v1/key:
+    get:
+      consumes:
+      - application/json
+      description: 列出密钥，数据隐藏
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response'
+      summary: 列出密钥
+      tags:
+      - Key
+    post:
+      consumes:
+      - application/json
+      description: 添加密钥
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: key
+        in: body
+        name: key
+        required: true
+        schema:
+          $ref: '#/definitions/db.AddKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response'
+      summary: 添加密钥
+      tags:
+      - Key
+  /api/v1/key/:uuid:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: key uuid
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response'
+      summary: 删除密钥
+      tags:
+      - Key
   /api/v1/policy:
     get:
       consumes:
@@ -296,7 +424,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/policy.PolicyMut'
+          $ref: '#/definitions/db.PolicyMut'
       produces:
       - application/json
       responses:
@@ -339,7 +467,9 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.Response'
+            items:
+              $ref: '#/definitions/db.User'
+            type: array
         "500":
           description: Internal Server Error
           schema:
@@ -367,7 +497,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/policy.UserPatchMut'
+          $ref: '#/definitions/db.UserPatchMut'
       produces:
       - application/json
       responses:
@@ -405,7 +535,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/policy.UserMut'
+          $ref: '#/definitions/db.UserMut'
       produces:
       - application/json
       responses:

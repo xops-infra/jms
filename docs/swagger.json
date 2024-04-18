@@ -34,7 +34,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.ApprovalMut"
+                            "$ref": "#/definitions/db.ApprovalMut"
                         }
                     }
                 ],
@@ -93,7 +93,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.ApprovalResult"
+                            "$ref": "#/definitions/db.ApprovalResult"
                         }
                     }
                 ],
@@ -106,6 +106,128 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/key": {
+            "get": {
+                "description": "列出密钥，数据隐藏",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Key"
+                ],
+                "summary": "列出密钥",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "添加密钥",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Key"
+                ],
+                "summary": "添加密钥",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "token",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "description": "key",
+                        "name": "key",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.AddKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/key/:uuid": {
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Key"
+                ],
+                "summary": "删除密钥",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "token",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "key uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/api.Response"
                         }
@@ -207,7 +329,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.PolicyMut"
+                            "$ref": "#/definitions/db.PolicyMut"
                         }
                     }
                 ],
@@ -318,7 +440,10 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/db.User"
+                            }
                         }
                     },
                     "500": {
@@ -363,7 +488,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.UserMut"
+                            "$ref": "#/definitions/db.UserMut"
                         }
                     }
                 ],
@@ -420,7 +545,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.UserPatchMut"
+                            "$ref": "#/definitions/db.UserPatchMut"
                         }
                     }
                 ],
@@ -460,7 +585,7 @@
                 }
             }
         },
-        "policy.Action": {
+        "db.Action": {
             "type": "string",
             "enum": [
                 "connect",
@@ -479,7 +604,32 @@
                 "DenyUpload"
             ]
         },
-        "policy.ApprovalMut": {
+        "db.AddKeyRequest": {
+            "type": "object",
+            "required": [
+                "key_id",
+                "pem_md5"
+            ],
+            "properties": {
+                "key_id": {
+                    "description": "云上的key id，比如 skey-123456",
+                    "type": "string"
+                },
+                "key_name": {
+                    "description": "云上下载下来的名字，比如 jms-key.pem",
+                    "type": "string"
+                },
+                "pem_md5": {
+                    "description": "md5",
+                    "type": "string"
+                },
+                "profile": {
+                    "description": "云账号的 profile，比如 aws, aliyun",
+                    "type": "string"
+                }
+            }
+        },
+        "db.ApprovalMut": {
             "type": "object",
             "required": [
                 "applicant",
@@ -491,7 +641,7 @@
                     "description": "申请动作，默认只有connect",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/policy.Action"
+                        "$ref": "#/definitions/db.Action"
                     }
                 },
                 "applicant": {
@@ -509,7 +659,7 @@
                     "description": "审批周期，默认一周",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/policy.Period"
+                            "$ref": "#/definitions/db.Period"
                         }
                     ]
                 },
@@ -522,7 +672,7 @@
                 }
             }
         },
-        "policy.ApprovalResult": {
+        "db.ApprovalResult": {
             "type": "object",
             "properties": {
                 "applicant": {
@@ -533,7 +683,7 @@
                 }
             }
         },
-        "policy.Period": {
+        "db.Period": {
             "type": "string",
             "enum": [
                 "1d",
@@ -550,7 +700,7 @@
                 "Forever"
             ]
         },
-        "policy.PolicyMut": {
+        "db.PolicyMut": {
             "type": "object",
             "properties": {
                 "actions": {
@@ -579,7 +729,51 @@
                 }
             }
         },
-        "policy.UserMut": {
+        "db.User": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "dingtalk_dept_id": {
+                    "type": "string"
+                },
+                "dingtalk_id": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "groups": {
+                    "description": "组不在 jms维护这里只需要和机器 tag:Team 匹配即可。",
+                    "type": "array",
+                    "items": {}
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_deleted": {
+                    "type": "boolean"
+                },
+                "is_ldap": {
+                    "type": "boolean"
+                },
+                "passwd": {
+                    "description": "密码计算为md5保存",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "db.UserMut": {
             "type": "object",
             "required": [
                 "username"
@@ -606,7 +800,7 @@
                 }
             }
         },
-        "policy.UserPatchMut": {
+        "db.UserPatchMut": {
             "type": "object",
             "properties": {
                 "groups": {
