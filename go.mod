@@ -20,7 +20,7 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.8.12
-	github.com/xops-infra/ginx v0.2.2-0.20231107031346-72ed7cc8fe6c
+	github.com/xops-infra/ginx v0.2.2-0.20240220030752-c15eda8aa86d
 	github.com/xops-infra/go-dingtalk-sdk-wrapper v1.0.1-0.20240120062134-f736b8e8c268
 	github.com/xops-infra/http-headers v0.0.0-20230213021202-2b827f3526a0
 	github.com/xops-infra/multi-cloud-sdk v0.0.0-20231209121551-37d29dfcda0b

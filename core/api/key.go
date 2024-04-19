@@ -14,8 +14,7 @@ import (
 // @Tags Key
 // @Accept  json
 // @Produce  json
-// @Success 200 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {object} []db.Key
 // @Router /api/v1/key [get]
 func listKey(c *gin.Context) {
 	keys, err := app.App.DBService.ListKey()
@@ -33,9 +32,7 @@ func listKey(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param key body db.AddKeyRequest true "key"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {string} id
 // @Router /api/v1/key [post]
 func addKey(c *gin.Context) {
 	var req db.AddKeyRequest
@@ -57,8 +54,7 @@ func addKey(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param uuid path string true "key uuid"
-// @Success 200 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {string} success
 // @Router /api/v1/key/:uuid [delete]
 func deleteKey(c *gin.Context) {
 	id := c.Param("uuid")

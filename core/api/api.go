@@ -23,8 +23,8 @@ import (
 // @Param name query string false "name"
 // @Param id query string false "policy id"
 // @Param user query string false "user"
-// @Success 200 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {object} []db.Policy
+// @Failure 500 {string} string
 // @Router /api/v1/policy [get]
 func listPolicy(c *gin.Context) {
 	user := c.Query("user")
@@ -43,10 +43,7 @@ func listPolicy(c *gin.Context) {
 	if name != "" {
 		policies, err := app.App.DBService.QueryPolicyByName(name)
 		if err != nil {
-			c.JSON(500, Response{
-				Code:    500,
-				Message: err.Error(),
-			})
+			c.JSON(500, err.Error())
 			return
 		}
 		c.JSON(200, policies)
@@ -55,10 +52,7 @@ func listPolicy(c *gin.Context) {
 	if id != "" {
 		policy, err := app.App.DBService.QueryPolicyById(id)
 		if err != nil {
-			c.JSON(500, Response{
-				Code:    500,
-				Message: err.Error(),
-			})
+			c.JSON(500, err.Error())
 			return
 		}
 		c.JSON(200, policy)
@@ -67,10 +61,7 @@ func listPolicy(c *gin.Context) {
 	// 否则查询所有
 	policies, err := app.App.DBService.QueryAllPolicy()
 	if err != nil {
-		c.JSON(500, Response{
-			Code:    500,
-			Message: err.Error(),
-		})
+		c.JSON(500, err.Error())
 		return
 	}
 	c.JSON(200, policies)
@@ -84,9 +75,9 @@ func listPolicy(c *gin.Context) {
 // @Param Authorization header string false "token"
 // @Param id path string true "policy id"
 // @Param request body db.PolicyMut true "request"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {string} success
+// @Failure 400 {string} error
+// @Failure 500 {string} error
 // @Router /api/v1/policy/:id [put]
 func updatePolicy(c *gin.Context) {
 	id := c.Param("id")
@@ -113,9 +104,7 @@ func updatePolicy(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "policy id"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {string} success
 // @Router /api/v1/policy/:id [delete]
 func deletePolicy(c *gin.Context) {
 	id := c.Param("id")
@@ -137,9 +126,7 @@ func deletePolicy(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param request body db.ApprovalMut true "request"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {string} id
 // @Router /api/v1/approval [post]
 func createApproval(c *gin.Context) {
 	var req db.ApprovalMut
@@ -216,9 +203,7 @@ func createApproval(c *gin.Context) {
 // @Param Authorization header string false "token"
 // @Param id path string true "approval id"
 // @Param request body db.ApprovalResult true "request"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {string} success
 // @Router /api/v1/approval/:id [patch]
 func updateApproval(c *gin.Context) {
 	id := c.Param("id")
@@ -247,7 +232,6 @@ func updateApproval(c *gin.Context) {
 // @Param name query string false "name 支持用户名或者email查询"
 // @Param group query string false "group"
 // @Success 200 {object} []db.User
-// @Failure 500 {object} Response
 // @Router /api/v1/user [get]
 func listUser(c *gin.Context) {
 	name := c.Query("name")
@@ -287,9 +271,7 @@ func listUser(c *gin.Context) {
 // @Param Authorization header string false "token"
 // @Param id path string true "user id"
 // @Param request body db.UserPatchMut true "request"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {string} success
 // @Router /api/v1/user/:id [patch]
 func updateUserGroup(c *gin.Context) {
 	id := c.Param("id")
@@ -317,9 +299,7 @@ func updateUserGroup(c *gin.Context) {
 // @Param Authorization header string false "token"
 // @Param id path string true "user id"
 // @Param request body db.UserMut true "request"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {string} success
 // @Router /api/v1/user/:id [put]
 func updateUser(c *gin.Context) {
 	id := c.Param("id")

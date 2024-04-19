@@ -429,6 +429,8 @@ github.com/ugorji/go/codec v1.2.11 h1:BMaWp1Bb6fHwEtbplGBGJ498wD+LKlNSl25MjdZY4d
 github.com/ugorji/go/codec v1.2.11/go.mod h1:UNopzCgEMSXjBc6AOMqYvWC1ktqTAfzJZUZgYf6w6lg=
 github.com/xops-infra/ginx v0.2.2-0.20231107031346-72ed7cc8fe6c h1:C9wLnY4zLo3Clly8nQ1I2Sf4jZTByZtEWWcz8PRnAIY=
 github.com/xops-infra/ginx v0.2.2-0.20231107031346-72ed7cc8fe6c/go.mod h1:tFdi8WZ2itZqFoXFubi7x3GhFxz0S7C0rVm2VuOx4mU=
+github.com/xops-infra/ginx v0.2.2-0.20240220030752-c15eda8aa86d h1:R70yCj9Ups25wnXDSosqWbN8KuB7HOB8ZMywVCwe44g=
+github.com/xops-infra/ginx v0.2.2-0.20240220030752-c15eda8aa86d/go.mod h1:zqxJnDA+TbZaueUOIDAcAZGdiHcRL+ecQmRgLCBQrGs=
 github.com/xops-infra/go-dingtalk-sdk-wrapper v1.0.1-0.20240120062134-f736b8e8c268 h1:hwalljyr19QhmO57FAgtSRO3gPjTArSZOu8RknA/GXM=
 github.com/xops-infra/go-dingtalk-sdk-wrapper v1.0.1-0.20240120062134-f736b8e8c268/go.mod h1:FPNtif6aSyZQ8f0DxT+0VchPiOGmz0ctvBS1Ym64TVc=
 github.com/xops-infra/http-headers v0.0.0-20230213021202-2b827f3526a0 h1:EwsqaE17YyKLSa4Dp9r3GuD/dgR9Kdq9n4ktYh32WW4=

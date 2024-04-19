@@ -50,7 +50,7 @@ withLdap:
   enable: true
   host: "xxx"
   port: 389
-  baseDN: "dc=corp,dc=patsnap,dc=com"
+  baseDN: "dc=corp,dc=xxx,dc=com"
   bindUser: "xxx"
   bindPassword: "xxx"
   userSearchFilter: "(sAMAccountName=%s)"

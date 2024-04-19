@@ -10,12 +10,6 @@ import (
 	_ "github.com/xops-infra/jms/docs"
 )
 
-type Response struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Data    any    `json:"data"`
-}
-
 func NewGin() *gin.Engine {
 	r := gin.Default()
 	middleware.AttachTo(r).
@@ -38,35 +32,32 @@ func NewGin() *gin.Engine {
 	})
 
 	api := r.Group("/api/v1")
+	api.POST("/login", login)
+
+	u := api.Group("/user")
+	u.GET("", listUser)
+	u.PATCH("/:id", updateUserGroup)
+	u.PUT("/:id", updateUser)
 
 	p := api.Group("/policy")
-	a := api.Group("/approval")
-	u := api.Group("/user")
-	k := api.Group("/key")
-	{
-		u.GET("", listUser)
-		// u.POST("", createUser) // ad用户登录后自动创建用户
-		u.PATCH("/:id", updateUserGroup)
-		u.PUT("/:id", updateUser)
-	}
-	{
-		// policy
-		p.GET("", listPolicy)
-		// p.POST("", createPolicy)
-		p.PUT("/:id", updatePolicy)
-		p.DELETE("/:id", deletePolicy)
-	}
-	{
-		// approval
-		a.POST("", createApproval)
-		a.PATCH("/:id", updateApproval)
-	}
-	{
-		// key
-		k.GET("", listKey)
-		k.POST("", addKey)
-		k.DELETE("/:uuid", deleteKey)
+	p.GET("", listPolicy)
+	p.PUT("/:id", updatePolicy)
+	p.DELETE("/:id", deletePolicy)
 
-	}
+	a := api.Group("/approval")
+	a.POST("", createApproval)
+	a.PATCH("/:id", updateApproval)
+
+	k := api.Group("/key")
+	k.GET("", listKey)
+	k.POST("", addKey)
+	k.DELETE("/:uuid", deleteKey)
+
+	profile := api.Group("/profile")
+	profile.GET("", listProfile)
+	profile.POST("", createProfile)
+	profile.PUT(":uuid", updateProfile)
+	profile.DELETE(":uuid", deleteProfile)
+
 	return r
 }

@@ -1,0 +1,101 @@
+package db
+
+import (
+	"fmt"
+
+	"github.com/alibabacloud-go/tea/tea"
+	"github.com/google/uuid"
+	"github.com/xops-infra/noop/log"
+	"gorm.io/gorm"
+)
+
+type CreateProfileRequest struct {
+	Name    *string     `json:"name" binding:"required"`
+	AK      *string     `json:"ak" binding:"required"`
+	SK      *string     `json:"sk" binding:"required"`
+	Cloud   *string     `json:"cloud" binding:"required" default:"tencent"` // aws, aliyun, tencent
+	Regions StringSlice `json:"regions" binding:"required"`
+}
+
+type Profile struct {
+	gorm.Model `json:"-"`
+	UUID       string      `gorm:"column:uuid;type:varchar(36);unique_index;not null"`
+	Name       string      `gorm:"column:name;type:varchar(255);not null"`
+	AK         string      `gorm:"column:ak;type:varchar(255);not null"`
+	SK         string      `gorm:"column:sk;type:varchar(255);not null"`
+	IsDelete   bool        `gorm:"column:is_delete;type:boolean;not null;default:false"`
+	Cloud      string      `gorm:"column:cloud;type:varchar(255);not null"`
+	Regions    StringSlice `gorm:"column:regions;type:json;not null"`
+}
+
+func (Profile) TableName() string {
+	return "profile"
+}
+
+func (d *DBService) ListProfile() ([]Profile, error) {
+	var profiles []Profile
+	err := d.DB.Where("is_delete is false").Find(&profiles).Order("created_at").Error
+	// 隐藏敏感信息
+	for i := range profiles {
+		profiles[i].AK = "****"
+		profiles[i].SK = "****"
+	}
+	return profiles, err
+}
+
+func (d *DBService) CreateProfile(req CreateProfileRequest) (string, error) {
+	if req.Name == nil || req.AK == nil || req.SK == nil || req.Cloud == nil || len(req.Regions) == 0 {
+		return "", fmt.Errorf("name, ak, sk, cloud, regions are required")
+	}
+	// 先查询是否存在
+	var count int64
+	err := d.DB.Model(Profile{}).Where("name = ?", *req.Name).Where("is_delete is false").Count(&count).Error
+	if err != nil {
+		return "", err
+	}
+	if count > 0 {
+		return "", fmt.Errorf("profile name %s already exists", *req.Name)
+	}
+	profile := Profile{
+		UUID:    uuid.New().String(),
+		Name:    *req.Name,
+		AK:      *req.AK,
+		SK:      *req.SK,
+		Cloud:   *req.Cloud,
+		Regions: req.Regions,
+	}
+	log.Debugf(tea.Prettify(profile))
+	err = d.DB.Create(&profile).Error
+	return profile.UUID, err
+}
+
+func (d *DBService) UpdateProfile(uuid string, req CreateProfileRequest) error {
+	profile := Profile{}
+	if req.Name != nil {
+		profile.Name = *req.Name
+	}
+	if req.AK != nil {
+		profile.AK = *req.AK
+	}
+	if req.SK != nil {
+		profile.SK = *req.SK
+	}
+	if req.Cloud != nil {
+		profile.Cloud = *req.Cloud
+	}
+	if len(req.Regions) > 0 {
+		profile.Regions = req.Regions
+	}
+	err := d.DB.Model(Profile{}).Where("uuid = ?", uuid).Updates(&profile).Error
+	return err
+}
+
+func (d *DBService) DeleteProfile(uuid string) error {
+	// 先查询是否存在
+	var profile Profile
+	err := d.DB.Where("uuid = ?", uuid).Where("is_delete is false").First(&profile).Error
+	if err != nil {
+		return err
+	}
+	return d.DB.Model(Profile{}).Where("uuid = ?", uuid).Update("is_delete", true).Error
+}

@@ -133,6 +133,7 @@ func (app *Application) WithPolicy() *Application {
 	// 初始化数据库
 	rdb.AutoMigrate(
 		&db.Policy{}, &db.User{}, &db.Key{},
+		&db.Profile{},
 	)
 	App.DBService = db.NewDbService(rdb)
 	return app

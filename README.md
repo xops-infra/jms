@@ -52,6 +52,9 @@ README1.md                                    100% 2506     1.8MB/s   00:00
 # docker启动
 docker run --rm --network=host -dit -v /root/jms/ssh/:/root/.ssh/ -v /root/jms/jms.yml:/opt/jms/.jms.yml -p 22222:22222 --name jms_test -e WITH_SSH_CHECK=true zhoushoujian/jms:latest
 
+# k8s 部署，完善好 configmap配置后，直接部署即可
+kubectl apply -f sstatefulset.yaml -n jms --create-namespace
+
 ```
 
 
