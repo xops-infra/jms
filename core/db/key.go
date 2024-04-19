@@ -1,6 +1,8 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -53,9 +55,13 @@ func (d *DBService) ListKey() ([]Key, error) {
 // 支持判断 keyname 是否存在
 func (d *DBService) AddKey(req AddKeyRequest) (string, error) {
 	// 先查询是否存在
-	err := d.DB.Where("key_name = ?", tea.StringValue(req.KeyName)).Where("is_delete is false").Error
+	var count int64
+	err := d.DB.Model(Key{}).Where("key_name = ?", tea.StringValue(req.KeyName)).Where("is_delete is false").Count(&count).Error
 	if err != nil {
 		return "", err
+	}
+	if count > 0 {
+		return "", fmt.Errorf("key name %s already exists", tea.StringValue(req.KeyName))
 	}
 	key := &Key{
 		IsDelete:  false,
