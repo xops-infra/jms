@@ -31,15 +31,15 @@ definitions:
       key_name:
         description: 云上下载下来的名字，比如 jms-key.pem
         type: string
-      pem_md5:
-        description: md5
+      pem_base64:
+        description: base64
         type: string
       profile:
         description: 云账号的 profile，比如 aws, aliyun
         type: string
     required:
     - key_id
-    - pem_md5
+    - pem_base64
     type: object
   db.ApprovalMut:
     properties:
@@ -132,7 +132,7 @@ definitions:
       is_ldap:
         type: boolean
       passwd:
-        description: 密码计算为md5保存
+        description: 加密后的密码
         items:
           type: integer
         type: array

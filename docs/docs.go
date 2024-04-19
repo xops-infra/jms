@@ -617,7 +617,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "key_id",
-                "pem_md5"
+                "pem_base64"
             ],
             "properties": {
                 "key_id": {
@@ -628,8 +628,8 @@ const docTemplate = `{
                     "description": "云上下载下来的名字，比如 jms-key.pem",
                     "type": "string"
                 },
-                "pem_md5": {
-                    "description": "md5",
+                "pem_base64": {
+                    "description": "base64",
                     "type": "string"
                 },
                 "profile": {
@@ -768,7 +768,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "passwd": {
-                    "description": "密码计算为md5保存",
+                    "description": "加密后的密码",
                     "type": "array",
                     "items": {
                         "type": "integer"

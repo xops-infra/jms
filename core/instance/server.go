@@ -20,11 +20,23 @@ func LoadServer(conf *config.Config) {
 		}
 	}()
 
-	// get keys from db
-	keys, err := app.App.DBService.InternalLoad()
-	if err != nil {
-		log.Panicf("load keys failed: %v", err)
+	keys := make(map[string]db.Key, 0)
+	// 支持启用和不启用数据库获取 KEY 来源
+	if app.App.Config.WithPolicy.Enable {
+		// get keys from db
+		resp, err := app.App.DBService.InternalLoad()
+		if err != nil {
+			log.Panicf("load keys failed: %v", err)
+		}
+		keys = resp
+	} else {
+		for id, keyName := range app.App.Config.Keys {
+			keys[id] = db.Key{
+				KeyName: keyName,
+			}
+		}
 	}
+	log.Debugf(tea.Prettify(keys))
 	app.App.Cache.Set("keys", keys, 0)
 
 	instanceAll := make(map[string]config.Server, 0)
@@ -51,7 +63,7 @@ func LoadServer(conf *config.Config) {
 			if _, ok := keys[*key]; ok {
 				keyName = append(keyName, tea.String(keys[*key].KeyName))
 			} else {
-				log.Warnf("instance:%s key: %s not found in config.yml\n", *instance.Name, *key)
+				log.Warnf("instance:%s key:%s not found in config.yml\n", *instance.Name, *key)
 				continue
 			}
 		}
@@ -123,19 +135,19 @@ func fmtSuperUser(instance *model.Instance) map[string]*config.SSHUser {
 			sshUser["ubuntu"] = &config.SSHUser{
 				SSHUsername:  "ubuntu",
 				IdentityFile: key.KeyName,
-				Base64Pem:    key.PemMd5,
+				Base64Pem:    key.PemBase64,
 			}
 		} else if *instance.Platform == "Linux/UNIX" {
 			sshUser["ec2-user"] = &config.SSHUser{
 				SSHUsername:  "ec2-user",
 				IdentityFile: key.KeyName,
-				Base64Pem:    key.PemMd5,
+				Base64Pem:    key.PemBase64,
 			}
 		} else {
 			sshUser["root"] = &config.SSHUser{
 				SSHUsername:  "root",
 				IdentityFile: key.KeyName,
-				Base64Pem:    key.PemMd5,
+				Base64Pem:    key.PemBase64,
 			}
 		}
 	}

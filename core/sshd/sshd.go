@@ -199,7 +199,6 @@ func getSignerFromBase64(key string) (gossh.Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("base64Pem: %s\n", base64Pem)
 	signer, err := gossh.ParsePrivateKey([]byte(base64Pem))
 	if err != nil {
 		return nil, err

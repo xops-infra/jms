@@ -33,8 +33,8 @@ func TestAddKey(t *testing.T) {
 		base64Pem := base64.StdEncoding.EncodeToString(pem)
 		// 添加到数据库
 		_, err = app.App.DBService.AddKey(db.AddKeyRequest{
-			KeyName: tea.String(info.Name()),
-			PemMd5:  tea.String(base64Pem),
+			KeyName:   tea.String(info.Name()),
+			PemBase64: tea.String(base64Pem),
 		})
 		if err != nil {
 			t.Fatal(err)

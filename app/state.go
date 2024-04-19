@@ -108,7 +108,7 @@ func (app *Application) WithPolicy() *Application {
 	// 优先匹配 pg
 	var dialector gorm.Dialector
 	if app.Config.WithPolicy.PG.Database != "" {
-		log.Infof("with policy pg database: %s", app.Config.WithPolicy.PG.GetUrl())
+		log.Debugf("with policy pg database: %s", app.Config.WithPolicy.PG.GetUrl())
 		dialector = postgres.Open(app.Config.WithPolicy.PG.GetUrl())
 	} else {
 		dbFile := config.Conf.WithPolicy.DBFile

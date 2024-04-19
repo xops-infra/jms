@@ -87,7 +87,7 @@ var sshdCmd = &cobra.Command{
 			_app.WithPolicy()
 			log.Infof("enable policy,default user: admin/admin")
 		} else {
-			log.Infof("--with-policy=false, this mode any server can be connected")
+			log.Warnf("--with-policy=false, this mode any server can be connected")
 		}
 
 		if app.App.Config.WithDingtalk.Enable {
@@ -121,7 +121,7 @@ var sshdCmd = &cobra.Command{
 
 		var wrapped *wrappedConn
 
-		log.Infof("starting ssh server on port %d...\n", sshdPort)
+		log.Infof("starting ssh server on port %d timeout %d...", sshdPort, timeOut)
 		err = ssh.ListenAndServe(
 			fmt.Sprintf(":%d", sshdPort),
 			nil,

@@ -7,20 +7,20 @@ import (
 )
 
 type AddKeyRequest struct {
-	KeyName *string `json:"key_name"`                   // 云上下载下来的名字，比如 jms-key.pem
-	PemMd5  *string `json:"pem_md5" binding:"required"` // md5
-	KeyID   *string `json:"key_id" binding:"required"`  // 云上的key id，比如 skey-123456
-	Profile *string `json:"profile"`                    // 云账号的 profile，比如 aws, aliyun
+	KeyName   *string `json:"key_name"`                      // 云上下载下来的名字，比如 jms-key.pem
+	PemBase64 *string `json:"pem_base64" binding:"required"` // base64
+	KeyID     *string `json:"key_id" binding:"required"`     // 云上的key id，比如 skey-123456
+	Profile   *string `json:"profile"`                       // 云账号的 profile，比如 aws, aliyun
 }
 
 type Key struct {
 	gorm.Model
-	IsDelete bool   `gorm:"column:is_delete;type:boolean;not null;default:false"`
-	UUID     string `gorm:"column:uuid;type:varchar(36);unique_index;not null"`
-	KeyID    string `gorm:"column:key_id;type:varchar(36);unique_index;not null"`
-	KeyName  string `gorm:"column:key_name;type:varchar(255);not null"`
-	Profile  string `gorm:"column:profile;type:varchar(255);not null"`
-	PemMd5   string `gorm:"column:pem_md5;type:text;not null"`
+	IsDelete  bool   `gorm:"column:is_delete;type:boolean;not null;default:false"`
+	UUID      string `gorm:"column:uuid;type:varchar(36);unique_index;not null"`
+	KeyID     string `gorm:"column:key_id;type:varchar(36);unique_index;not null"`
+	KeyName   string `gorm:"column:key_name;type:varchar(255);not null"`
+	Profile   string `gorm:"column:profile;type:varchar(255);not null"`
+	PemBase64 string `gorm:"column:pem_base64;type:text;not null"`
 }
 
 func (Key) TableName() string {
@@ -45,19 +45,25 @@ func (d *DBService) ListKey() ([]Key, error) {
 	err := d.DB.Where("is_delete is false").Find(&keys).Order("created_at").Error
 	// 隐藏敏感信息
 	for i := range keys {
-		keys[i].PemMd5 = "****"
+		keys[i].PemBase64 = "****"
 	}
 	return keys, err
 }
 
+// 支持判断 keyname 是否存在
 func (d *DBService) AddKey(req AddKeyRequest) (string, error) {
+	// 先查询是否存在
+	err := d.DB.Where("key_name = ?", tea.StringValue(req.KeyName)).Where("is_delete is false").Error
+	if err != nil {
+		return "", err
+	}
 	key := &Key{
-		IsDelete: false,
-		UUID:     uuid.NewString(),
-		KeyID:    tea.StringValue(req.KeyID),
-		KeyName:  tea.StringValue(req.KeyName),
-		Profile:  tea.StringValue(req.Profile),
-		PemMd5:   tea.StringValue(req.PemMd5),
+		IsDelete:  false,
+		UUID:      uuid.NewString(),
+		KeyID:     tea.StringValue(req.KeyID),
+		KeyName:   tea.StringValue(req.KeyName),
+		Profile:   tea.StringValue(req.Profile),
+		PemBase64: tea.StringValue(req.PemBase64),
 	}
 	return key.UUID, d.DB.Create(key).Error
 }

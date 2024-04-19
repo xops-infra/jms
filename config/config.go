@@ -20,14 +20,14 @@ func init() {
 
 // Config config
 type Config struct {
-	APPSet   APPSet                `mapstructure:"appSet"`   // 全局配置
-	Profiles []model.ProfileConfig `mapstructure:"profiles"` // 云账号配置，用来自动同步云服务器信息
-	Proxies  []Proxy               `mapstructure:"proxies"`  // ssh代理
-	// Keys         map[string]string     `mapstructure:"keys"`         // ssh key pair
-	WithLdap     WithLdap     `mapstructure:"withLdap"`     // 配置ldap
-	WithSSHCheck WithSSHCheck `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
-	WithPolicy   WithPolicy   `mapstructure:"withPolicy"`   // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
-	WithDingtalk WithDingtalk `mapstructure:"withDingtalk"` // 配置钉钉审批流程
+	APPSet       APPSet                `mapstructure:"appSet"`       // 全局配置
+	Profiles     []model.ProfileConfig `mapstructure:"profiles"`     // 云账号配置，用来自动同步云服务器信息
+	Proxies      []Proxy               `mapstructure:"proxies"`      // ssh代理
+	Keys         map[string]string     `mapstructure:"keys"`         // ssh key pair 不启用数据库时使用
+	WithLdap     WithLdap              `mapstructure:"withLdap"`     // 配置ldap
+	WithSSHCheck WithSSHCheck          `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
+	WithPolicy   WithPolicy            `mapstructure:"withPolicy"`   // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
+	WithDingtalk WithDingtalk          `mapstructure:"withDingtalk"` // 配置钉钉审批流程
 }
 
 type APPSet struct {
