@@ -116,7 +116,11 @@ func NewSSHClient(server config.Server, sshUser config.SSHUser) (*gossh.Client, 
 	if sshUser.Base64Pem != "" {
 		signer, _ = getSignerFromBase64(sshUser.Base64Pem)
 	} else {
-		signer, _ = geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(sshUser.IdentityFile, "/"))
+		_signer, err := geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(sshUser.IdentityFile, "/"))
+		if err != nil {
+			return nil, nil, err
+		}
+		signer = _signer
 	}
 	config := &gossh.ClientConfig{
 		User: sshUser.SSHUsername,
@@ -135,7 +139,11 @@ func ProxyClient(instance config.Server, sshUser config.SSHUser) (*gossh.Client,
 	if instance.Proxy.SSHUsers.Base64Pem != "" {
 		signerProxy, _ = getSignerFromBase64(instance.Proxy.SSHUsers.Base64Pem)
 	} else {
-		signerProxy, _ = geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(instance.Proxy.SSHUsers.IdentityFile, "/"))
+		_signerProxy, err := geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(instance.Proxy.SSHUsers.IdentityFile, "/"))
+		if err != nil {
+			return nil, nil, err
+		}
+		signerProxy = _signerProxy
 	}
 	proxyConfig := &gossh.ClientConfig{
 		User: instance.Proxy.SSHUsers.SSHUsername,
@@ -154,7 +162,11 @@ func ProxyClient(instance config.Server, sshUser config.SSHUser) (*gossh.Client,
 	if sshUser.Base64Pem != "" {
 		signer, _ = getSignerFromBase64(sshUser.Base64Pem)
 	} else {
-		signer, _ = geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(sshUser.IdentityFile, "/"))
+		_signer, err := geSigner(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(sshUser.IdentityFile, "/"))
+		if err != nil {
+			return nil, nil, err
+		}
+		signer = _signer
 	}
 
 	config := &gossh.ClientConfig{
@@ -180,6 +192,7 @@ func ProxyClient(instance config.Server, sshUser config.SSHUser) (*gossh.Client,
 	return proxyClient, client, nil
 }
 
+// 需要支持在文件和数据库中获取私钥
 func geSigner(identityFile string) (gossh.Signer, error) {
 	log.Debugf("identityFile: %s\n", identityFile)
 	key, err := ioutil.ReadFile(utils.FilePath(identityFile))

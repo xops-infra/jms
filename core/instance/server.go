@@ -27,6 +27,7 @@ func LoadServer(conf *config.Config) {
 	startTime := time.Now()
 	for _, profile := range conf.Profiles {
 		for _, region := range profile.Regions {
+			log.Infof("get instances profile: %s region: %s", profile.Name, region)
 			input := model.InstanceFilter{}
 			for {
 				resps, err := app.App.McsServer.DescribeInstances(profile.Name, region, input)
@@ -152,11 +153,20 @@ func fmtProxy(instance model.Instance, proxys []config.Proxy) *config.Proxy {
 		for _, proxy := range proxys {
 			if strings.HasPrefix(*privateIp, proxy.IPPrefix) {
 				log.Debugf(*privateIp, proxy.IPPrefix)
-				return &config.Proxy{
+				// 主动填充通过配置文件获取的 Proxy
+				p := &config.Proxy{
 					Host:     proxy.Host,
 					Port:     proxy.Port,
 					SSHUsers: proxy.SSHUsers,
 				}
+				if proxy.SSHUsers.IdentityFile != "" {
+					if appkey, ok := app.App.Config.Keys.ToMapWithName()[proxy.SSHUsers.IdentityFile]; ok {
+						p.SSHUsers.Base64Pem = *appkey.PemBase64
+					} else {
+						log.Infof("Proxy %s IdentityFile not found in config", proxy.SSHUsers.IdentityFile)
+					}
+				}
+				return p
 			}
 		}
 	}

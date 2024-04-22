@@ -20,7 +20,7 @@ type Key struct {
 	IsDelete   bool   `gorm:"column:is_delete;type:boolean;not null;default:false"`
 	UUID       string `gorm:"column:uuid;type:varchar(36);unique_index;not null"`
 	KeyID      string `gorm:"column:key_id;type:varchar(36);unique_index;not null"`
-	KeyName    string `gorm:"column:key_name;type:varchar(255);not null"`
+	KeyName    string `gorm:"column:key_name;type:varchar(255);unique_index;not null"`
 	Profile    string `gorm:"column:profile;type:varchar(255);not null"`
 	PemBase64  string `gorm:"column:pem_base64;type:text;not null"`
 }
