@@ -263,8 +263,8 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 			if app.App.Config.WithPolicy.Enable {
 				err = app.App.DBService.AddDownloadRecord(&db.AddScpRecordRequest{
 					Action: tea.String("download"),
-					From:   tea.String(filename),
-					To:     tea.String(args[1]),
+					To:     tea.String(filename),
+					From:   tea.String(args[1]),
 					User:   tea.String((*clientSess).User()),
 					Client: tea.String((*clientSess).RemoteAddr().String()),
 				})
