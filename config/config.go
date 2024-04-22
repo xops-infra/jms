@@ -9,7 +9,9 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
+	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
+	"github.com/xops-infra/noop/log"
 )
 
 var Conf *Config
@@ -20,14 +22,35 @@ func init() {
 
 // Config config
 type Config struct {
-	APPSet       APPSet                `mapstructure:"appSet"`       // 全局配置
-	Profiles     []model.ProfileConfig `mapstructure:"profiles"`     // 云账号配置，用来自动同步云服务器信息
-	Proxies      []Proxy               `mapstructure:"proxies"`      // ssh代理
-	Keys         map[string]string     `mapstructure:"keys"`         // ssh key pair 不启用数据库时使用
-	WithLdap     WithLdap              `mapstructure:"withLdap"`     // 配置ldap
-	WithSSHCheck WithSSHCheck          `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
-	WithPolicy   WithPolicy            `mapstructure:"withPolicy"`   // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
-	WithDingtalk WithDingtalk          `mapstructure:"withDingtalk"` // 配置钉钉审批流程
+	APPSet       APPSet       `mapstructure:"appSet"`       // 全局配置
+	Profiles     []db.Profile `mapstructure:"profiles"`     // 云账号配置，用来自动同步云服务器信息
+	Proxies      []Proxy      `mapstructure:"proxies"`      // ssh代理
+	Keys         Keys         `mapstructure:"keys"`         // ssh key pair 不启用数据库时使用
+	WithLdap     WithLdap     `mapstructure:"withLdap"`     // 配置ldap
+	WithSSHCheck WithSSHCheck `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
+	WithPolicy   WithPolicy   `mapstructure:"withPolicy"`   // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
+	WithDingtalk WithDingtalk `mapstructure:"withDingtalk"` // 配置钉钉审批流程
+}
+
+type Keys []db.AddKeyRequest
+
+// ToMap convert to map with keyID
+func (k Keys) ToMap() map[string]db.AddKeyRequest {
+	m := make(map[string]db.AddKeyRequest)
+	for _, key := range k {
+		log.Debugf("key: %v", tea.Prettify(key))
+		m[*key.KeyID] = key
+	}
+	return m
+}
+
+// ToMap convert to map with privateIp
+func ServerListToMap(s []Server) map[string]Server {
+	m := make(map[string]Server)
+	for _, server := range s {
+		m[server.Host] = server
+	}
+	return m
 }
 
 type APPSet struct {
@@ -147,7 +170,7 @@ type Server struct {
 	Region   string
 	Tags     model.Tags
 	Status   model.InstanceStatus
-	SSHUsers *map[string]*SSHUser
+	SSHUsers []SSHUser
 }
 
 type Proxy struct {
@@ -161,7 +184,7 @@ type Proxy struct {
 // SSHUser ssh user
 type SSHUser struct {
 	SSHUsername  string
-	IdentityFile string
+	IdentityFile string // pem file name
 	Base64Pem    string // base64 pem
 	Password     string
 }

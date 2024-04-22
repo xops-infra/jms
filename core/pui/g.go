@@ -154,7 +154,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 				}
 
 			} else if err.Error() == "^D" {
-				app.App.UserCache.Delete((*ui.sess).User())
+				app.App.Cache.Delete((*ui.sess).User())
 				ui.Exit()
 				break
 			}
@@ -213,7 +213,7 @@ func (ui *PUI) inputFilter(nu int) (string, error) {
 	// 发送屏幕清理指令
 	// 发送当前时间
 	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
-		time.Now().Format("2006-01-02 15:04:05"), app.App.UserCache.ItemCount(), len(servers),
+		time.Now().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount(), len(servers),
 	))
 	// 发送欢迎信息
 	ui.SessionWrite(InfoLabel)

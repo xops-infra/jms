@@ -10,7 +10,6 @@ import (
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/db"
-	"github.com/xops-infra/jms/utils"
 )
 
 func init() {
@@ -23,9 +22,9 @@ func TestCreatePolicy(t *testing.T) {
 	expiredAt := time.Now().Add(time.Hour * 24 * 365 * 100)
 	req := db.PolicyMut{
 		Name:         tea.String("zhoushoujian-policy-1"),
-		Users:        utils.ArrayString{tea.String("zhoushoujian")},
-		Groups:       utils.ArrayString{tea.String("admin")},
-		ServerFilter: &utils.ServerFilter{Name: tea.String("*")},
+		Users:        db.ArrayString{tea.String("zhoushoujian")},
+		Groups:       db.ArrayString{tea.String("admin")},
+		ServerFilter: &db.ServerFilter{Name: tea.String("*")},
 		Actions:      db.All,
 		ExpiresAt:    &expiredAt,
 	}
@@ -46,8 +45,8 @@ func TestDeletePolicy(t *testing.T) {
 }
 
 func TestUpdateUserGroups(t *testing.T) {
-	err := app.App.DBService.UpdateUser("yaolong", db.UserMut{
-		Groups: utils.ArrayString{tea.String("admin")},
+	err := app.App.DBService.UpdateUser("yaolong", db.UserRequest{
+		Groups: db.ArrayString{tea.String("admin")},
 	})
 	if err != nil {
 		t.Error(err)

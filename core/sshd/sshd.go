@@ -37,7 +37,7 @@ func GetClientByPasswd(username, host string, port int, passwd string) (*sshclie
 }
 
 // NewTerminal NewTerminal
-func NewTerminal(server config.Server, sshUser *config.SSHUser, sess *ssh.Session, timeout string) error {
+func NewTerminal(server config.Server, sshUser config.SSHUser, sess *ssh.Session, timeout string) error {
 	proxyClient, upstreamClient, err := NewSSHClient(server, sshUser)
 	if err != nil {
 		log.Errorf("NewSSHClient error: %s", err)
@@ -105,7 +105,7 @@ func NewTerminal(server config.Server, sshUser *config.SSHUser, sess *ssh.Sessio
 }
 
 // NewSSHClient NewSSHClient
-func NewSSHClient(server config.Server, sshUser *config.SSHUser) (*gossh.Client, *gossh.Client, error) {
+func NewSSHClient(server config.Server, sshUser config.SSHUser) (*gossh.Client, *gossh.Client, error) {
 
 	if server.Proxy != nil {
 		log.Debugf("get proxy: %s:%d\n", server.Proxy.Host, server.Proxy.Port)
@@ -130,7 +130,7 @@ func NewSSHClient(server config.Server, sshUser *config.SSHUser) (*gossh.Client,
 	return nil, client, err
 }
 
-func ProxyClient(instance config.Server, sshUser *config.SSHUser) (*gossh.Client, *gossh.Client, error) {
+func ProxyClient(instance config.Server, sshUser config.SSHUser) (*gossh.Client, *gossh.Client, error) {
 	var signerProxy gossh.Signer
 	if instance.Proxy.SSHUsers.Base64Pem != "" {
 		signerProxy, _ = getSignerFromBase64(instance.Proxy.SSHUsers.Base64Pem)

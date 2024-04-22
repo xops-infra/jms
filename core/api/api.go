@@ -307,7 +307,7 @@ func updateUser(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *db.UserMut
+	var req *db.UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return

@@ -97,7 +97,7 @@ func saveDingtalkUsers(users []*dt.UserInfo) error {
 		if err != nil {
 			if strings.Contains(err.Error(), "record not found") {
 				// create
-				_, err = app.App.DBService.CreateUser(&UserMut{
+				_, err = app.App.DBService.CreateUser(&UserRequest{
 					Username:       tea.String(strings.Split(user.Email, "@")[0]),
 					Email:          tea.String(user.Email),
 					Passwd:         tea.String(user.Email),
@@ -112,7 +112,7 @@ func saveDingtalkUsers(users []*dt.UserInfo) error {
 			return err
 		}
 		// update
-		err = app.App.DBService.UpdateUser(u.ID, UserMut{
+		err = app.App.DBService.UpdateUser(u.ID, UserRequest{
 			Username:       tea.String(strings.Split(user.Email, "@")[0]),
 			Email:          tea.String(user.Email),
 			DingtalkDeptID: tea.String(strconv.FormatInt(user.DeptIDList[0], 10)),

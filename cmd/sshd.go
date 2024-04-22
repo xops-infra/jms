@@ -97,6 +97,7 @@ var sshdCmd = &cobra.Command{
 			log.Infof("enable api dingtalk Approve")
 		}
 
+		app.App.WithMcs()
 		instance.LoadServer(app.App.Config)
 
 		// 启动检测机器 ssh可连接性并依据配置发送钉钉告警通知
@@ -204,13 +205,13 @@ func sessionHandler(sess *ssh.Session) {
 	}()
 	user := (*sess).User()
 	remote := (*sess).RemoteAddr()
-	_, found := app.App.UserCache.Get(user)
+	_, found := app.App.Cache.Get(user)
 	if !found {
-		app.App.UserCache.Add(user, 1, cache.DefaultExpiration)
+		app.App.Cache.Add(user, 1, cache.DefaultExpiration)
 	}
 	// 如果启用 policy策略，默认开始注册登录用户入库
 	if app.App.Config.WithPolicy.Enable {
-		_, err := app.App.DBService.CreateUser(&db.UserMut{
+		_, err := app.App.DBService.CreateUser(&db.UserRequest{
 			Username: &user,
 		})
 		if err != nil {

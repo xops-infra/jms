@@ -9,10 +9,10 @@ import (
 )
 
 type AddKeyRequest struct {
-	KeyName   *string `json:"key_name"`                      // 云上下载下来的名字，比如 jms-key.pem
-	PemBase64 *string `json:"pem_base64" binding:"required"` // base64
-	KeyID     *string `json:"key_id" binding:"required"`     // 云上的key id，比如 skey-123456
-	Profile   *string `json:"profile"`                       // 云账号的 profile，比如 aws, aliyun
+	KeyName   *string `json:"key_name" mapstructure:"key_name"`                        // 云上下载下来的名字，比如 jms-key.pem
+	PemBase64 *string `json:"pem_base64" binding:"required" mapstructure:"pem_base64"` // base64
+	KeyID     *string `json:"key_id" binding:"required" mapstructure:"key_id"`         // 云上的key id，比如 skey-123456
+	Profile   *string `json:"profile"`                                                 // 云账号的 profile，比如 aws, aliyun
 }
 
 type Key struct {
@@ -29,17 +29,22 @@ func (Key) TableName() string {
 	return "key_table"
 }
 
-func (d *DBService) InternalLoad() (map[string]Key, error) {
+func (d *DBService) InternalLoad() ([]AddKeyRequest, error) {
 	var keys []Key
 	err := d.DB.Where("is_delete is false").Find(&keys).Order("created_at").Error
 	if err != nil {
 		return nil, err
 	}
-	keyMap := make(map[string]Key)
-	for _, key := range keys {
-		keyMap[key.KeyID] = key
+	var res []AddKeyRequest
+	for i := range keys {
+		res = append(res, AddKeyRequest{
+			KeyName:   tea.String(keys[i].KeyName),
+			PemBase64: tea.String(keys[i].PemBase64),
+			KeyID:     tea.String(keys[i].KeyID),
+			Profile:   tea.String(keys[i].Profile),
+		})
 	}
-	return keyMap, nil
+	return res, nil
 }
 
 func (d *DBService) ListKey() ([]Key, error) {

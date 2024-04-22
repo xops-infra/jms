@@ -29,7 +29,7 @@ func ServerLiveness(dingtalkToken string) {
 			continue
 		}
 
-		for _, sshUser := range *server.SSHUsers {
+		for _, sshUser := range server.SSHUsers {
 			proxyClient, client, err := sshd.NewSSHClient(server, sshUser)
 			if err != nil {
 				_, found := app.App.Cache.Get(server.Host)

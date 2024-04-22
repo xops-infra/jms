@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/base64"
 	"fmt"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -10,11 +11,11 @@ import (
 )
 
 type CreateProfileRequest struct {
-	Name    *string     `json:"name" binding:"required"`
-	AK      *string     `json:"ak" binding:"required"`
-	SK      *string     `json:"sk" binding:"required"`
-	Cloud   *string     `json:"cloud" binding:"required" default:"tencent"` // aws, aliyun, tencent
-	Regions StringSlice `json:"regions" binding:"required"`
+	Name    *string     `json:"name" `
+	AK      *string     `json:"ak" `
+	SK      *string     `json:"sk" `
+	Cloud   *string     `json:"cloud"  default:"tencent"` // aws, aliyun, tencent
+	Regions StringSlice `json:"regions" `
 }
 
 type Profile struct {
@@ -22,7 +23,7 @@ type Profile struct {
 	UUID       string      `gorm:"column:uuid;type:varchar(36);unique_index;not null"`
 	Name       string      `gorm:"column:name;type:varchar(255);not null"`
 	AK         string      `gorm:"column:ak;type:varchar(255);not null"`
-	SK         string      `gorm:"column:sk;type:varchar(255);not null"`
+	SK         string      `gorm:"column:sk;type:varchar(255);not null"` // 经过加密
 	IsDelete   bool        `gorm:"column:is_delete;type:boolean;not null;default:false"`
 	Cloud      string      `gorm:"column:cloud;type:varchar(255);not null"`
 	Regions    StringSlice `gorm:"column:regions;type:json;not null"`
@@ -37,10 +38,27 @@ func (d *DBService) ListProfile() ([]Profile, error) {
 	err := d.DB.Where("is_delete is false").Find(&profiles).Order("created_at").Error
 	// 隐藏敏感信息
 	for i := range profiles {
-		profiles[i].AK = "****"
 		profiles[i].SK = "****"
 	}
 	return profiles, err
+}
+
+// 内部服务调用，不隐藏敏感信息
+func (d *DBService) LoadProfile() ([]Profile, error) {
+	var profiles []Profile
+	err := d.DB.Where("is_delete is false").Find(&profiles).Error
+	if err != nil {
+		return nil, err
+	}
+	// base64 解密
+	for i := range profiles {
+		sk, err := base64.StdEncoding.DecodeString(profiles[i].SK)
+		if err != nil {
+			return nil, fmt.Errorf("base64 decode error: %v", err)
+		}
+		profiles[i].SK = string(sk)
+	}
+	return profiles, nil
 }
 
 func (d *DBService) CreateProfile(req CreateProfileRequest) (string, error) {
@@ -56,11 +74,13 @@ func (d *DBService) CreateProfile(req CreateProfileRequest) (string, error) {
 	if count > 0 {
 		return "", fmt.Errorf("profile name %s already exists", *req.Name)
 	}
+	// SK base64 加密
+	baseSK := base64.StdEncoding.EncodeToString([]byte(*req.SK))
 	profile := Profile{
 		UUID:    uuid.New().String(),
 		Name:    *req.Name,
 		AK:      *req.AK,
-		SK:      *req.SK,
+		SK:      baseSK,
 		Cloud:   *req.Cloud,
 		Regions: req.Regions,
 	}
@@ -78,7 +98,8 @@ func (d *DBService) UpdateProfile(uuid string, req CreateProfileRequest) error {
 		profile.AK = *req.AK
 	}
 	if req.SK != nil {
-		profile.SK = *req.SK
+		baseSK := base64.StdEncoding.EncodeToString([]byte(*req.SK))
+		profile.SK = baseSK
 	}
 	if req.Cloud != nil {
 		profile.Cloud = *req.Cloud

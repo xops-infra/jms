@@ -17,7 +17,6 @@ import (
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/sshd"
-	"github.com/xops-infra/jms/utils"
 )
 
 func GetServersMenuV2(sess *ssh.Session, user db.User, timeout string) []*MenuItem {
@@ -31,7 +30,7 @@ func GetServersMenuV2(sess *ssh.Session, user db.User, timeout string) []*MenuIt
 		matchPolicies = append(matchPolicies, db.Policy{
 			Actions:   db.All,
 			IsEnabled: tea.Bool(true),
-			Users:     utils.ArrayString{tea.String(*user.Username)},
+			Users:     db.ArrayString{tea.String(*user.Username)},
 		})
 	} else {
 		policies, err := app.App.DBService.QueryPolicyByUser(*user.Username)
@@ -48,7 +47,7 @@ func GetServersMenuV2(sess *ssh.Session, user db.User, timeout string) []*MenuIt
 			info[serverInfoKey] += " " + *key
 		}
 		info[serverHost] = server.Host
-		for _, sshUser := range *server.SSHUsers {
+		for _, sshUser := range server.SSHUsers {
 			info[serverUser] += fmt.Sprintf("%s: %s", sshUser.SSHUsername, sshUser.IdentityFile)
 		}
 		if server.Proxy != nil {
@@ -221,7 +220,7 @@ func matchUserGroup(user db.User, server config.Server) bool {
 
 // 支持!开头的反向匹配
 // 默认没有匹配到标签的允许访问
-func MatchServer(filter utils.ServerFilter, server config.Server) bool {
+func MatchServer(filter db.ServerFilter, server config.Server) bool {
 	if filter.Name != nil {
 		if *filter.Name == "*" || *filter.Name == server.Name {
 			return true
@@ -263,11 +262,23 @@ func GetServerSSHUsersMenu(server config.Server, timeout string, matchPolicies [
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		var menu []*MenuItem
 		subMenu := &MenuItem{}
-		for key, sshUser := range *server.SSHUsers {
-			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUser.IdentityFile, key)
+		for _, sshUser := range server.SSHUsers {
+			log.Debugf("server:%s user:%s", server.Host, sshUser.SSHUsername)
+			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUser.IdentityFile, sshUser.SSHUsername)
 			subMenu.SelectedFunc = func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
 				if server.Status != model.InstanceStatusRunning {
 					return false, fmt.Errorf("%s status %s, can not login", server.Host, strings.ToLower(string(server.Status)))
+				}
+				// 记录登录日志到数据库
+				if app.App.Config.WithPolicy.Enable {
+					err := app.App.DBService.AddServerLoginRecord(&db.AddSshLoginRequest{
+						TargetServer: tea.String(server.Host),
+						User:         tea.String((*sess).User()),
+						Client:       tea.String((*sess).RemoteAddr().String()),
+					})
+					if err != nil {
+						log.Errorf("create ssh login record error: %s", err)
+					}
 				}
 				err := sshd.NewTerminal(server, sshUser, sess, timeout)
 				if err != nil {
@@ -292,7 +303,7 @@ func getServerApproveMenu(server config.Server) func(int, *MenuItem, *ssh.Sessio
 				serverInfoKey: server.Name,
 			},
 			SubMenuTitle: SelectAction,
-			GetSubMenu: getActionMenu(utils.ServerFilter{
+			GetSubMenu: getActionMenu(db.ServerFilter{
 				IpAddr: tea.String(server.Host),
 			}),
 		})
@@ -303,7 +314,7 @@ func getServerApproveMenu(server config.Server) func(int, *MenuItem, *ssh.Sessio
 				Label:        fmt.Sprintf("All Server with tag: Team=%s", *serverTeam),
 				Info:         map[string]string{},
 				SubMenuTitle: SelectAction,
-				GetSubMenu: getActionMenu(utils.ServerFilter{
+				GetSubMenu: getActionMenu(db.ServerFilter{
 					Team: serverTeam,
 				}),
 			})
@@ -312,7 +323,7 @@ func getServerApproveMenu(server config.Server) func(int, *MenuItem, *ssh.Sessio
 	}
 }
 
-func getActionMenu(serverFilter utils.ServerFilter) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
+func getActionMenu(serverFilter db.ServerFilter) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		sshd.Info("申请行为，包括连接，上传和下载文件的权限。", sess)
 		var menu []*MenuItem
@@ -326,7 +337,7 @@ func getActionMenu(serverFilter utils.ServerFilter) func(int, *MenuItem, *ssh.Se
 	}
 }
 
-func getExpireMenu(serverFilter utils.ServerFilter, actions utils.ArrayString) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
+func getExpireMenu(serverFilter db.ServerFilter, actions db.ArrayString) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		var menu []*MenuItem
 		sshd.Info("选择策略生效周期，到期后会自动删除策略。", sess)
@@ -341,12 +352,12 @@ func getExpireMenu(serverFilter utils.ServerFilter, actions utils.ArrayString) f
 	}
 }
 
-func getSureApplyMenu(serverFilter utils.ServerFilter, actions utils.ArrayString, expiredDuration time.Duration) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
+func getSureApplyMenu(serverFilter db.ServerFilter, actions db.ArrayString, expiredDuration time.Duration) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		expired := time.Now().Add(expiredDuration)
 		policyNew := &db.PolicyMut{
 			Actions:      actions,
-			Users:        utils.ArrayString{tea.String((*sess).User())},
+			Users:        db.ArrayString{tea.String((*sess).User())},
 			ServerFilter: &serverFilter,
 			ExpiresAt:    &expired,
 			Name:         tea.String(fmt.Sprintf("%s-%s", (*sess).User(), time.Now().Format("20060102_1504"))),

@@ -8,8 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/xops-infra/noop/log"
 	"gorm.io/gorm"
-
-	"github.com/xops-infra/jms/utils"
 )
 
 type DBService struct {
@@ -29,8 +27,8 @@ func (d *DBService) InitDefault() error {
 		ID:       uuid.NewString(),
 		Username: tea.String("admin"),
 		Email:    tea.String("admin@example.com"),
-		Groups:   utils.ArrayString{tea.String("admin")},
-		Passwd:   utils.GeneratePasswd("admin"),
+		Groups:   ArrayString{tea.String("admin")},
+		Passwd:   GeneratePasswd("admin"),
 	}
 	if err := d.DB.Create(user).Error; err != nil {
 		return err
@@ -44,7 +42,7 @@ func (d *DBService) Login(username, password string) (bool, error) {
 	if err := d.DB.Where("username = ?", username).First(&user).Error; err != nil {
 		return false, err
 	}
-	if utils.CheckPasswd(password, string(user.Passwd)) {
+	if CheckPasswd(password, string(user.Passwd)) {
 		return true, nil
 	}
 	return false, nil
@@ -107,7 +105,7 @@ func (d *DBService) QueryAllUser() ([]User, error) {
 }
 
 // 自带校验是否存在
-func (d *DBService) CreateUser(req *UserMut) (string, error) {
+func (d *DBService) CreateUser(req *UserRequest) (string, error) {
 	user := &User{
 		Username:       req.Username,
 		Email:          req.Email,
@@ -116,7 +114,7 @@ func (d *DBService) CreateUser(req *UserMut) (string, error) {
 		DingtalkDeptID: req.DingtalkDeptID,
 	}
 	if req.Passwd != nil {
-		user.Passwd = utils.GeneratePasswd(*req.Passwd)
+		user.Passwd = GeneratePasswd(*req.Passwd)
 	}
 	// 判断用户是否存在
 	var count int64
@@ -135,7 +133,7 @@ func (d *DBService) CreateUser(req *UserMut) (string, error) {
 }
 
 // 支持如果没有用户则报错
-func (d *DBService) UpdateUser(id string, req UserMut) error {
+func (d *DBService) UpdateUser(id string, req UserRequest) error {
 	return d.DB.Model(&User{}).Where("id = ?", id).Updates(req).Error
 }
 

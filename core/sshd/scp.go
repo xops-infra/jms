@@ -10,12 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
 	"github.com/xops-infra/noop/log"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/utils"
 )
 
@@ -140,6 +142,19 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 		if err != nil {
 			return err
 		}
+		if app.App.Config.WithPolicy.Enable {
+			err = app.App.DBService.AddDownloadRecord(&db.AddScpRecordRequest{
+				Action: tea.String("upload"),
+				From:   tea.String(filename),
+				To:     tea.String(args[1]),
+				User:   tea.String((*clientSess).User()),
+				Client: tea.String((*clientSess).RemoteAddr().String()),
+			})
+			if err != nil {
+				log.Errorf("record scp download file to db failed: %v", err)
+			}
+		}
+
 		log.Infof("user %s upload file %s to %s success", (*clientSess).User(), filename, args[1])
 		return nil
 	case flagEndDirectory:
@@ -158,7 +173,7 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 		return err
 	}
 
-	proxyClient, upstream, err := NewSSHClient(*server, sshUser)
+	proxyClient, upstream, err := NewSSHClient(*server, *sshUser)
 	if err != nil {
 		return err
 	}
@@ -244,6 +259,18 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 			if err != nil {
 				errCh <- err
 				return
+			}
+			if app.App.Config.WithPolicy.Enable {
+				err = app.App.DBService.AddDownloadRecord(&db.AddScpRecordRequest{
+					Action: tea.String("download"),
+					From:   tea.String(filename),
+					To:     tea.String(args[1]),
+					User:   tea.String((*clientSess).User()),
+					Client: tea.String((*clientSess).RemoteAddr().String()),
+				})
+				if err != nil {
+					log.Errorf("record scp download file to db failed: %v", err)
+				}
 			}
 			log.Infof("user %s download file %s from %s success", (*clientSess).User(), filename, args[1])
 			return
@@ -335,31 +362,34 @@ func parseServerPath(fullPath, filename, currentUsername string) (*config.SSHUse
 		return nil, nil, "", invaildPathErr
 	}
 
-	sshUsername, serverKey := serverArgs[0], serverArgs[1]
-	server := (servers.(map[string]config.Server))[serverKey]
-	if server.Host == "" {
-		return nil, nil, "", fmt.Errorf("server key '%s' of server not found", serverKey)
-	}
-
-	if server.SSHUsers == nil {
-		return nil, nil, "", fmt.Errorf("SSHUsers of server '%s' not found", serverKey)
-	}
-
-	var user *config.SSHUser
-
-loop:
-	for _, sshUser := range *server.SSHUsers {
-		if (*sshUser).SSHUsername == sshUsername {
-			user = sshUser
-			break loop
+	sshUsername, host := serverArgs[0], serverArgs[1]
+	if server, ok := config.ServerListToMap(servers.([]config.Server))[host]; ok {
+		if server.Host == "" {
+			return nil, nil, "", fmt.Errorf("server key '%s' of server not found", host)
 		}
-	}
 
-	if user == nil {
-		return nil, nil, "", fmt.Errorf("SSHUser '%s' of server '%s' not found", sshUsername, serverKey)
-	}
+		if server.SSHUsers == nil {
+			return nil, nil, "", fmt.Errorf("SSHUsers of server '%s' not found", host)
+		}
 
-	return user, &server, remotePath, nil
+		var user *config.SSHUser
+
+	loop:
+		for _, sshUser := range server.SSHUsers {
+			if (sshUser).SSHUsername == sshUsername {
+				user = &sshUser
+				break loop
+			}
+		}
+
+		if user == nil {
+			return nil, nil, "", fmt.Errorf("SSHUser '%s' of server '%s' not found", sshUsername, host)
+		}
+
+		return user, &server, remotePath, nil
+	} else {
+		return nil, nil, "", fmt.Errorf("server host '%s' not found", host)
+	}
 }
 
 func checkResponse(r io.Reader) error {
@@ -386,7 +416,7 @@ func copyFileToServer(bfReader *bufio.Reader, size int64, filename, filePath str
 		return err
 	}
 
-	proxyClient, upstream, err := NewSSHClient(*server, sshUser)
+	proxyClient, upstream, err := NewSSHClient(*server, *sshUser)
 	if err != nil {
 		return err
 	}

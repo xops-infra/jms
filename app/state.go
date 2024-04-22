@@ -3,10 +3,12 @@ package app
 import (
 	"strings"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/patrickmn/go-cache"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
+	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	server "github.com/xops-infra/multi-cloud-sdk/pkg/service"
 	"github.com/xops-infra/noop/log"
 	"gorm.io/driver/postgres"
@@ -41,31 +43,21 @@ type Application struct {
 	RobotClient    *dt.RobotClient    // 钉钉机器人
 	DingTalkClient *dt.DingTalkClient // 钉钉APP使用审批流
 	Ldap           *utils.Ldap
-	Config         *config.Config
-	Server         *server.ServerService
+	Config         *config.Config // 支持数据库和配置文件两种方式载入配置
 	Cache          *cache.Cache
-	UserCache      *cache.Cache // 用户缓存,用于显示用户负载
-	DBService      *db.DBService
+
+	DBService *db.DBService
+	McsServer model.CommonContract
 }
 
 // Manager,Agent,Worker need to be initialized
 func NewSshdApplication(debug bool, sshDir string) *Application {
 	App = &Application{
-		SshDir:    sshDir,
-		Debug:     debug,
-		Config:    config.Conf,
-		Cache:     cache.New(cache.NoExpiration, cache.NoExpiration),
-		UserCache: cache.New(cache.NoExpiration, cache.NoExpiration),
+		SshDir: sshDir,
+		Debug:  debug,
+		Config: config.Conf,
+		Cache:  cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
-
-	if len(App.Config.Profiles) == 0 {
-		panic("请配置 profiles")
-	}
-
-	cloudIo := io.NewCloudClient(App.Config.Profiles)
-	serverTencent := io.NewTencentClient(cloudIo)
-	serverAws := io.NewAwsClient(cloudIo)
-	App.Server = server.NewServer(App.Config.Profiles, serverAws, serverTencent)
 
 	return App
 }
@@ -85,6 +77,19 @@ func (app *Application) WithLdap() *Application {
 		panic(err)
 	}
 	app.Ldap = ldap
+	return app
+}
+
+// withMcs
+func (app *Application) WithMcs() *Application {
+	if len(App.Config.Profiles) == 0 {
+		panic("请配置 profiles")
+	}
+	profiles := DBProfilesToMcsProfiles(app.Config.Profiles)
+	cloudIo := io.NewCloudClient(profiles)
+	serverTencent := io.NewTencentClient(cloudIo)
+	serverAws := io.NewAwsClient(cloudIo)
+	App.McsServer = server.NewCommonService(profiles, serverAws, serverTencent)
 	return app
 }
 
@@ -134,7 +139,46 @@ func (app *Application) WithPolicy() *Application {
 	rdb.AutoMigrate(
 		&db.Policy{}, &db.User{}, &db.Key{},
 		&db.Profile{},
+		&db.SSHLoginRecord{}, &db.ScpRecord{},
 	)
 	App.DBService = db.NewDbService(rdb)
+
+	// Load profile from db, 优先获取本地配置
+	log.Infof("with policy enable, load profile from db, proifle config file will be ignored")
+	if App.Config.Profiles == nil {
+		profiles, err := App.DBService.LoadProfile()
+		if err != nil {
+			panic(err)
+		}
+		log.Debugf("mcs profiles: %s", tea.Prettify(profiles))
+		App.Config.Profiles = profiles
+	} else {
+		log.Warnf("load profiles from config.yml")
+	}
+
+	// load Keys from db, 优先获取本地配置
+	if App.Config.Keys == nil {
+		resp, err := App.DBService.InternalLoad()
+		if err != nil {
+			log.Panicf("load keys failed: %v", err)
+		}
+		App.Config.Keys = resp
+	} else {
+		log.Warnf("load keys from config.yml")
+	}
+
 	return app
+}
+
+func DBProfilesToMcsProfiles(profiles []db.Profile) []model.ProfileConfig {
+	var mcsProfiles []model.ProfileConfig
+	for _, profile := range profiles {
+		mcsProfiles = append(mcsProfiles, model.ProfileConfig{
+			Name:  profile.Name,
+			AK:    profile.AK,
+			SK:    profile.SK,
+			Cloud: model.Cloud(profile.Cloud),
+		})
+	}
+	return mcsProfiles
 }
