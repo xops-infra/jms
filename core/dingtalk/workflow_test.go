@@ -11,7 +11,7 @@ import (
 
 func init() {
 	log.Default().Init()
-	config.Load("/opt/jms/.jms.yml")
+	config.LoadYaml("/opt/jms/.jms.yml")
 	app.NewSshdApplication(true, "~/.ssh/").WithPolicy().WithDingTalk()
 }
 

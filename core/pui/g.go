@@ -6,11 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
 	"github.com/manifoldco/promptui"
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/sshd"
 )
@@ -65,11 +67,20 @@ func (ui *PUI) FlashTimeout() {
 
 // ShowMenu show menu
 func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, selectedChain []*MenuItem) {
-	user, err := app.App.PolicyService.DescribeUser((*ui.sess).User())
-	if err != nil {
-		log.Errorf("DescribeUser error: %s", err)
-		sshd.ErrorInfo(err, ui.sess)
+	user := db.User{
+		Username: tea.String((*ui.sess).User()),
 	}
+
+	if app.App.Config.WithPolicy.Enable {
+		_user, err := app.App.DBService.DescribeUser((*ui.sess).User())
+		if err != nil {
+			log.Errorf("DescribeUser error: %s", err)
+			sshd.ErrorInfo(err, ui.sess)
+		}
+		user = _user
+	}
+
+loopMenu:
 	for {
 		menuLabels := make([]string, 0) // 菜单，用于显示
 		menuItems := make([]*MenuItem, 0)
@@ -83,8 +94,9 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			// 顶级菜单，如果有审批则主页支持选择审批或者服务器
 			menu = make([]*MenuItem, 0)
 
-			if app.App.PolicyService != nil && !app.App.Config.WithPolicy.Enable {
-				policies, err := app.App.PolicyService.NeedApprove((*ui.sess).User())
+			if !app.App.Config.WithPolicy.Enable {
+				// 没有审批策略时候，会在 admin 服务器选择列表里面显示审批菜单
+				policies, err := app.App.DBService.NeedApprove((*ui.sess).User())
 				if err != nil {
 					log.Errorf("Get need approve policy for admin error: %s", err)
 				}
@@ -93,11 +105,11 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 					menu = append(menu, GetApproveMenu(policies)...)
 				}
 			}
-
 			menu = append(menu, GetServersMenuV2(ui.sess, user, ui.GetTimeout())...)
+
 			filter, err := ui.inputFilter(len(menu))
 			if err != nil {
-				break
+				break loopMenu
 			}
 			for index, menuItem := range menu {
 				if menuItem.IsShow == nil || menuItem.IsShow(index, menuItem, ui.sess, selectedChain) {
@@ -118,7 +130,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			}
 		}
 
-		// fmt.Println("menuLabels: ", tea.Prettify(menuLabels))
+		log.Debugf("menuLabels: %s", tea.Prettify(menuLabels))
 		if len(menuLabels) == 0 {
 			continue
 		}
@@ -126,7 +138,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 		backIndex := len(menuLabels) - 1                 // 返回选项的索引
 		menuPui := promptui.Select{
 			Label:  label,
-			Size:   15,
+			Size:   15, // 菜单栏服务器数最大为15
 			Items:  menuLabels,
 			Stdin:  *ui.sess,
 			Stdout: *ui.sess,
@@ -144,7 +156,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 				}
 
 			} else if err.Error() == "^D" {
-				app.App.UserCache.Delete((*ui.sess).User())
+				app.App.Cache.Delete((*ui.sess).User())
 				ui.Exit()
 				break
 			}
@@ -193,16 +205,18 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			}
 		}
 	}
+	log.Debugf("pui exit")
 }
 
 // inputFilter input filter
 func (ui *PUI) inputFilter(nu int) (string, error) {
 	ui.FlashTimeout()
 	servers := instance.GetServers()
+	servers.SortByName()
 	// 发送屏幕清理指令
 	// 发送当前时间
 	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
-		time.Now().Format("2006-01-02 15:04:05"), app.App.UserCache.ItemCount(), len(servers),
+		time.Now().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount(), len(servers),
 	))
 	// 发送欢迎信息
 	ui.SessionWrite(InfoLabel)
@@ -219,7 +233,7 @@ func (ui *PUI) inputFilter(nu int) (string, error) {
 			return "", err
 		} else if err.Error() == "^D" {
 			ui.Exit()
-			return "", nil
+			return "", fmt.Errorf("exit")
 		}
 		log.Errorf("Prompt error: %s", err)
 		return "", err

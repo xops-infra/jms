@@ -43,7 +43,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.ApprovalMut"
+                            "$ref": "#/definitions/db.ApprovalMut"
                         }
                     }
                 ],
@@ -51,19 +51,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "string"
                         }
                     }
                 }
@@ -102,7 +90,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.ApprovalResult"
+                            "$ref": "#/definitions/db.ApprovalResult"
                         }
                     }
                 ],
@@ -110,22 +98,143 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "string"
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/key": {
+            "get": {
+                "description": "列出密钥，数据隐藏",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Key"
+                ],
+                "summary": "列出密钥",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/db.Key"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "添加密钥",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Key"
+                ],
+                "summary": "添加密钥",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "token",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "description": "key",
+                        "name": "key",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.AddKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/key/:uuid": {
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Key"
+                ],
+                "summary": "删除密钥",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "token",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "key uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/login": {
+            "post": {
+                "description": "登录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "登录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户名",
+                        "name": "user",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "密码",
+                        "name": "password",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {}
             }
         },
         "/api/v1/policy": {
@@ -165,25 +274,22 @@ const docTemplate = `{
                         "description": "user",
                         "name": "user",
                         "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "group",
-                        "name": "group",
-                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/db.Policy"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "string"
                         }
                     }
                 }
@@ -222,7 +328,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.ApprovalMut"
+                            "$ref": "#/definitions/db.PolicyMut"
                         }
                     }
                 ],
@@ -230,19 +336,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "string"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "string"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "string"
                         }
                     }
                 }
@@ -278,19 +384,249 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "string"
                         }
-                    },
-                    "400": {
-                        "description": "Bad Request",
+                    }
+                }
+            }
+        },
+        "/api/v1/profile": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "List profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "List profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/db.Profile"
+                            }
                         }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Create profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Create profile",
+                "parameters": [
+                    {
+                        "description": "profile",
+                        "name": "profile",
+                        "in": "body",
+                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "$ref": "#/definitions/db.CreateProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profile/:uuid": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Update profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Update profile",
+                "parameters": [
+                    {
+                        "description": "profile",
+                        "name": "profile",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.CreateProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Delete profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Delete profile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "profile uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/proxy": {
+            "get": {
+                "description": "list proxy servers",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "proxy"
+                ],
+                "summary": "ListProxy",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/db.Proxy"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "proxy"
+                ],
+                "summary": "UpdateProxy",
+                "parameters": [
+                    {
+                        "description": "proxy server info",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.CreateProxyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/db.Proxy"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "add proxy server",
+                "tags": [
+                    "proxy"
+                ],
+                "summary": "AddProxy",
+                "parameters": [
+                    {
+                        "description": "proxy server info",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.CreateProxyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/db.Proxy"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "proxy"
+                ],
+                "summary": "DeleteProxy",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "proxy server uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -318,7 +654,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "name",
+                        "description": "name 支持用户名或者email查询",
                         "name": "name",
                         "in": "query"
                     },
@@ -333,13 +669,10 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/db.User"
+                            }
                         }
                     }
                 }
@@ -378,7 +711,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.UserMut"
+                            "$ref": "#/definitions/db.UserRequest"
                         }
                     }
                 ],
@@ -386,19 +719,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "string"
                         }
                     }
                 }
@@ -435,7 +756,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/policy.UserMut"
+                            "$ref": "#/definitions/db.UserPatchMut"
                         }
                     }
                 ],
@@ -443,19 +764,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/api.Response"
+                            "type": "string"
                         }
                     }
                 }
@@ -463,19 +772,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "api.Response": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "integer"
-                },
-                "data": {},
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "policy.Action": {
+        "db.Action": {
             "type": "string",
             "enum": [
                 "connect",
@@ -494,16 +791,48 @@ const docTemplate = `{
                 "DenyUpload"
             ]
         },
-        "policy.ApprovalMut": {
+        "db.AddKeyRequest": {
             "type": "object",
+            "required": [
+                "key_id",
+                "pem_base64"
+            ],
+            "properties": {
+                "identity_file": {
+                    "description": "云上下载下来的名字，比如 jms-key.pem",
+                    "type": "string"
+                },
+                "key_id": {
+                    "description": "云上的key id，比如 skey-123456",
+                    "type": "string"
+                },
+                "pem_base64": {
+                    "description": "base64",
+                    "type": "string"
+                },
+                "profile": {
+                    "description": "云账号的 profile，比如 aws, aliyun",
+                    "type": "string"
+                }
+            }
+        },
+        "db.ApprovalMut": {
+            "type": "object",
+            "required": [
+                "applicant",
+                "server_filter",
+                "users"
+            ],
             "properties": {
                 "actions": {
+                    "description": "申请动作，默认只有connect",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/policy.Action"
+                        "$ref": "#/definitions/db.Action"
                     }
                 },
                 "applicant": {
+                    "description": "申请人AD名,或者email",
                     "type": "string"
                 },
                 "groups": {
@@ -514,10 +843,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "period": {
-                    "$ref": "#/definitions/policy.Period"
+                    "description": "审批周期，默认一周",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/db.Period"
+                        }
+                    ]
                 },
                 "server_filter": {
-                    "$ref": "#/definitions/utils.ServerFilter"
+                    "$ref": "#/definitions/db.ServerFilter"
                 },
                 "users": {
                     "type": "array",
@@ -525,7 +859,7 @@ const docTemplate = `{
                 }
             }
         },
-        "policy.ApprovalResult": {
+        "db.ApprovalResult": {
             "type": "object",
             "properties": {
                 "applicant": {
@@ -536,7 +870,89 @@ const docTemplate = `{
                 }
             }
         },
-        "policy.Period": {
+        "db.CreateProfileRequest": {
+            "type": "object",
+            "properties": {
+                "ak": {
+                    "type": "string"
+                },
+                "cloud": {
+                    "description": "aws, aliyun, tencent",
+                    "type": "string",
+                    "default": "tencent"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "sk": {
+                    "type": "string"
+                }
+            }
+        },
+        "db.CreateProxyRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "host": {
+                    "type": "string"
+                },
+                "identity_file": {
+                    "description": "密码或者key必须有一个, 优先使用密码",
+                    "type": "string"
+                },
+                "ip_prefix": {
+                    "description": "适配哪些机器 IP 前缀使用 Proxy, 例如 192.168.1",
+                    "type": "string"
+                },
+                "login_passwd": {
+                    "description": "密码或者key必须有一个, 优先使用密码",
+                    "type": "string"
+                },
+                "login_user": {
+                    "description": "key超级用户 root ec2-user",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "代理名称 唯一",
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                }
+            }
+        },
+        "db.Key": {
+            "type": "object",
+            "properties": {
+                "isDelete": {
+                    "type": "boolean"
+                },
+                "keyID": {
+                    "type": "string"
+                },
+                "keyName": {
+                    "type": "string"
+                },
+                "pemBase64": {
+                    "type": "string"
+                },
+                "profile": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "db.Period": {
             "type": "string",
             "enum": [
                 "1d",
@@ -553,28 +969,143 @@ const docTemplate = `{
                 "Forever"
             ]
         },
-        "policy.UserMut": {
+        "db.Policy": {
             "type": "object",
-            "required": [
-                "username"
-            ],
             "properties": {
-                "email": {
+                "actions": {
+                    "type": "array",
+                    "items": {}
+                },
+                "approval_id": {
+                    "description": "审批ID",
+                    "type": "string"
+                },
+                "approver": {
+                    "description": "审批人",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_deleted": {
+                    "type": "boolean"
+                },
+                "is_enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "server_filter": {
+                    "$ref": "#/definitions/db.ServerFilter"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {}
+                }
+            }
+        },
+        "db.PolicyMut": {
+            "type": "object",
+            "properties": {
+                "actions": {
+                    "type": "array",
+                    "items": {}
+                },
+                "expires_at": {
                     "type": "string"
                 },
                 "groups": {
                     "type": "array",
                     "items": {}
                 },
-                "passwd": {
+                "is_enabled": {
+                    "type": "boolean"
+                },
+                "name": {
                     "type": "string"
                 },
-                "username": {
+                "server_filter": {
+                    "$ref": "#/definitions/db.ServerFilter"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {}
+                }
+            }
+        },
+        "db.Profile": {
+            "type": "object",
+            "properties": {
+                "ak": {
+                    "type": "string"
+                },
+                "cloud": {
+                    "type": "string"
+                },
+                "isDelete": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "sk": {
+                    "description": "经过加密",
+                    "type": "string"
+                },
+                "uuid": {
                     "type": "string"
                 }
             }
         },
-        "utils.ServerFilter": {
+        "db.Proxy": {
+            "type": "object",
+            "properties": {
+                "host": {
+                    "type": "string"
+                },
+                "identityFile": {
+                    "type": "string"
+                },
+                "ipprefix": {
+                    "type": "string"
+                },
+                "isDelete": {
+                    "type": "boolean"
+                },
+                "loginPasswd": {
+                    "type": "string"
+                },
+                "loginUser": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "db.ServerFilter": {
             "type": "object",
             "properties": {
                 "env_type": {
@@ -587,6 +1118,86 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "team": {
+                    "type": "string"
+                }
+            }
+        },
+        "db.User": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "dingtalk_dept_id": {
+                    "type": "string"
+                },
+                "dingtalk_id": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "groups": {
+                    "description": "组不在 jms维护这里只需要和机器 tag:Team 匹配即可。",
+                    "type": "array",
+                    "items": {}
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_deleted": {
+                    "type": "boolean"
+                },
+                "is_ldap": {
+                    "type": "boolean"
+                },
+                "passwd": {
+                    "description": "加密后的密码",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "db.UserPatchMut": {
+            "type": "object",
+            "properties": {
+                "groups": {
+                    "type": "array",
+                    "items": {}
+                }
+            }
+        },
+        "db.UserRequest": {
+            "type": "object",
+            "required": [
+                "username"
+            ],
+            "properties": {
+                "dingtalk_dept_id": {
+                    "type": "string"
+                },
+                "dingtalk_id": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {}
+                },
+                "passwd": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }

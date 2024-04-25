@@ -1,11 +1,27 @@
 version: "3"
 services: 
+  pg:
+    image: postgres
+    restart: always
+    hostname: pg
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=jms
+    ports:
+      - "5432:5432"
   jms:
+    depends_on:
+      - pg
     restart: always
     image: zhoushoujian/jms:latest
     ports: 
       - "22222:22222"
+    environment:
+      - DEBUG=true
+      - API=false # true为api模式，false为ssh服务模式
+      # - SSH_DIR=/root/.ssh
     volumes: 
-      - "~/.ssh/:/root/.ssh"
+      - "/opt/jms/.ssh/:/root/.ssh"
       - "/opt/jms/:/opt/jms/"
-      - "/mnt/logs/s-ops-jms/:/opt/logs/"
+      - "/opt/jms/logs/:/opt/logs/"

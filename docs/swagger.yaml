@@ -1,13 +1,5 @@
 definitions:
-  api.Response:
-    properties:
-      code:
-        type: integer
-      data: {}
-      message:
-        type: string
-    type: object
-  policy.Action:
+  db.Action:
     enum:
     - connect
     - deny_connect
@@ -23,13 +15,33 @@ definitions:
     - DenyDownload
     - Upload
     - DenyUpload
-  policy.ApprovalMut:
+  db.AddKeyRequest:
+    properties:
+      identity_file:
+        description: 云上下载下来的名字，比如 jms-key.pem
+        type: string
+      key_id:
+        description: 云上的key id，比如 skey-123456
+        type: string
+      pem_base64:
+        description: base64
+        type: string
+      profile:
+        description: 云账号的 profile，比如 aws, aliyun
+        type: string
+    required:
+    - key_id
+    - pem_base64
+    type: object
+  db.ApprovalMut:
     properties:
       actions:
+        description: 申请动作，默认只有connect
         items:
-          $ref: '#/definitions/policy.Action'
+          $ref: '#/definitions/db.Action'
         type: array
       applicant:
+        description: 申请人AD名,或者email
         type: string
       groups:
         items: {}
@@ -37,21 +49,83 @@ definitions:
       name:
         type: string
       period:
-        $ref: '#/definitions/policy.Period'
+        allOf:
+        - $ref: '#/definitions/db.Period'
+        description: 审批周期，默认一周
       server_filter:
-        $ref: '#/definitions/utils.ServerFilter'
+        $ref: '#/definitions/db.ServerFilter'
       users:
         items: {}
         type: array
+    required:
+    - applicant
+    - server_filter
+    - users
     type: object
-  policy.ApprovalResult:
+  db.ApprovalResult:
     properties:
       applicant:
         type: string
       is_pass:
         type: boolean
     type: object
-  policy.Period:
+  db.CreateProfileRequest:
+    properties:
+      ak:
+        type: string
+      cloud:
+        default: tencent
+        description: aws, aliyun, tencent
+        type: string
+      name:
+        type: string
+      regions:
+        items:
+          type: string
+        type: array
+      sk:
+        type: string
+    type: object
+  db.CreateProxyRequest:
+    properties:
+      host:
+        type: string
+      identity_file:
+        description: 密码或者key必须有一个, 优先使用密码
+        type: string
+      ip_prefix:
+        description: 适配哪些机器 IP 前缀使用 Proxy, 例如 192.168.1
+        type: string
+      login_passwd:
+        description: 密码或者key必须有一个, 优先使用密码
+        type: string
+      login_user:
+        description: key超级用户 root ec2-user
+        type: string
+      name:
+        description: 代理名称 唯一
+        type: string
+      port:
+        type: integer
+    required:
+    - name
+    type: object
+  db.Key:
+    properties:
+      isDelete:
+        type: boolean
+      keyID:
+        type: string
+      keyName:
+        type: string
+      pemBase64:
+        type: string
+      profile:
+        type: string
+      uuid:
+        type: string
+    type: object
+  db.Period:
     enum:
     - 1d
     - 1w
@@ -65,8 +139,151 @@ definitions:
     - OneMonth
     - OneYear
     - Forever
-  policy.UserMut:
+  db.Policy:
     properties:
+      actions:
+        items: {}
+        type: array
+      approval_id:
+        description: 审批ID
+        type: string
+      approver:
+        description: 审批人
+        type: string
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      is_deleted:
+        type: boolean
+      is_enabled:
+        type: boolean
+      name:
+        type: string
+      server_filter:
+        $ref: '#/definitions/db.ServerFilter'
+      updated_at:
+        type: string
+      users:
+        items: {}
+        type: array
+    type: object
+  db.PolicyMut:
+    properties:
+      actions:
+        items: {}
+        type: array
+      expires_at:
+        type: string
+      groups:
+        items: {}
+        type: array
+      is_enabled:
+        type: boolean
+      name:
+        type: string
+      server_filter:
+        $ref: '#/definitions/db.ServerFilter'
+      users:
+        items: {}
+        type: array
+    type: object
+  db.Profile:
+    properties:
+      ak:
+        type: string
+      cloud:
+        type: string
+      isDelete:
+        type: boolean
+      name:
+        type: string
+      regions:
+        items:
+          type: string
+        type: array
+      sk:
+        description: 经过加密
+        type: string
+      uuid:
+        type: string
+    type: object
+  db.Proxy:
+    properties:
+      host:
+        type: string
+      identityFile:
+        type: string
+      ipprefix:
+        type: string
+      isDelete:
+        type: boolean
+      loginPasswd:
+        type: string
+      loginUser:
+        type: string
+      name:
+        type: string
+      port:
+        type: integer
+      uuid:
+        type: string
+    type: object
+  db.ServerFilter:
+    properties:
+      env_type:
+        type: string
+      ip_addr:
+        type: string
+      name:
+        type: string
+      team:
+        type: string
+    type: object
+  db.User:
+    properties:
+      created_at:
+        type: string
+      dingtalk_dept_id:
+        type: string
+      dingtalk_id:
+        type: string
+      email:
+        type: string
+      groups:
+        description: 组不在 jms维护这里只需要和机器 tag:Team 匹配即可。
+        items: {}
+        type: array
+      id:
+        type: string
+      is_deleted:
+        type: boolean
+      is_ldap:
+        type: boolean
+      passwd:
+        description: 加密后的密码
+        items:
+          type: integer
+        type: array
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  db.UserPatchMut:
+    properties:
+      groups:
+        items: {}
+        type: array
+    type: object
+  db.UserRequest:
+    properties:
+      dingtalk_dept_id:
+        type: string
+      dingtalk_id:
+        type: string
       email:
         type: string
       groups:
@@ -78,17 +295,6 @@ definitions:
         type: string
     required:
     - username
-    type: object
-  utils.ServerFilter:
-    properties:
-      env_type:
-        type: string
-      ip_addr:
-        type: string
-      name:
-        type: string
-      team:
-        type: string
     type: object
 host: localhost:8013
 info:
@@ -112,22 +318,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/policy.ApprovalMut'
+          $ref: '#/definitions/db.ApprovalMut'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
+            type: string
       summary: 创建审批策略
       tags:
       - Approval
@@ -151,25 +349,105 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/policy.ApprovalResult'
+          $ref: '#/definitions/db.ApprovalResult'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
+            type: string
       summary: 更新审批
       tags:
       - Approval
+  /api/v1/key:
+    get:
+      consumes:
+      - application/json
+      description: 列出密钥，数据隐藏
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/db.Key'
+            type: array
+      summary: 列出密钥
+      tags:
+      - Key
+    post:
+      consumes:
+      - application/json
+      description: 添加密钥
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: key
+        in: body
+        name: key
+        required: true
+        schema:
+          $ref: '#/definitions/db.AddKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: 添加密钥
+      tags:
+      - Key
+  /api/v1/key/:uuid:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: key uuid
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: 删除密钥
+      tags:
+      - Key
+  /api/v1/login:
+    post:
+      consumes:
+      - application/json
+      description: 登录
+      parameters:
+      - description: 用户名
+        in: formData
+        name: user
+        required: true
+        type: string
+      - description: 密码
+        in: formData
+        name: password
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: 登录
+      tags:
+      - User
   /api/v1/policy:
     get:
       consumes:
@@ -192,21 +470,19 @@ paths:
         in: query
         name: user
         type: string
-      - description: group
-        in: query
-        name: group
-        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.Response'
+            items:
+              $ref: '#/definitions/db.Policy'
+            type: array
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/api.Response'
+            type: string
       summary: 获取策略列表
       tags:
       - Policy
@@ -231,15 +507,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
+            type: string
       summary: 删除策略
       tags:
       - Policy
@@ -262,25 +530,178 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/policy.ApprovalMut'
+          $ref: '#/definitions/db.PolicyMut'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.Response'
+            type: string
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/api.Response'
+            type: string
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/api.Response'
+            type: string
       summary: 更新策略
       tags:
       - Policy
+  /api/v1/profile:
+    get:
+      consumes:
+      - application/json
+      description: List profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/db.Profile'
+            type: array
+      security:
+      - ApiKeyAuth: []
+      summary: List profile
+      tags:
+      - profile
+    post:
+      consumes:
+      - application/json
+      description: Create profile
+      parameters:
+      - description: profile
+        in: body
+        name: profile
+        required: true
+        schema:
+          $ref: '#/definitions/db.CreateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Create profile
+      tags:
+      - profile
+  /api/v1/profile/:uuid:
+    delete:
+      consumes:
+      - application/json
+      description: Delete profile
+      parameters:
+      - description: profile uuid
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Delete profile
+      tags:
+      - profile
+    put:
+      consumes:
+      - application/json
+      description: Update profile
+      parameters:
+      - description: profile
+        in: body
+        name: profile
+        required: true
+        schema:
+          $ref: '#/definitions/db.CreateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Update profile
+      tags:
+      - profile
+  /api/v1/proxy:
+    delete:
+      parameters:
+      - description: proxy server uuid
+        in: path
+        name: uuid
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: DeleteProxy
+      tags:
+      - proxy
+    get:
+      consumes:
+      - application/json
+      description: list proxy servers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/db.Proxy'
+            type: array
+      summary: ListProxy
+      tags:
+      - proxy
+    post:
+      description: add proxy server
+      parameters:
+      - description: proxy server info
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/db.CreateProxyRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/db.Proxy'
+      summary: AddProxy
+      tags:
+      - proxy
+    put:
+      parameters:
+      - description: proxy server info
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/db.CreateProxyRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/db.Proxy'
+      summary: UpdateProxy
+      tags:
+      - proxy
   /api/v1/user:
     get:
       consumes:
@@ -291,7 +712,7 @@ paths:
         in: header
         name: Authorization
         type: string
-      - description: name
+      - description: name 支持用户名或者email查询
         in: query
         name: name
         type: string
@@ -305,11 +726,9 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
+            items:
+              $ref: '#/definitions/db.User'
+            type: array
       summary: 获取用户列表
       tags:
       - User
@@ -333,22 +752,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/policy.UserMut'
+          $ref: '#/definitions/db.UserPatchMut'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
+            type: string
       summary: 追加用户组
       tags:
       - User
@@ -371,22 +782,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/policy.UserMut'
+          $ref: '#/definitions/db.UserRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
+            type: string
       summary: 更新用户
       tags:
       - User

@@ -7,12 +7,12 @@ import (
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 
 	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/core/pui"
-	"github.com/xops-infra/jms/utils"
 )
 
 func TestMatchServer(t *testing.T) {
-	filter := utils.ServerFilter{
+	filter := db.ServerFilter{
 		EnvType: tea.String("!prod"),
 	}
 	server := config.Server{

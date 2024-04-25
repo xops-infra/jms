@@ -17,10 +17,10 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	appConfig "github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/jump"
-	"github.com/xops-infra/jms/core/policy"
 	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/jms/utils"
 )
@@ -38,7 +38,7 @@ var sshdCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		appConfig.Load(config)
+		appConfig.LoadYaml(config)
 		log.Default().WithLevel(log.InfoLevel).WithHumanTime(time.Local).WithFilename(strings.TrimSuffix(logDir, "/") + "/sshd.log").Init()
 		log.Infof("config file: %s", config)
 		if debug {
@@ -70,7 +70,8 @@ var sshdCmd = &cobra.Command{
 			sshd.GenKey(hostKeyFile)
 		}
 
-		_app := app.NewSshdApplication(debug, sshDir)
+		// init app
+		_app := app.NewSshdApplication(debug, sshDir).WithLdap()
 
 		if app.App.Config.WithSSHCheck.Enable {
 			log.Infof("enable dingtalk")
@@ -84,9 +85,9 @@ var sshdCmd = &cobra.Command{
 
 		if app.App.Config.WithPolicy.Enable {
 			_app.WithPolicy()
-			log.Infof("enable policy,default user: admin/admin")
+			log.Infof("enable policy")
 		} else {
-			log.Infof("--with-policy=false, this mode any server can be connected")
+			log.Warnf("--with-policy=false, this mode any server can be connected")
 		}
 
 		if app.App.Config.WithDingtalk.Enable {
@@ -96,6 +97,7 @@ var sshdCmd = &cobra.Command{
 			log.Infof("enable api dingtalk Approve")
 		}
 
+		app.App.WithMcs()
 		instance.LoadServer(app.App.Config)
 
 		// 启动检测机器 ssh可连接性并依据配置发送钉钉告警通知
@@ -120,7 +122,7 @@ var sshdCmd = &cobra.Command{
 
 		var wrapped *wrappedConn
 
-		log.Infof("starting ssh server on port %d...\n", sshdPort)
+		log.Infof("starting ssh server on port %d timeout %d...", sshdPort, timeOut)
 		err = ssh.ListenAndServe(
 			fmt.Sprintf(":%d", sshdPort),
 			nil,
@@ -156,22 +158,22 @@ func init() {
 	rootCmd.AddCommand(sshdCmd)
 	sshdCmd.Flags().StringVar(&sshDir, "ssh-dir", "~/.ssh/", "ssh dir")
 	sshdCmd.Flags().IntVar(&sshdPort, "port", 22222, "ssh port")
-	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/jms/logs/", "log dir")
+	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/logs/apps/", "log dir")
 	sshdCmd.Flags().IntVar(&timeOut, "timeout", 1800, "ssh timeout")
 }
 
 func passwordAuth(ctx ssh.Context, pass string) bool {
-	if app.App.Config.WithPolicy.Enable {
-		// 如果启用 policy策略，登录时需要验证用户密码
-		_, err := app.App.PolicyService.Login(ctx.User(), pass)
-		if err != nil {
-			log.Error(err.Error())
-			return false
-		}
-		return true
+	if app.App.Config.WithLdap.Enable {
+		err := app.App.Ldap.Login(ctx.User(), pass)
+		return err == nil
 	}
-	err := app.App.Ldap.Login(ctx.User(), pass)
-	return err == nil
+	// 如果启用 policy策略，登录时需要验证用户密码
+	_, err := app.App.DBService.Login(ctx.User(), pass)
+	if err != nil {
+		log.Error(err.Error())
+		return false
+	}
+	return true
 }
 
 func publicKeyAuth(ctx ssh.Context, key ssh.PublicKey) bool {
@@ -203,13 +205,13 @@ func sessionHandler(sess *ssh.Session) {
 	}()
 	user := (*sess).User()
 	remote := (*sess).RemoteAddr()
-	_, found := app.App.UserCache.Get(user)
+	_, found := app.App.Cache.Get(user)
 	if !found {
-		app.App.UserCache.Add(user, 1, cache.DefaultExpiration)
+		app.App.Cache.Add(user, 1, cache.DefaultExpiration)
 	}
 	// 如果启用 policy策略，默认开始注册登录用户入库
 	if app.App.Config.WithPolicy.Enable {
-		_, err := app.App.PolicyService.CreateUser(&policy.UserMut{
+		_, err := app.App.DBService.CreateUser(&db.UserRequest{
 			Username: &user,
 		})
 		if err != nil {
@@ -225,6 +227,7 @@ func sessionHandler(sess *ssh.Session) {
 	}
 	log.Infof("user: %s, remote addr: %s login success", user, remote)
 	rawCmd := (*sess).RawCommand()
+	log.Debugf("rawCmd: %s\n", rawCmd)
 	cmd, args, err := sshd.ParseRawCommand(rawCmd)
 	if err != nil {
 		sshd.ErrorInfo(err, sess)
@@ -295,15 +298,28 @@ func sshHandler(sess *ssh.Session) {
 }
 
 func scpHandler(args []string, sess *ssh.Session) {
-	sshd.ExecuteSCP(args, sess)
+	err := sshd.ExecuteSCP(args, sess)
+	if err != nil {
+		sshd.ErrorInfo(err, sess)
+		return
+	}
 }
 
+// debug will not run
 func startScheduler() {
 	c := cron.New()
 	time.Sleep(10 * time.Second) // 等待app初始化完成
 	c.AddFunc("0 */2 * * * *", func() {
 		instance.LoadServer(app.App.Config)
 	})
+
+	if true {
+		log.Infof("enabled db config hot update, 2 min check once")
+		// 启用定时热加载数据库配置,每 30s 检查一次
+		c.AddFunc("*/30 * * * * *", func() {
+			app.App.LoadFromDB()
+		})
+	}
 	if app.App.Config.WithDingtalk.Enable {
 		c.AddFunc("0 0 2 * * *", func() {
 			err := dingtalk.LoadUsers()
@@ -311,6 +327,7 @@ func startScheduler() {
 				log.Error(err.Error())
 			}
 		})
+		// 定时获取审批列表状态
 		c.AddFunc("0 * * * * *", func() {
 			dingtalk.LoadApproval()
 		})

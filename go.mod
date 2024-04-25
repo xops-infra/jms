@@ -1,6 +1,8 @@
 module github.com/xops-infra/jms
 
-go 1.20
+go 1.21
+
+toolchain go1.21.6
 
 require (
 	github.com/alibabacloud-go/tea v1.2.1
@@ -20,10 +22,10 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.8.12
-	github.com/xops-infra/ginx v0.2.2-0.20231107031346-72ed7cc8fe6c
+	github.com/xops-infra/ginx v0.2.2-0.20240220030752-c15eda8aa86d
 	github.com/xops-infra/go-dingtalk-sdk-wrapper v1.0.1-0.20240120062134-f736b8e8c268
 	github.com/xops-infra/http-headers v0.0.0-20230213021202-2b827f3526a0
-	github.com/xops-infra/multi-cloud-sdk v0.0.0-20231209121551-37d29dfcda0b
+	github.com/xops-infra/multi-cloud-sdk v0.0.0-20240415030650-c9d8699e6941
 	github.com/xops-infra/noop v0.5.1-0.20231107031456-2b6b1ae7e0bb
 	golang.org/x/crypto v0.18.0
 	gorm.io/driver/postgres v1.5.4
@@ -105,15 +107,16 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
-	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.762 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.872 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm v1.0.748 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.0.762 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/emr v1.0.753 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/ocr v1.0.759 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/privatedns v1.0.872 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tag v1.0.753 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tiia v1.0.759 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/vpc v1.0.753 // indirect
-	github.com/tencentyun/cos-go-sdk-v5 v0.7.43 // indirect
+	github.com/tencentyun/cos-go-sdk-v5 v0.7.47 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect

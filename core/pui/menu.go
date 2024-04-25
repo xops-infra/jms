@@ -35,10 +35,10 @@ var (
 	NoPermission        = "No permission,Please apply for permission"
 	SelectServer        = "Please select server for approve"
 	SelectAction        = "Please select action"
-	BybLabel            = "\n拜拜👋! 退出时间：%s\n"
+	BybLabel            = "\n拜拜! 退出时间：%s\n"
 	InfoLabel           = `-----------------------------------------------------------------------
 欢迎使用jms堡垒机连接工具
-1) 问题或者提交BUG，前往 https://github.com/xops-infra/jms/issues；
+1) 提交bug或者star🌟，👉https://github.com/xops-infra/jms；
 2) 你可以看到所有服务器，但是在连接或者上传下载时会校验你的权限，如果没有权限可以进行交互申请；
 3) 你可以选择不可连接服务器进行权限申请。（2个默认策略：1.tag:Owner=user;2.tag:Team和你jms用户信息组一致）；
 4) 过滤支持服务器名称、机器ID、IP地址；

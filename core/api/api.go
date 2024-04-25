@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -9,8 +10,8 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/core/dingtalk"
-	"github.com/xops-infra/jms/core/policy"
 )
 
 // @Summary 获取策略列表
@@ -22,8 +23,8 @@ import (
 // @Param name query string false "name"
 // @Param id query string false "policy id"
 // @Param user query string false "user"
-// @Success 200 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {object} []db.Policy
+// @Failure 500 {string} string
 // @Router /api/v1/policy [get]
 func listPolicy(c *gin.Context) {
 	user := c.Query("user")
@@ -31,57 +32,39 @@ func listPolicy(c *gin.Context) {
 	name := c.Query("name")
 	id := c.Query("id")
 	if user != "" {
-		policies, err := app.App.PolicyService.QueryPolicyByUser(user)
+		policies, err := app.App.DBService.QueryPolicyByUser(user)
 		if err != nil {
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(policies))
+		c.JSON(200, policies)
 		return
 	}
-	// if group != "" {
-	// 	policies, err := app.App.PolicyService.QueryPolicyByGroup(group)
-	// 	if err != nil {
-	// 		c.JSON(500, NewErrorResponse(500, err.Error()))
-	// 		return
-	// 	}
-	// 	c.JSON(200, NewSuccessResponse(policies))
-	// 	return
-	// }
 	if name != "" {
-		policies, err := app.App.PolicyService.QueryPolicyByName(name)
+		policies, err := app.App.DBService.QueryPolicyByName(name)
 		if err != nil {
-			c.JSON(500, Response{
-				Code:    500,
-				Message: err.Error(),
-			})
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(policies))
+		c.JSON(200, policies)
 		return
 	}
 	if id != "" {
-		policy, err := app.App.PolicyService.QueryPolicyById(id)
+		policy, err := app.App.DBService.QueryPolicyById(id)
 		if err != nil {
-			c.JSON(500, Response{
-				Code:    500,
-				Message: err.Error(),
-			})
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(policy))
+		c.JSON(200, policy)
 		return
 	}
 	// 否则查询所有
-	policies, err := app.App.PolicyService.QueryAllPolicy()
+	policies, err := app.App.DBService.QueryAllPolicy()
 	if err != nil {
-		c.JSON(500, Response{
-			Code:    500,
-			Message: err.Error(),
-		})
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(policies))
+	c.JSON(200, policies)
 }
 
 // @Summary 更新策略
@@ -91,27 +74,27 @@ func listPolicy(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "policy id"
-// @Param request body policy.ApprovalMut true "request"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Param request body db.PolicyMut true "request"
+// @Success 200 {string} success
+// @Failure 400 {string} error
+// @Failure 500 {string} error
 // @Router /api/v1/policy/:id [put]
 func updatePolicy(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(400, NewErrorResponse(400, "id is empty"))
+		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *policy.ApprovalMut
+	var req *db.PolicyMut
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, NewErrorResponse(400, err.Error()))
+		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.PolicyService.UpdatePolicy(id, req.ToPolicyMut()); err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+	if err := app.App.DBService.UpdatePolicy(id, req); err != nil {
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(nil))
+	c.String(200, "success")
 }
 
 // @Summary 删除策略
@@ -121,21 +104,19 @@ func updatePolicy(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "policy id"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {string} success
 // @Router /api/v1/policy/:id [delete]
 func deletePolicy(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(400, NewErrorResponse(400, "id is empty"))
+		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	if err := app.App.PolicyService.DeletePolicy(id); err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+	if err := app.App.DBService.DeletePolicy(id); err != nil {
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(nil))
+	c.String(200, "success")
 }
 
 // @Summary 创建审批策略
@@ -144,24 +125,15 @@ func deletePolicy(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param Authorization header string false "token"
-// @Param request body policy.ApprovalMut true "request"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Param request body db.ApprovalMut true "request"
+// @Success 200 {string} id
 // @Router /api/v1/approval [post]
 func createApproval(c *gin.Context) {
-	var req policy.ApprovalMut
+	var req db.ApprovalMut
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, NewErrorResponse(400, err.Error()))
+		c.JSON(400, err.Error())
 		return
 	}
-	defer func() {
-		if err := recover(); err != nil {
-			c.JSON(500, NewErrorResponse(500, err.(error).Error()))
-			log.Errorf("create approval error: %s", err)
-			return
-		}
-	}()
 	// 如果启用了审批，创建审批
 	if app.App.Config.WithDingtalk.Enable {
 		values := []dt.FormComponentValue{}
@@ -204,26 +176,22 @@ func createApproval(c *gin.Context) {
 		processid, err := dingtalk.CreateApproval(*req.Applicant, values)
 		if err != nil {
 			log.Errorf("dingtalk.CreateApproval error: %s", err)
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
-		policyId, err := app.App.PolicyService.CreatePolicy(req.ToPolicyMut(), &processid)
+		policyId, err := app.App.DBService.CreatePolicy(req.ToPolicyMut(), &processid)
 		if err != nil {
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(gin.H{
-			"policy_id": policyId,
-		}))
+		c.JSON(200, policyId)
 	} else {
-		policyId, err := app.App.PolicyService.CreatePolicy(req.ToPolicyMut(), nil)
+		policyId, err := app.App.DBService.CreatePolicy(req.ToPolicyMut(), nil)
 		if err != nil {
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(gin.H{
-			"policy_id": policyId,
-		}))
+		c.String(200, policyId)
 	}
 }
 
@@ -234,27 +202,25 @@ func createApproval(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "approval id"
-// @Param request body policy.ApprovalResult true "request"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Param request body db.ApprovalResult true "request"
+// @Success 200 {string} success
 // @Router /api/v1/approval/:id [patch]
 func updateApproval(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(400, NewErrorResponse(400, "id is empty"))
+		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *policy.ApprovalResult
+	var req *db.ApprovalResult
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, NewErrorResponse(400, err.Error()))
+		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.PolicyService.UpdatePolicyStatus(id, *req); err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+	if err := app.App.DBService.UpdatePolicyStatus(id, *req); err != nil {
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(nil))
+	c.String(200, "success")
 }
 
 // @Summary 获取用户列表
@@ -263,39 +229,38 @@ func updateApproval(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param Authorization header string false "token"
-// @Param name query string false "name"
+// @Param name query string false "name 支持用户名或者email查询"
 // @Param group query string false "group"
-// @Success 200 {object} Response
-// @Failure 500 {object} Response
+// @Success 200 {object} []db.User
 // @Router /api/v1/user [get]
 func listUser(c *gin.Context) {
 	name := c.Query("name")
 	group := c.Query("group")
 	if name != "" {
-		users, err := app.App.PolicyService.DescribeUser(name)
+		users, err := app.App.DBService.DescribeUser(name)
 		if err != nil {
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(users))
+		c.JSON(200, users)
 		return
 	}
 	if group != "" {
-		users, err := app.App.PolicyService.QueryUserByGroup(group)
+		users, err := app.App.DBService.QueryUserByGroup(group)
 		if err != nil {
-			c.JSON(500, NewErrorResponse(500, err.Error()))
+			c.JSON(500, err.Error())
 			return
 		}
-		c.JSON(200, NewSuccessResponse(users))
+		c.JSON(200, users)
 		return
 	}
 	// 否则查询所有
-	users, err := app.App.PolicyService.QueryAllUser()
+	users, err := app.App.DBService.QueryAllUser()
 	if err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(users))
+	c.JSON(200, users)
 }
 
 // @Summary 追加用户组
@@ -305,27 +270,25 @@ func listUser(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "user id"
-// @Param request body policy.UserMut true "request"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Param request body db.UserPatchMut true "request"
+// @Success 200 {string} success
 // @Router /api/v1/user/:id [patch]
 func updateUserGroup(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(400, NewErrorResponse(400, "id is empty"))
+		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *policy.UserPatchMut
+	var req *db.UserPatchMut
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, NewErrorResponse(400, err.Error()))
+		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.PolicyService.PatchUserGroup(id, req); err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+	if err := app.App.DBService.PatchUserGroup(id, req); err != nil {
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(nil))
+	c.String(200, "success")
 }
 
 // @Summary 更新用户
@@ -335,25 +298,23 @@ func updateUserGroup(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "user id"
-// @Param request body policy.UserMut true "request"
-// @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Param request body db.UserRequest true "request"
+// @Success 200 {string} success
 // @Router /api/v1/user/:id [put]
 func updateUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(400, NewErrorResponse(400, "id is empty"))
+		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *policy.UserMut
+	var req *db.UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, NewErrorResponse(400, err.Error()))
+		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.PolicyService.UpdateUser(id, *req); err != nil {
-		c.JSON(500, NewErrorResponse(500, err.Error()))
+	if err := app.App.DBService.UpdateUser(id, *req); err != nil {
+		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, NewSuccessResponse(nil))
+	c.String(200, "success")
 }

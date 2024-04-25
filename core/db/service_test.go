@@ -1,4 +1,4 @@
-package policy_test
+package db_test
 
 import (
 	"testing"
@@ -9,27 +9,26 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/policy"
-	"github.com/xops-infra/jms/utils"
+	"github.com/xops-infra/jms/core/db"
 )
 
 func init() {
 	log.Default().Init()
-	config.Load("/opt/jms/.jms.yml")
+	config.LoadYaml("/opt/jms/.jms.yml")
 	app.NewSshdApplication(true, "~/.ssh/").WithPolicy()
 }
 
 func TestCreatePolicy(t *testing.T) {
 	expiredAt := time.Now().Add(time.Hour * 24 * 365 * 100)
-	req := policy.PolicyMut{
+	req := db.PolicyMut{
 		Name:         tea.String("zhoushoujian-policy-1"),
-		Users:        utils.ArrayString{tea.String("zhoushoujian")},
-		Groups:       utils.ArrayString{tea.String("admin")},
-		ServerFilter: &utils.ServerFilter{Name: tea.String("*")},
-		Actions:      policy.All,
+		Users:        db.ArrayString{tea.String("zhoushoujian")},
+		Groups:       db.ArrayString{tea.String("admin")},
+		ServerFilter: &db.ServerFilter{Name: tea.String("*")},
+		Actions:      db.All,
 		ExpiresAt:    &expiredAt,
 	}
-	result, err := app.App.PolicyService.CreatePolicy(&req, nil)
+	result, err := app.App.DBService.CreatePolicy(&req, nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -38,7 +37,7 @@ func TestCreatePolicy(t *testing.T) {
 }
 
 func TestDeletePolicy(t *testing.T) {
-	err := app.App.PolicyService.DeletePolicy("default")
+	err := app.App.DBService.DeletePolicy("default")
 	if err != nil {
 		t.Error(err)
 		return
@@ -46,8 +45,8 @@ func TestDeletePolicy(t *testing.T) {
 }
 
 func TestUpdateUserGroups(t *testing.T) {
-	err := app.App.PolicyService.UpdateUser("yaolong", policy.UserMut{
-		Groups: utils.ArrayString{tea.String("admin")},
+	err := app.App.DBService.UpdateUser("yaolong", db.UserRequest{
+		Groups: db.ArrayString{tea.String("admin")},
 	})
 	if err != nil {
 		t.Error(err)
@@ -55,7 +54,7 @@ func TestUpdateUserGroups(t *testing.T) {
 }
 
 func TestQueryPolicy(t *testing.T) {
-	result, err := app.App.PolicyService.QueryAllPolicy()
+	result, err := app.App.DBService.QueryAllPolicy()
 	if err != nil {
 		t.Error(err)
 		return
@@ -64,7 +63,7 @@ func TestQueryPolicy(t *testing.T) {
 }
 
 func TestQueryUser(t *testing.T) {
-	result, err := app.App.PolicyService.DescribeUser("zhoushoujian")
+	result, err := app.App.DBService.DescribeUser("zhoushoujian")
 	if err != nil {
 		t.Error(err)
 		return
@@ -73,7 +72,7 @@ func TestQueryUser(t *testing.T) {
 }
 
 func TestQueryPolicyByUser(t *testing.T) {
-	result, err := app.App.PolicyService.QueryPolicyByUser("zhoushoujian")
+	result, err := app.App.DBService.QueryPolicyByUser("zhoushoujian")
 	if err != nil {
 		t.Error(err)
 		return

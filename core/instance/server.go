@@ -5,13 +5,16 @@ import (
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/patrickmn/go-cache"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/core/db"
 )
 
+// 支持数据库和配置文件两种方式获取 KEY以及 Profile.
 func LoadServer(conf *config.Config) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -19,32 +22,53 @@ func LoadServer(conf *config.Config) {
 		}
 	}()
 
-	instanceAll := make(map[string]config.Server, 0)
+	var mcsServers []model.Instance
 	startTime := time.Now()
-	instances := app.App.Server.QueryInstances(model.InstanceQueryInput{
-		// Status: model.InstanceStatusRunning,
-	})
-	for _, instance := range instances {
-		if instance.Status != model.InstanceStatusRunning {
-			// for _, privateIp := range instance.PrivateIP {
-			// 	if privateIp != nil && instance.Name != nil && instance.Status != nil {
-			// 		log.Debugf("instance: %s ip:%s status: %s\n", *instance.Name, *privateIp, *instance.Status)
-			// 	}
-			// }
+	for _, profile := range conf.Profiles {
+		log.Debugf(tea.Prettify(profile))
+		log.Debugf("profile: %s is enabled: %t", *profile.Name, profile.Enabled)
+		if !profile.Enabled {
 			continue
 		}
-		var keyName *string
-		for _, key := range instance.KeyName {
+		for _, region := range profile.Regions {
+			log.Infof("get instances profile: %s region: %s", *profile.Name, region)
+			input := model.InstanceFilter{}
+			for {
+				resps, err := app.App.McsServer.DescribeInstances(*profile.Name, region, input)
+				if err != nil {
+					log.Errorf("%s %s DescribeInstances error: %v", *profile.Name, region, err)
+					break
+				}
+				mcsServers = append(mcsServers, resps.Instances...)
+				if resps.NextMarker == nil {
+					break
+				}
+				input.NextMarker = resps.NextMarker
+			}
+		}
+	}
+	instanceAll := fmtServer(mcsServers, conf.Keys.ToMap())
+	app.App.Cache.Set("servers", instanceAll, cache.NoExpiration)
+	log.Infof("%s len: %d", time.Since(startTime), len(instanceAll))
+}
+
+func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest) config.Servers {
+	var instanceAll config.Servers
+	for _, instance := range instances {
+		if instance.Status != model.InstanceStatusRunning {
+			continue
+		}
+		var keyName []*string
+		for _, key := range instance.KeyIDs {
 			if key == nil {
 				break
 			}
 			// 解决 key大写不识别问题
 			key = tea.String(strings.ToLower(*key))
-			if _, ok := conf.Keys[*key]; ok {
-				keyName = key
-				break
+			if _, ok := keys[*key]; ok {
+				keyName = append(keyName, keys[*key].IdentityFile)
 			} else {
-				log.Warnf("instance:%s key: %s not found in config.yml\n", *instance.Name, *key)
+				log.Infof("instance: %s key: %s not found in config", *instance.Name, *key)
 				continue
 			}
 		}
@@ -53,11 +77,12 @@ func LoadServer(conf *config.Config) {
 			continue
 		}
 		// log.Infof("instance:%s key: %s ips:%s\n", *instance.Name, *keyName, *instance.PrivateIP[0])
-		if len(instance.PrivateIP) < 1 || instance.Tags == nil {
+		if len(instance.PrivateIP) < 1 {
+			log.Errorf("instance: %s private ip is empty", *instance.Name)
 			continue
 		}
 		sshUser := fmtSuperUser(instance)
-		instanceAll[*instance.PrivateIP[0]] = config.Server{
+		newInstance := config.Server{
 			ID:       *instance.InstanceID,
 			Name:     tea.StringValue(instance.Name),
 			Host:     *instance.PrivateIP[0],
@@ -65,86 +90,61 @@ func LoadServer(conf *config.Config) {
 			Profile:  instance.Profile,
 			Region:   tea.StringValue(instance.Region),
 			Status:   instance.Status,
-			KeyPair:  keyName,
-			SSHUsers: &sshUser,
+			KeyPairs: keyName,
+			SSHUsers: sshUser,
 			Tags:     *instance.Tags,
-			Proxy:    fmtProxy(instance, conf),
 		}
-		log.Debugf(tea.Prettify(instanceAll[*instance.InstanceID].SSHUsers))
+		instanceAll = append(instanceAll, newInstance)
 	}
-	_, found := app.App.Cache.Get("servers")
-	if found {
-		app.App.Cache.Delete("servers")
-	}
-	err := app.App.Cache.Add("servers", instanceAll, 0)
-	if err != nil {
-		log.Errorf("app.App.Cache.Add error: %s", err)
-	}
-	log.Infof("%s len: %d", time.Since(startTime), len(instances))
+	instanceAll.SortByName()
+	return instanceAll
 }
 
-func GetServers() map[string]config.Server {
+func GetServers() config.Servers {
 	servers, found := app.App.Cache.Get("servers")
 	if !found {
 		return nil
 	}
-	return servers.(map[string]config.Server)
+	return servers.(config.Servers)
 }
 
-// getKeyPair
-func getKeyPair(keyNames []*string) *string {
-	configKeys := app.App.Config.Keys
-
+// 通过机器的密钥对 Key Name 获取对应的密钥Pem的路径
+func getKeyPair(keyNames []*string) []db.AddKeyRequest {
+	keysAll := make([]db.AddKeyRequest, 0)
+	configKeys := app.App.Config.Keys.ToMap()
 	for _, keyName := range keyNames {
 		if keyName == nil {
 			continue
 		}
 		lowKey := strings.ToLower(*keyName)
 		if _, ok := configKeys[lowKey]; ok {
-			return tea.String(configKeys[lowKey])
+			keysAll = append(keysAll, configKeys[lowKey])
 		}
 	}
-	return nil
+	return keysAll
 }
 
 // fmtSuperUser 支持多用户选择
-func fmtSuperUser(instance *model.Instance) map[string]*config.SSHUser {
-	keyPath := getKeyPair(instance.KeyName)
-	sshUser := make(map[string]*config.SSHUser, 0)
-	log.Debugf("platform: %s\n", *instance.Platform)
-	if strings.Contains(*instance.Platform, "Ubuntu") {
-		sshUser["ubuntu"] = &config.SSHUser{
-			SSHUsername:  "ubuntu",
-			IdentityFile: tea.StringValue(keyPath),
+func fmtSuperUser(instance model.Instance) []config.SSHUser {
+	keys := getKeyPair(instance.KeyIDs)
+	var sshUser []config.SSHUser
+	for _, key := range keys {
+		u := config.SSHUser{}
+		if key.IdentityFile != nil {
+			u.KeyName = tea.StringValue(key.IdentityFile)
 		}
-	} else if *instance.Platform == "Linux/UNIX" {
-		sshUser["ec2-user"] = &config.SSHUser{
-			SSHUsername:  "ec2-user",
-			IdentityFile: tea.StringValue(keyPath),
+		if key.PemBase64 != nil {
+			u.Base64Pem = tea.StringValue(key.PemBase64)
 		}
-	} else {
-		sshUser["root"] = &config.SSHUser{
-			SSHUsername:  "root",
-			IdentityFile: tea.StringValue(keyPath),
+
+		if strings.Contains(*instance.Platform, "Ubuntu") {
+			u.SSHUsername = "ubuntu"
+		} else if *instance.Platform == "Linux/UNIX" {
+			u.SSHUsername = "ec2-user"
+		} else {
+			u.SSHUsername = "root"
 		}
+		sshUser = append(sshUser, u)
 	}
 	return sshUser
-}
-
-// fmtProxy
-func fmtProxy(instance *model.Instance, conf *config.Config) *config.Proxy {
-	// log.Debugf(tea.Prettify(instance), tea.Prettify(conf))
-	for _, privateIp := range instance.PrivateIP {
-		for _, proxy := range conf.Proxies {
-			if strings.HasPrefix(*privateIp, proxy.IPPrefix) {
-				log.Debugf(*privateIp, proxy.IPPrefix)
-				return &config.Proxy{
-					Host:     proxy.Host,
-					Port:     proxy.Port,
-					SSHUsers: proxy.SSHUsers,
-				}
-			}
-		}
-	}
-	return nil
 }

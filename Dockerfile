@@ -1,4 +1,4 @@
-FROM golang:1.20 AS builder
+FROM golang:1.21 AS builder
 ENV GOPROXY https://goproxy.cn,direct
 ENV CGO_ENABLED 0
 ENV GOOS linux
@@ -8,7 +8,7 @@ COPY . .
 RUN go mod tidy && go build -o jms-go
 RUN chmod +x /opt/jms-go
 
-FROM centos:7
+FROM amd64/centos:7
 LABEL maintainer="zhoushoujianwork@163.com"
 COPY --from=builder /opt/jms-go /usr/bin/jms-go
 COPY --from=builder /opt/entrypoint.sh /root/entrypoint.sh

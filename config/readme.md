@@ -1,3 +1,6 @@
+配置文件样例`/opt/jms/.jms.yml`：
+
+```yml
 profiles:
   - name: "aws"
     ak: "AKxxx"
@@ -36,13 +39,18 @@ withSSHCheck:
 
 withPolicy:
   enable: true
-  dbFile: "jms.db"
+  pg:
+    host: "pg"
+    port: 5432
+    username: "postgres"
+    password: "postgres"
+    database: "jms"
 
 withLdap:
   enable: true
   host: "xxx"
   port: 389
-  baseDN: "dc=corp,dc=patsnap,dc=com"
+  baseDN: "dc=corp,dc=xxx,dc=com"
   bindUser: "xxx"
   bindPassword: "xxx"
   userSearchFilter: "(sAMAccountName=%s)"
@@ -53,6 +61,8 @@ withLdap:
 
 withDingTalk:
   enable: true
-  processCode: "PROC-E82812BE-8A6E-4C8B-BD1E-xxxxx"
+  processCode: "PROC-xxx-xxx-xxxx-xxxx-xxxxx"
   appKey: "xxx"
   appSecret: "xxx"
+
+```
