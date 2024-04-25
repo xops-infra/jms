@@ -44,21 +44,28 @@ func (d *DBService) ListProfile() ([]Profile, error) {
 }
 
 // 内部服务调用，不隐藏敏感信息
-func (d *DBService) LoadProfile() ([]Profile, error) {
+func (d *DBService) LoadProfile() ([]CreateProfileRequest, error) {
 	var profiles []Profile
 	err := d.DB.Where("is_delete is false").Find(&profiles).Error
 	if err != nil {
 		return nil, err
 	}
+	var reqs []CreateProfileRequest
 	// base64 解密
 	for i := range profiles {
 		sk, err := base64.StdEncoding.DecodeString(profiles[i].SK)
 		if err != nil {
 			return nil, fmt.Errorf("base64 decode error: %v", err)
 		}
-		profiles[i].SK = string(sk)
+		reqs = append(reqs, CreateProfileRequest{
+			Name:    tea.String(profiles[i].Name),
+			AK:      tea.String(profiles[i].AK),
+			SK:      tea.String(string(sk)),
+			Cloud:   tea.String(profiles[i].Cloud),
+			Regions: profiles[i].Regions,
+		})
 	}
-	return profiles, nil
+	return reqs, nil
 }
 
 func (d *DBService) CreateProfile(req CreateProfileRequest) (string, error) {

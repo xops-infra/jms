@@ -3,7 +3,6 @@ package app
 import (
 	"strings"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/patrickmn/go-cache"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/jms/core/db"
@@ -137,9 +136,9 @@ func (app *Application) WithPolicy() *Application {
 	}
 	// 初始化数据库
 	rdb.AutoMigrate(
-		&db.Policy{}, &db.User{}, &db.Key{},
-		&db.Profile{},
-		&db.SSHLoginRecord{}, &db.ScpRecord{},
+		&db.Policy{}, &db.User{},
+		&db.Key{}, &db.Profile{}, &db.Proxy{}, // 配置
+		&db.SSHLoginRecord{}, &db.ScpRecord{}, // 审计
 	)
 	App.DBService = db.NewDbService(rdb)
 
@@ -150,7 +149,7 @@ func (app *Application) WithPolicy() *Application {
 		if err != nil {
 			panic(err)
 		}
-		log.Debugf("mcs profiles: %s", tea.Prettify(profiles))
+		// log.Debugf("mcs profiles: %s", tea.Prettify(profiles))
 		App.Config.Profiles = profiles
 	} else {
 		log.Warnf("load profiles from config.yml")
@@ -167,17 +166,21 @@ func (app *Application) WithPolicy() *Application {
 		log.Warnf("load keys from config.yml")
 	}
 
+	if App.Config.Proxys == nil {
+		log.Warnf("lconfig.yml has no proxy config, will load from db")
+	}
+
 	return app
 }
 
-func DBProfilesToMcsProfiles(profiles []db.Profile) []model.ProfileConfig {
+func DBProfilesToMcsProfiles(profiles []db.CreateProfileRequest) []model.ProfileConfig {
 	var mcsProfiles []model.ProfileConfig
 	for _, profile := range profiles {
 		mcsProfiles = append(mcsProfiles, model.ProfileConfig{
-			Name:  profile.Name,
-			AK:    profile.AK,
-			SK:    profile.SK,
-			Cloud: model.Cloud(profile.Cloud),
+			Name:  *profile.Name,
+			AK:    *profile.AK,
+			SK:    *profile.SK,
+			Cloud: model.Cloud(*profile.Cloud),
 		})
 	}
 	return mcsProfiles

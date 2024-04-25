@@ -234,11 +234,10 @@ func (d *DBService) QueryPolicyByUser(username string) ([]Policy, error) {
 		return nil, err
 	}
 	var matchPolicies []Policy
-	log.Debugf("policies: %v", tea.Prettify(policies))
 	// 精确返回
 	for _, policy := range policies {
 		if policy.Users.Contains(username) {
-			log.Debugf("policy: %v", policy)
+			log.Debugf("policy: %s", tea.Prettify(policy))
 			matchPolicies = append(matchPolicies, policy)
 		}
 	}

@@ -48,13 +48,13 @@ func GetServersMenuV2(sess *ssh.Session, user db.User, timeout string) []*MenuIt
 		}
 		info[serverHost] = server.Host
 		for _, sshUser := range server.SSHUsers {
-			info[serverUser] += fmt.Sprintf("%s: %s", sshUser.SSHUsername, sshUser.IdentityFile)
+			info[serverUser] += fmt.Sprintf("%s: %s", sshUser.SSHUsername, sshUser.KeyName)
 		}
-		if server.Proxy != nil {
-			info[serverProxy] = server.Proxy.Host
-			info[serverProxyUser] = server.Proxy.SSHUsers.SSHUsername
-			info[serverProxyKeyIdentityFile] = server.Proxy.SSHUsers.IdentityFile
-		}
+		// if server.Proxy != nil {
+		// 	info[serverProxy] = server.Proxy.Host
+		// 	info[serverProxyUser] = server.Proxy.LoginUser
+		// 	info[serverProxyKeyIdentityFile] = server.Proxy.SSHUsers.IdentityFile
+		// }
 		subMenu := &MenuItem{
 			Label:        fmt.Sprintf("%s\t[√]\t%s\t%s", server.ID, server.Host, server.Name),
 			Info:         info,
@@ -264,7 +264,7 @@ func GetServerSSHUsersMenu(server config.Server, timeout string, matchPolicies [
 		subMenu := &MenuItem{}
 		for _, sshUser := range server.SSHUsers {
 			log.Debugf("server:%s user:%s", server.Host, sshUser.SSHUsername)
-			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUser.IdentityFile, sshUser.SSHUsername)
+			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUser.KeyName, sshUser.SSHUsername)
 			subMenu.SelectedFunc = func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
 				if server.Status != model.InstanceStatusRunning {
 					return false, fmt.Errorf("%s status %s, can not login", server.Host, strings.ToLower(string(server.Status)))

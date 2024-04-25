@@ -27,12 +27,12 @@ func LoadServer(conf *config.Config) {
 	startTime := time.Now()
 	for _, profile := range conf.Profiles {
 		for _, region := range profile.Regions {
-			log.Infof("get instances profile: %s region: %s", profile.Name, region)
+			log.Infof("get instances profile: %s region: %s", *profile.Name, region)
 			input := model.InstanceFilter{}
 			for {
-				resps, err := app.App.McsServer.DescribeInstances(profile.Name, region, input)
+				resps, err := app.App.McsServer.DescribeInstances(*profile.Name, region, input)
 				if err != nil {
-					log.Errorf("%s %s DescribeInstances error: %v", profile.Name, region, err)
+					log.Errorf("%s %s DescribeInstances error: %v", *profile.Name, region, err)
 					break
 				}
 				mcsServers = append(mcsServers, resps.Instances...)
@@ -43,12 +43,12 @@ func LoadServer(conf *config.Config) {
 			}
 		}
 	}
-	instanceAll := fmtServer(mcsServers, conf.Keys.ToMap(), conf.Proxies)
+	instanceAll := fmtServer(mcsServers, conf.Keys.ToMap(), conf.Proxys)
 	app.App.Cache.Set("servers", instanceAll, cache.NoExpiration)
 	log.Infof("%s len: %d", time.Since(startTime), len(instanceAll))
 }
 
-func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest, proxys []config.Proxy) []config.Server {
+func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest, proxys []db.CreateProxyRequest) []config.Server {
 	var instanceAll []config.Server
 	for _, instance := range instances {
 		if instance.Status != model.InstanceStatusRunning {
@@ -73,7 +73,8 @@ func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest, pro
 			continue
 		}
 		// log.Infof("instance:%s key: %s ips:%s\n", *instance.Name, *keyName, *instance.PrivateIP[0])
-		if len(instance.PrivateIP) < 1 || instance.Tags == nil {
+		if len(instance.PrivateIP) < 1 {
+			log.Errorf("instance: %s private ip is empty", *instance.Name)
 			continue
 		}
 		sshUser := fmtSuperUser(instance)
@@ -88,7 +89,6 @@ func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest, pro
 			KeyPairs: keyName,
 			SSHUsers: sshUser,
 			Tags:     *instance.Tags,
-			Proxy:    fmtProxy(instance, proxys),
 		}
 		instanceAll = append(instanceAll, newInstance)
 	}
@@ -126,7 +126,7 @@ func fmtSuperUser(instance model.Instance) []config.SSHUser {
 	for _, key := range keys {
 		u := config.SSHUser{}
 		if key.KeyName != nil {
-			u.IdentityFile = tea.StringValue(key.KeyName)
+			u.KeyName = tea.StringValue(key.KeyName)
 		}
 		if key.PemBase64 != nil {
 			u.Base64Pem = tea.StringValue(key.PemBase64)
@@ -141,34 +141,5 @@ func fmtSuperUser(instance model.Instance) []config.SSHUser {
 		}
 		sshUser = append(sshUser, u)
 	}
-	log.Debugf(*instance.Platform)
-	log.Debugf("fmt %s users %s", *instance.InstanceID, tea.Prettify(sshUser))
 	return sshUser
-}
-
-// fmtProxy
-func fmtProxy(instance model.Instance, proxys []config.Proxy) *config.Proxy {
-	// log.Debugf(tea.Prettify(instance), tea.Prettify(conf))
-	for _, privateIp := range instance.PrivateIP {
-		for _, proxy := range proxys {
-			if strings.HasPrefix(*privateIp, proxy.IPPrefix) {
-				log.Debugf(*privateIp, proxy.IPPrefix)
-				// 主动填充通过配置文件获取的 Proxy
-				p := &config.Proxy{
-					Host:     proxy.Host,
-					Port:     proxy.Port,
-					SSHUsers: proxy.SSHUsers,
-				}
-				if proxy.SSHUsers.IdentityFile != "" {
-					if appkey, ok := app.App.Config.Keys.ToMapWithName()[proxy.SSHUsers.IdentityFile]; ok {
-						p.SSHUsers.Base64Pem = *appkey.PemBase64
-					} else {
-						log.Infof("Proxy %s IdentityFile not found in config", proxy.SSHUsers.IdentityFile)
-					}
-				}
-				return p
-			}
-		}
-	}
-	return nil
 }
