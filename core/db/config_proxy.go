@@ -66,10 +66,25 @@ func (Proxy) TableName() string {
 	return "proxy"
 }
 
-func (d *DBService) ListProxy() ([]Proxy, error) {
+func (d *DBService) ListProxy() ([]CreateProxyRequest, error) {
 	var proxies []Proxy
 	err := d.DB.Where("is_delete is false").Find(&proxies).Order("created_at").Error
-	return proxies, err
+	if err != nil {
+		return nil, err
+	}
+	var res []CreateProxyRequest
+	for _, proxy := range proxies {
+		res = append(res, CreateProxyRequest{
+			Name:         &proxy.Name,
+			Host:         &proxy.Host,
+			Port:         &proxy.Port,
+			IPPrefix:     &proxy.IPPrefix,
+			LoginUser:    &proxy.LoginUser,
+			LoginPasswd:  &proxy.LoginPasswd,
+			IdentityFile: &proxy.IdentityFile,
+		})
+	}
+	return res, err
 }
 
 func (d *DBService) GetProxyByIP(ip string) (*CreateProxyRequest, error) {
@@ -107,7 +122,7 @@ func (d *DBService) CreateProxy(req CreateProxyRequest) (Proxy, error) {
 	}
 	proxy.UUID = uuid.New().String()
 	log.Debugf(tea.Prettify(proxy))
-	
+
 	err = d.DB.Create(&proxy).Error
 	return proxy, err
 }

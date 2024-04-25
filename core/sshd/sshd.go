@@ -109,17 +109,6 @@ func NewTerminal(server config.Server, sshUser config.SSHUser, sess *ssh.Session
 // 判断服务器是否配置了代理，配置获取方式可以是本地，或者数据库
 // 本地配置的优先级高于数据库配置
 func isProxyServer(server config.Server) (*db.CreateProxyRequest, error) {
-	if app.App.Config.WithPolicy.Enable {
-		proxy, err := app.App.DBService.GetProxyByIP(server.Host)
-		if err != nil {
-			return nil, err
-		}
-		if proxy != nil {
-			log.Debugf("get proxy from db for %s, %s\n", server.Host, tea.Prettify(proxy))
-			return proxy, nil
-		}
-	}
-	// 只能在本地获取
 	for _, proxy := range app.App.Config.Proxys {
 		if strings.HasPrefix(server.Host, *proxy.Host) {
 			log.Debugf("get proxy from config for %s, %s\n", server.Host, tea.Prettify(proxy))

@@ -22,10 +22,14 @@ func LoadServer(conf *config.Config) {
 		}
 	}()
 
-	log.Debugf(tea.Prettify(conf.Keys))
 	var mcsServers []model.Instance
 	startTime := time.Now()
 	for _, profile := range conf.Profiles {
+		log.Debugf(tea.Prettify(profile))
+		log.Debugf("profile: %s is enabled: %t", *profile.Name, profile.Enabled)
+		if !profile.Enabled {
+			continue
+		}
 		for _, region := range profile.Regions {
 			log.Infof("get instances profile: %s region: %s", *profile.Name, region)
 			input := model.InstanceFilter{}
@@ -43,12 +47,12 @@ func LoadServer(conf *config.Config) {
 			}
 		}
 	}
-	instanceAll := fmtServer(mcsServers, conf.Keys.ToMap(), conf.Proxys)
+	instanceAll := fmtServer(mcsServers, conf.Keys.ToMap())
 	app.App.Cache.Set("servers", instanceAll, cache.NoExpiration)
 	log.Infof("%s len: %d", time.Since(startTime), len(instanceAll))
 }
 
-func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest, proxys []db.CreateProxyRequest) []config.Server {
+func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest) config.Servers {
 	var instanceAll []config.Server
 	for _, instance := range instances {
 		if instance.Status != model.InstanceStatusRunning {
@@ -95,12 +99,12 @@ func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest, pro
 	return instanceAll
 }
 
-func GetServers() []config.Server {
+func GetServers() config.Servers {
 	servers, found := app.App.Cache.Get("servers")
 	if !found {
 		return nil
 	}
-	return servers.([]config.Server)
+	return servers.(config.Servers)
 }
 
 // 通过机器的密钥对 Key Name 获取对应的密钥Pem的路径

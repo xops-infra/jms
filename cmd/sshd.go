@@ -38,7 +38,7 @@ var sshdCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		appConfig.Load(config)
+		appConfig.LoadYaml(config)
 		log.Default().WithLevel(log.InfoLevel).WithHumanTime(time.Local).WithFilename(strings.TrimSuffix(logDir, "/") + "/sshd.log").Init()
 		log.Infof("config file: %s", config)
 		if debug {
@@ -85,7 +85,7 @@ var sshdCmd = &cobra.Command{
 
 		if app.App.Config.WithPolicy.Enable {
 			_app.WithPolicy()
-			log.Infof("enable policy,default user: admin/admin")
+			log.Infof("enable policy")
 		} else {
 			log.Warnf("--with-policy=false, this mode any server can be connected")
 		}
@@ -311,6 +311,13 @@ func startScheduler() {
 	c.AddFunc("0 */2 * * * *", func() {
 		instance.LoadServer(app.App.Config)
 	})
+
+	if true {
+		// 启用定时热加载数据库配置,每 2 分钟检查一次
+		c.AddFunc("0 */2 * * * *", func() {
+			app.App.LoadFromDB()
+		})
+	}
 	if app.App.Config.WithDingtalk.Enable {
 		c.AddFunc("0 0 2 * * *", func() {
 			err := dingtalk.LoadUsers()

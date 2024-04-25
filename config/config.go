@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -127,7 +128,7 @@ type WithLdap struct {
 }
 
 // load config from file
-func Load(configFile string) {
+func LoadYaml(configFile string) {
 	homedir := os.Getenv("HOME")
 
 	if strings.HasPrefix(configFile, "~") {
@@ -149,11 +150,12 @@ func Load(configFile string) {
 	viper.OnConfigChange(func(e fsnotify.Event) {
 		err := viper.ReadInConfig()
 		if err != nil {
-			fmt.Printf("config file changed error: %s\n", err)
+			log.Errorf("config file changed error: %s\n", err)
 		} else {
 			Conf = &Config{}
 			viper.Unmarshal(Conf)
-			fmt.Println("config file changed:", e.Name, tea.Prettify(Conf))
+			// TODO: 热加载
+			log.Debugf("config file changed:", e.Name, tea.Prettify(Conf))
 		}
 	})
 
@@ -179,6 +181,16 @@ type Server struct {
 	Tags     model.Tags
 	Status   model.InstanceStatus
 	SSHUsers []SSHUser
+}
+
+type Servers []Server
+
+// 按名称排序
+func (s Servers) SortByName() {
+	sort.Slice(s, func(i, j int) bool {
+		log.Debugf("%s %s", s[i].Name, s[j].Name)
+		return s[i].Name < s[j].Name
+	})
 }
 
 // SSHUser ssh user

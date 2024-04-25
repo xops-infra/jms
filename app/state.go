@@ -141,36 +141,30 @@ func (app *Application) WithPolicy() *Application {
 		&db.SSHLoginRecord{}, &db.ScpRecord{}, // 审计
 	)
 	App.DBService = db.NewDbService(rdb)
-
-	// Load profile from db, 优先获取本地配置
-	log.Infof("with policy enable, load profile from db, proifle config file will be ignored")
-	if App.Config.Profiles == nil {
-		profiles, err := App.DBService.LoadProfile()
-		if err != nil {
-			panic(err)
-		}
-		// log.Debugf("mcs profiles: %s", tea.Prettify(profiles))
-		App.Config.Profiles = profiles
-	} else {
-		log.Warnf("load profiles from config.yml")
-	}
-
-	// load Keys from db, 优先获取本地配置
-	if App.Config.Keys == nil {
-		resp, err := App.DBService.InternalLoad()
-		if err != nil {
-			log.Panicf("load keys failed: %v", err)
-		}
-		App.Config.Keys = resp
-	} else {
-		log.Warnf("load keys from config.yml")
-	}
-
-	if App.Config.Proxys == nil {
-		log.Warnf("lconfig.yml has no proxy config, will load from db")
-	}
-
+	app.LoadFromDB()
 	return app
+}
+
+// 抽出来在初始化用以及定时热加载数据库
+func (app *Application) LoadFromDB() {
+	log.Debugf("load from db")
+	profiles, err := App.DBService.LoadProfile()
+	if err != nil {
+		panic(err)
+	}
+	App.Config.Profiles = profiles
+
+	resp, err := App.DBService.InternalLoad()
+	if err != nil {
+		log.Panicf("load keys failed: %v", err)
+	}
+	App.Config.Keys = resp
+
+	proxys, err := App.DBService.ListProxy()
+	if err != nil {
+		log.Panicf("load proxy failed: %v", err)
+	}
+	App.Config.Proxys = proxys
 }
 
 func DBProfilesToMcsProfiles(profiles []db.CreateProfileRequest) []model.ProfileConfig {

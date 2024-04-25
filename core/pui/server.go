@@ -72,7 +72,7 @@ func GetServersMenuV2(sess *ssh.Session, user db.User, timeout string) []*MenuIt
 		menu = append(menu, subMenu)
 	}
 	// sort menu
-	menu = sortMenu(menu)
+	// menu = sortMenu(menu)
 	return menu
 }
 

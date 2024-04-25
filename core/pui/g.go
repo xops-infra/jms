@@ -80,6 +80,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 		user = _user
 	}
 
+loopMenu:
 	for {
 		menuLabels := make([]string, 0) // 菜单，用于显示
 		menuItems := make([]*MenuItem, 0)
@@ -93,7 +94,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			// 顶级菜单，如果有审批则主页支持选择审批或者服务器
 			menu = make([]*MenuItem, 0)
 
-			if app.App.DBService != nil && !app.App.Config.WithPolicy.Enable {
+			if !app.App.Config.WithPolicy.Enable {
 				policies, err := app.App.DBService.NeedApprove((*ui.sess).User())
 				if err != nil {
 					log.Errorf("Get need approve policy for admin error: %s", err)
@@ -107,7 +108,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 
 			filter, err := ui.inputFilter(len(menu))
 			if err != nil {
-				break
+				break loopMenu
 			}
 			for index, menuItem := range menu {
 				if menuItem.IsShow == nil || menuItem.IsShow(index, menuItem, ui.sess, selectedChain) {
@@ -128,7 +129,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			}
 		}
 
-		// fmt.Println("menuLabels: ", tea.Prettify(menuLabels))
+		log.Debugf("menuLabels: %s", tea.Prettify(menuLabels))
 		if len(menuLabels) == 0 {
 			continue
 		}
@@ -210,6 +211,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 func (ui *PUI) inputFilter(nu int) (string, error) {
 	ui.FlashTimeout()
 	servers := instance.GetServers()
+	servers.SortByName()
 	// 发送屏幕清理指令
 	// 发送当前时间
 	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
@@ -230,7 +232,7 @@ func (ui *PUI) inputFilter(nu int) (string, error) {
 			return "", err
 		} else if err.Error() == "^D" {
 			ui.Exit()
-			return "", nil
+			return "", fmt.Errorf("exit")
 		}
 		log.Errorf("Prompt error: %s", err)
 		return "", err

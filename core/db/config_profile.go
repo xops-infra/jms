@@ -15,7 +15,8 @@ type CreateProfileRequest struct {
 	AK      *string     `json:"ak" `
 	SK      *string     `json:"sk" `
 	Cloud   *string     `json:"cloud"  default:"tencent"` // aws, aliyun, tencent
-	Regions StringSlice `json:"regions" `
+	Regions StringSlice `json:"regions"`
+	Enabled bool        `json:"enabled" default:"true"` // 是否启用
 }
 
 type Profile struct {
@@ -27,6 +28,7 @@ type Profile struct {
 	IsDelete   bool        `gorm:"column:is_delete;type:boolean;not null;default:false"`
 	Cloud      string      `gorm:"column:cloud;type:varchar(255);not null"`
 	Regions    StringSlice `gorm:"column:regions;type:json;not null"`
+	Enabled    bool        `gorm:"column:enabled;type:boolean;not null;default:true"`
 }
 
 func (Profile) TableName() string {
@@ -63,6 +65,7 @@ func (d *DBService) LoadProfile() ([]CreateProfileRequest, error) {
 			SK:      tea.String(string(sk)),
 			Cloud:   tea.String(profiles[i].Cloud),
 			Regions: profiles[i].Regions,
+			Enabled: profiles[i].Enabled,
 		})
 	}
 	return reqs, nil
