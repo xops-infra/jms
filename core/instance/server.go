@@ -62,7 +62,7 @@ func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest, pro
 			// 解决 key大写不识别问题
 			key = tea.String(strings.ToLower(*key))
 			if _, ok := keys[*key]; ok {
-				keyName = append(keyName, keys[*key].KeyName)
+				keyName = append(keyName, keys[*key].IdentityFile)
 			} else {
 				log.Warnf("instance:%s key:%s not found in config", *instance.Name, *key)
 				continue
@@ -125,8 +125,8 @@ func fmtSuperUser(instance model.Instance) []config.SSHUser {
 	var sshUser []config.SSHUser
 	for _, key := range keys {
 		u := config.SSHUser{}
-		if key.KeyName != nil {
-			u.KeyName = tea.StringValue(key.KeyName)
+		if key.IdentityFile != nil {
+			u.KeyName = tea.StringValue(key.IdentityFile)
 		}
 		if key.PemBase64 != nil {
 			u.Base64Pem = tea.StringValue(key.PemBase64)

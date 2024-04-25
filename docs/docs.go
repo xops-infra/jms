@@ -532,6 +532,106 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/proxy": {
+            "get": {
+                "description": "list proxy servers",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "proxy"
+                ],
+                "summary": "ListProxy",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/db.Proxy"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "proxy"
+                ],
+                "summary": "UpdateProxy",
+                "parameters": [
+                    {
+                        "description": "proxy server info",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.CreateProxyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/db.Proxy"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "add proxy server",
+                "tags": [
+                    "proxy"
+                ],
+                "summary": "AddProxy",
+                "parameters": [
+                    {
+                        "description": "proxy server info",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.CreateProxyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/db.Proxy"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "proxy"
+                ],
+                "summary": "DeleteProxy",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "proxy server uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/user": {
             "get": {
                 "description": "获取用户列表",
@@ -611,7 +711,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.UserMut"
+                            "$ref": "#/definitions/db.UserRequest"
                         }
                     }
                 ],
@@ -698,12 +798,12 @@ const docTemplate = `{
                 "pem_base64"
             ],
             "properties": {
-                "key_id": {
-                    "description": "云上的key id，比如 skey-123456",
+                "identity_file": {
+                    "description": "云上下载下来的名字，比如 jms-key.pem",
                     "type": "string"
                 },
-                "key_name": {
-                    "description": "云上下载下来的名字，比如 jms-key.pem",
+                "key_id": {
+                    "description": "云上的key id，比如 skey-123456",
                     "type": "string"
                 },
                 "pem_base64": {
@@ -751,7 +851,7 @@ const docTemplate = `{
                     ]
                 },
                 "server_filter": {
-                    "$ref": "#/definitions/utils.ServerFilter"
+                    "$ref": "#/definitions/db.ServerFilter"
                 },
                 "users": {
                     "type": "array",
@@ -772,19 +872,14 @@ const docTemplate = `{
         },
         "db.CreateProfileRequest": {
             "type": "object",
-            "required": [
-                "ak",
-                "cloud",
-                "name",
-                "regions",
-                "sk"
-            ],
             "properties": {
                 "ak": {
                     "type": "string"
                 },
                 "cloud": {
-                    "type": "string"
+                    "description": "aws, aliyun, tencent",
+                    "type": "string",
+                    "default": "tencent"
                 },
                 "name": {
                     "type": "string"
@@ -797,6 +892,40 @@ const docTemplate = `{
                 },
                 "sk": {
                     "type": "string"
+                }
+            }
+        },
+        "db.CreateProxyRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "host": {
+                    "type": "string"
+                },
+                "identity_file": {
+                    "description": "密码或者key必须有一个, 优先使用密码",
+                    "type": "string"
+                },
+                "ip_prefix": {
+                    "description": "适配哪些机器 IP 前缀使用 Proxy, 例如 192.168.1",
+                    "type": "string"
+                },
+                "login_passwd": {
+                    "description": "密码或者key必须有一个, 优先使用密码",
+                    "type": "string"
+                },
+                "login_user": {
+                    "description": "key超级用户 root ec2-user",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "代理名称 唯一",
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
                 }
             }
         },
@@ -874,7 +1003,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "server_filter": {
-                    "$ref": "#/definitions/utils.ServerFilter"
+                    "$ref": "#/definitions/db.ServerFilter"
                 },
                 "updated_at": {
                     "type": "string"
@@ -906,7 +1035,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "server_filter": {
-                    "$ref": "#/definitions/utils.ServerFilter"
+                    "$ref": "#/definitions/db.ServerFilter"
                 },
                 "users": {
                     "type": "array",
@@ -923,6 +1052,9 @@ const docTemplate = `{
                 "cloud": {
                     "type": "string"
                 },
+                "isDelete": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -933,9 +1065,59 @@ const docTemplate = `{
                     }
                 },
                 "sk": {
+                    "description": "经过加密",
                     "type": "string"
                 },
                 "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "db.Proxy": {
+            "type": "object",
+            "properties": {
+                "host": {
+                    "type": "string"
+                },
+                "identityFile": {
+                    "type": "string"
+                },
+                "ipprefix": {
+                    "type": "string"
+                },
+                "isDelete": {
+                    "type": "boolean"
+                },
+                "loginPasswd": {
+                    "type": "string"
+                },
+                "loginUser": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "db.ServerFilter": {
+            "type": "object",
+            "properties": {
+                "env_type": {
+                    "type": "string"
+                },
+                "ip_addr": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "team": {
                     "type": "string"
                 }
             }
@@ -984,7 +1166,16 @@ const docTemplate = `{
                 }
             }
         },
-        "db.UserMut": {
+        "db.UserPatchMut": {
+            "type": "object",
+            "properties": {
+                "groups": {
+                    "type": "array",
+                    "items": {}
+                }
+            }
+        },
+        "db.UserRequest": {
             "type": "object",
             "required": [
                 "username"
@@ -1007,32 +1198,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "db.UserPatchMut": {
-            "type": "object",
-            "properties": {
-                "groups": {
-                    "type": "array",
-                    "items": {}
-                }
-            }
-        },
-        "utils.ServerFilter": {
-            "type": "object",
-            "properties": {
-                "env_type": {
-                    "type": "string"
-                },
-                "ip_addr": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "team": {
                     "type": "string"
                 }
             }

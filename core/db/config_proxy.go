@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -10,16 +11,16 @@ import (
 )
 
 type CreateProxyRequest struct {
-	Name        *string `json:"name" mapstructure:"name"`
-	Host        *string `json:"host" mapstructure:"host"`
-	Port        *int    `json:"port" mapstructure:"port"`
-	IPPrefix    *string `json:"ip_prefix" mapstructure:"ip_prefix"`       // 适配哪些机器 IP 前缀使用 Proxy
-	LoginUser   *string `json:"login_user" mapstructure:"login_user"`     // key超级用户 root ec2-user
-	LoginPasswd *string `json:"login_passwd" mapstructure:"login_passwd"` // 密码或者key必须有一个, 优先使用密码
-	LoginKeyID  *string `json:"login_key_id" mapstructure:"login_key_id"` // 密码或者key必须有一个
+	Name         *string `json:"name" binding:"required" mapstructure:"name"` // 代理名称 唯一
+	Host         *string `json:"host" mapstructure:"host"`
+	Port         *int    `json:"port" mapstructure:"port"`
+	IPPrefix     *string `json:"ip_prefix" mapstructure:"ip_prefix"`         // 适配哪些机器 IP 前缀使用 Proxy, 例如 192.168.1
+	LoginUser    *string `json:"login_user" mapstructure:"login_user"`       // key超级用户 root ec2-user
+	LoginPasswd  *string `json:"login_passwd" mapstructure:"login_passwd"`   // 密码或者key必须有一个, 优先使用密码
+	IdentityFile *string `json:"identity_file" mapstructure:"identity_file"` // 密码或者key必须有一个, 优先使用密码
 }
 
-func (req *CreateProxyRequest) ToProxy() Proxy {
+func (req *CreateProxyRequest) ToProxy() (Proxy, error) {
 	var proxy Proxy
 	if req.Name != nil {
 		proxy.Name = *req.Name
@@ -39,23 +40,26 @@ func (req *CreateProxyRequest) ToProxy() Proxy {
 	if req.LoginPasswd != nil {
 		proxy.LoginPasswd = *req.LoginPasswd
 	}
-	if req.LoginKeyID != nil {
-		proxy.LoginKey = *req.LoginKeyID
+	if req.IdentityFile != nil {
+		proxy.IdentityFile = *req.IdentityFile
 	}
-	return proxy
+	if proxy.LoginPasswd == "" && proxy.IdentityFile == "" {
+		return proxy, fmt.Errorf("login_passwd or identity_file is required")
+	}
+	return proxy, nil
 }
 
 type Proxy struct {
-	gorm.Model  `json:"-"`
-	IsDelete    bool   `gorm:"column:is_delete;type:boolean;not null;default:false"`
-	UUID        string `gorm:"column:uuid;type:varchar(36);unique_index;not null"`
-	Name        string `gorm:"column:name;type:varchar(255);not null"`
-	Host        string `gorm:"column:host;type:varchar(255);not null"`
-	Port        int    `gorm:"column:port;type:integer;not null"`
-	IPPrefix    string `gorm:"column:ip_prefix;type:varchar(255);not null"`
-	LoginUser   string `gorm:"column:login_user;type:varchar(255);not null"`
-	LoginPasswd string `gorm:"column:login_passwd;type:varchar(255);not null"`
-	LoginKey    string `gorm:"column:login_key;type:varchar(255);not null"`
+	gorm.Model   `json:"-"`
+	IsDelete     bool   `gorm:"column:is_delete;type:boolean;not null;default:false"`
+	UUID         string `gorm:"column:uuid;type:varchar(36);unique_index;not null"`
+	Name         string `gorm:"column:name;type:varchar(255);not null"`
+	Host         string `gorm:"column:host;type:varchar(255);not null"`
+	Port         int    `gorm:"column:port;type:integer;not null"`
+	IPPrefix     string `gorm:"column:ip_prefix;type:varchar(255);not null"`
+	LoginUser    string `gorm:"column:login_user;type:varchar(255);not null"`
+	LoginPasswd  string `gorm:"column:login_passwd;type:varchar(255);not null"`
+	IdentityFile string `gorm:"column:identity_file;type:varchar(255);not null"`
 }
 
 func (Proxy) TableName() string {
@@ -77,13 +81,13 @@ func (d *DBService) GetProxyByIP(ip string) (*CreateProxyRequest, error) {
 	for _, proxy := range proxies {
 		if strings.HasPrefix(ip, proxy.IPPrefix) {
 			return &CreateProxyRequest{
-				Name:        &proxy.Name,
-				Host:        &proxy.Host,
-				Port:        &proxy.Port,
-				IPPrefix:    &proxy.IPPrefix,
-				LoginUser:   &proxy.LoginUser,
-				LoginPasswd: &proxy.LoginPasswd,
-				LoginKeyID:  &proxy.LoginKey,
+				Name:         &proxy.Name,
+				Host:         &proxy.Host,
+				Port:         &proxy.Port,
+				IPPrefix:     &proxy.IPPrefix,
+				LoginUser:    &proxy.LoginUser,
+				LoginPasswd:  &proxy.LoginPasswd,
+				IdentityFile: &proxy.IdentityFile,
 			}, nil
 		}
 	}
@@ -91,10 +95,20 @@ func (d *DBService) GetProxyByIP(ip string) (*CreateProxyRequest, error) {
 }
 
 func (d *DBService) CreateProxy(req CreateProxyRequest) (Proxy, error) {
-	proxy := req.ToProxy()
+	// 跳过已经存在的
+	var count int64
+	d.DB.Model(&Proxy{}).Where("name = ? and is_delete is false", req.Name).Count(&count)
+	if count > 0 {
+		return Proxy{}, fmt.Errorf("proxy name %s already exists", *req.Name)
+	}
+	proxy, err := req.ToProxy()
+	if err != nil {
+		return Proxy{}, err
+	}
 	proxy.UUID = uuid.New().String()
 	log.Debugf(tea.Prettify(proxy))
-	err := d.DB.Create(&proxy).Error
+	
+	err = d.DB.Create(&proxy).Error
 	return proxy, err
 }
 

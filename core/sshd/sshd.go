@@ -187,8 +187,8 @@ func ProxyClient(instance config.Server, proxy db.CreateProxyRequest, sshUser co
 	}
 	if proxy.LoginPasswd != nil {
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.Password(*proxy.LoginPasswd))
-	} else if proxy.LoginKeyID != nil {
-		signerProxy, err := getSigner(*proxy.LoginKeyID)
+	} else if proxy.IdentityFile != nil {
+		signerProxy, err := getSigner(*proxy.IdentityFile)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -220,15 +220,15 @@ func ProxyClient(instance config.Server, proxy db.CreateProxyRequest, sshUser co
 
 // 实时读取密钥信息，支持数据库和文件获取。
 // 优先在本地获取
-func getSigner(keyID string) (gossh.Signer, error) {
-	if key, ok := app.App.Config.Keys.ToMap()[keyID]; ok {
-		if key.KeyName != nil {
-			return getSignerFromLocal(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(*key.KeyName, "/"))
+func getSigner(identityFile string) (gossh.Signer, error) {
+	if key, ok := app.App.Config.Keys.ToMapWithName()[identityFile]; ok {
+		if key.IdentityFile != nil {
+			return getSignerFromLocal(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(*key.IdentityFile, "/"))
 		} else if key.PemBase64 != nil {
 			return getSignerFromBase64(*key.PemBase64)
 		}
 	}
-	return nil, fmt.Errorf("key %s not found", keyID)
+	return nil, fmt.Errorf("key %s not found", identityFile)
 }
 
 func getSignerFromLocal(identityFile string) (gossh.Signer, error) {

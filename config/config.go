@@ -43,12 +43,11 @@ func (k Keys) ToMap() map[string]db.AddKeyRequest {
 	return m
 }
 
-// ToMap convert to map with keyID
 func (k Keys) ToMapWithName() map[string]db.AddKeyRequest {
 	m := make(map[string]db.AddKeyRequest)
 	for _, key := range k {
 		log.Debugf("key: %v", tea.Prettify(key))
-		m[*key.KeyName] = key
+		m[*key.IdentityFile] = key
 	}
 	return m
 }

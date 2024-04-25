@@ -298,7 +298,7 @@ func updateUserGroup(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "user id"
-// @Param request body db.UserMut true "request"
+// @Param request body db.UserRequest true "request"
 // @Success 200 {string} success
 // @Router /api/v1/user/:id [put]
 func updateUser(c *gin.Context) {

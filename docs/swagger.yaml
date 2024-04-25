@@ -17,11 +17,11 @@ definitions:
     - DenyUpload
   db.AddKeyRequest:
     properties:
+      identity_file:
+        description: 云上下载下来的名字，比如 jms-key.pem
+        type: string
       key_id:
         description: 云上的key id，比如 skey-123456
-        type: string
-      key_name:
-        description: 云上下载下来的名字，比如 jms-key.pem
         type: string
       pem_base64:
         description: base64
@@ -53,7 +53,7 @@ definitions:
         - $ref: '#/definitions/db.Period'
         description: 审批周期，默认一周
       server_filter:
-        $ref: '#/definitions/utils.ServerFilter'
+        $ref: '#/definitions/db.ServerFilter'
       users:
         items: {}
         type: array
@@ -74,6 +74,8 @@ definitions:
       ak:
         type: string
       cloud:
+        default: tencent
+        description: aws, aliyun, tencent
         type: string
       name:
         type: string
@@ -83,12 +85,30 @@ definitions:
         type: array
       sk:
         type: string
+    type: object
+  db.CreateProxyRequest:
+    properties:
+      host:
+        type: string
+      identity_file:
+        description: 密码或者key必须有一个, 优先使用密码
+        type: string
+      ip_prefix:
+        description: 适配哪些机器 IP 前缀使用 Proxy, 例如 192.168.1
+        type: string
+      login_passwd:
+        description: 密码或者key必须有一个, 优先使用密码
+        type: string
+      login_user:
+        description: key超级用户 root ec2-user
+        type: string
+      name:
+        description: 代理名称 唯一
+        type: string
+      port:
+        type: integer
     required:
-    - ak
-    - cloud
     - name
-    - regions
-    - sk
     type: object
   db.Key:
     properties:
@@ -143,7 +163,7 @@ definitions:
       name:
         type: string
       server_filter:
-        $ref: '#/definitions/utils.ServerFilter'
+        $ref: '#/definitions/db.ServerFilter'
       updated_at:
         type: string
       users:
@@ -165,7 +185,7 @@ definitions:
       name:
         type: string
       server_filter:
-        $ref: '#/definitions/utils.ServerFilter'
+        $ref: '#/definitions/db.ServerFilter'
       users:
         items: {}
         type: array
@@ -176,6 +196,8 @@ definitions:
         type: string
       cloud:
         type: string
+      isDelete:
+        type: boolean
       name:
         type: string
       regions:
@@ -183,8 +205,41 @@ definitions:
           type: string
         type: array
       sk:
+        description: 经过加密
         type: string
       uuid:
+        type: string
+    type: object
+  db.Proxy:
+    properties:
+      host:
+        type: string
+      identityFile:
+        type: string
+      ipprefix:
+        type: string
+      isDelete:
+        type: boolean
+      loginPasswd:
+        type: string
+      loginUser:
+        type: string
+      name:
+        type: string
+      port:
+        type: integer
+      uuid:
+        type: string
+    type: object
+  db.ServerFilter:
+    properties:
+      env_type:
+        type: string
+      ip_addr:
+        type: string
+      name:
+        type: string
+      team:
         type: string
     type: object
   db.User:
@@ -217,7 +272,13 @@ definitions:
       username:
         type: string
     type: object
-  db.UserMut:
+  db.UserPatchMut:
+    properties:
+      groups:
+        items: {}
+        type: array
+    type: object
+  db.UserRequest:
     properties:
       dingtalk_dept_id:
         type: string
@@ -234,23 +295,6 @@ definitions:
         type: string
     required:
     - username
-    type: object
-  db.UserPatchMut:
-    properties:
-      groups:
-        items: {}
-        type: array
-    type: object
-  utils.ServerFilter:
-    properties:
-      env_type:
-        type: string
-      ip_addr:
-        type: string
-      name:
-        type: string
-      team:
-        type: string
     type: object
 host: localhost:8013
 info:
@@ -593,6 +637,71 @@ paths:
       summary: Update profile
       tags:
       - profile
+  /api/v1/proxy:
+    delete:
+      parameters:
+      - description: proxy server uuid
+        in: path
+        name: uuid
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: DeleteProxy
+      tags:
+      - proxy
+    get:
+      consumes:
+      - application/json
+      description: list proxy servers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/db.Proxy'
+            type: array
+      summary: ListProxy
+      tags:
+      - proxy
+    post:
+      description: add proxy server
+      parameters:
+      - description: proxy server info
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/db.CreateProxyRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/db.Proxy'
+      summary: AddProxy
+      tags:
+      - proxy
+    put:
+      parameters:
+      - description: proxy server info
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/db.CreateProxyRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/db.Proxy'
+      summary: UpdateProxy
+      tags:
+      - proxy
   /api/v1/user:
     get:
       consumes:
@@ -673,7 +782,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/db.UserMut'
+          $ref: '#/definitions/db.UserRequest'
       produces:
       - application/json
       responses:

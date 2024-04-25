@@ -9,10 +9,10 @@ import (
 )
 
 type AddKeyRequest struct {
-	KeyName   *string `json:"key_name" mapstructure:"key_name"`                        // 云上下载下来的名字，比如 jms-key.pem
-	PemBase64 *string `json:"pem_base64" binding:"required" mapstructure:"pem_base64"` // base64
-	KeyID     *string `json:"key_id" binding:"required" mapstructure:"key_id"`         // 云上的key id，比如 skey-123456
-	Profile   *string `json:"profile"`                                                 // 云账号的 profile，比如 aws, aliyun
+	IdentityFile *string `json:"identity_file" mapstructure:"identity_file"`              // 云上下载下来的名字，比如 jms-key.pem
+	PemBase64    *string `json:"pem_base64" binding:"required" mapstructure:"pem_base64"` // base64
+	KeyID        *string `json:"key_id" binding:"required" mapstructure:"key_id"`         // 云上的key id，比如 skey-123456
+	Profile      *string `json:"profile"`                                                 // 云账号的 profile，比如 aws, aliyun
 }
 
 type Key struct {
@@ -38,10 +38,10 @@ func (d *DBService) InternalLoad() ([]AddKeyRequest, error) {
 	var res []AddKeyRequest
 	for i := range keys {
 		res = append(res, AddKeyRequest{
-			KeyName:   tea.String(keys[i].KeyName),
-			PemBase64: tea.String(keys[i].PemBase64),
-			KeyID:     tea.String(keys[i].KeyID),
-			Profile:   tea.String(keys[i].Profile),
+			IdentityFile: tea.String(keys[i].KeyName),
+			PemBase64:    tea.String(keys[i].PemBase64),
+			KeyID:        tea.String(keys[i].KeyID),
+			Profile:      tea.String(keys[i].Profile),
 		})
 	}
 	return res, nil
@@ -61,18 +61,18 @@ func (d *DBService) ListKey() ([]Key, error) {
 func (d *DBService) AddKey(req AddKeyRequest) (string, error) {
 	// 先查询是否存在
 	var count int64
-	err := d.DB.Model(Key{}).Where("key_name = ?", tea.StringValue(req.KeyName)).Where("is_delete is false").Count(&count).Error
+	err := d.DB.Model(Key{}).Where("key_name = ?", tea.StringValue(req.IdentityFile)).Where("is_delete is false").Count(&count).Error
 	if err != nil {
 		return "", err
 	}
 	if count > 0 {
-		return "", fmt.Errorf("key name %s already exists", tea.StringValue(req.KeyName))
+		return "", fmt.Errorf("key name %s already exists", tea.StringValue(req.IdentityFile))
 	}
 	key := &Key{
 		IsDelete:  false,
 		UUID:      uuid.NewString(),
 		KeyID:     tea.StringValue(req.KeyID),
-		KeyName:   tea.StringValue(req.KeyName),
+		KeyName:   tea.StringValue(req.IdentityFile),
 		Profile:   tea.StringValue(req.Profile),
 		PemBase64: tea.StringValue(req.PemBase64),
 	}

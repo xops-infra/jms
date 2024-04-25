@@ -59,5 +59,12 @@ func NewGin() *gin.Engine {
 	profile.PUT(":uuid", updateProfile)
 	profile.DELETE(":uuid", deleteProfile)
 
+	proxy := api.Group("/proxy")
+	proxy.GET("", listProxy)
+	proxy.POST("", addProxy)
+	proxy.PUT("/:uuid", updateProxy)
+	proxy.DELETE("/:uuid", deleteProxy)
+
+
 	return r
 }
