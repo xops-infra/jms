@@ -305,6 +305,7 @@ func scpHandler(args []string, sess *ssh.Session) {
 	}
 }
 
+// debug will not run
 func startScheduler() {
 	c := cron.New()
 	time.Sleep(10 * time.Second) // 等待app初始化完成
@@ -313,8 +314,9 @@ func startScheduler() {
 	})
 
 	if true {
-		// 启用定时热加载数据库配置,每 2 分钟检查一次
-		c.AddFunc("0 */2 * * * *", func() {
+		log.Infof("enabled db config hot update, 2 min check once")
+		// 启用定时热加载数据库配置,每 30s 检查一次
+		c.AddFunc("*/30 * * * * *", func() {
 			app.App.LoadFromDB()
 		})
 	}

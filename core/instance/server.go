@@ -53,7 +53,7 @@ func LoadServer(conf *config.Config) {
 }
 
 func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest) config.Servers {
-	var instanceAll []config.Server
+	var instanceAll config.Servers
 	for _, instance := range instances {
 		if instance.Status != model.InstanceStatusRunning {
 			continue
@@ -68,7 +68,7 @@ func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest) con
 			if _, ok := keys[*key]; ok {
 				keyName = append(keyName, keys[*key].IdentityFile)
 			} else {
-				log.Warnf("instance:%s key:%s not found in config", *instance.Name, *key)
+				log.Infof("instance: %s key: %s not found in config", *instance.Name, *key)
 				continue
 			}
 		}
@@ -96,6 +96,7 @@ func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest) con
 		}
 		instanceAll = append(instanceAll, newInstance)
 	}
+	instanceAll.SortByName()
 	return instanceAll
 }
 

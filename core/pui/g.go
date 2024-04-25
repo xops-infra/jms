@@ -95,6 +95,7 @@ loopMenu:
 			menu = make([]*MenuItem, 0)
 
 			if !app.App.Config.WithPolicy.Enable {
+				// 没有审批策略时候，会在 admin 服务器选择列表里面显示审批菜单
 				policies, err := app.App.DBService.NeedApprove((*ui.sess).User())
 				if err != nil {
 					log.Errorf("Get need approve policy for admin error: %s", err)
@@ -137,7 +138,7 @@ loopMenu:
 		backIndex := len(menuLabels) - 1                 // 返回选项的索引
 		menuPui := promptui.Select{
 			Label:  label,
-			Size:   15,
+			Size:   15, // 菜单栏服务器数最大为15
 			Items:  menuLabels,
 			Stdin:  *ui.sess,
 			Stdout: *ui.sess,
