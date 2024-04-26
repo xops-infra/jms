@@ -186,7 +186,7 @@ func ProxyClient(instance config.Server, proxy db.CreateProxyRequest, sshUser co
 		}
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.PublicKeys(signerProxy))
 	}
-
+	log.Infof("connecting %s with proxy connect: %s:%d", instance.Host, *proxy.Host, *proxy.Port)
 	proxyClient, err := gossh.Dial("tcp", fmt.Sprintf("%s:%d", *proxy.Host, *proxy.Port), proxyConfig)
 	if err != nil {
 		return nil, nil, err

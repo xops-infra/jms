@@ -363,7 +363,7 @@ func parseServerPath(fullPath, filename, currentUsername string) (*config.SSHUse
 	}
 
 	sshUsername, host := serverArgs[0], serverArgs[1]
-	if server, ok := config.ServerListToMap(servers.([]config.Server))[host]; ok {
+	if server, ok := config.ServerListToMap(servers.(config.Servers))[host]; ok {
 		if server.Host == "" {
 			return nil, nil, "", fmt.Errorf("server key '%s' of server not found", host)
 		}
