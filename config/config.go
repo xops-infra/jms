@@ -47,7 +47,7 @@ func (k Keys) ToMap() map[string]db.AddKeyRequest {
 func (k Keys) ToMapWithName() map[string]db.AddKeyRequest {
 	m := make(map[string]db.AddKeyRequest)
 	for _, key := range k {
-		log.Debugf("key: %v", tea.Prettify(key))
+		// log.Debugf("key: %v", tea.Prettify(key))
 		m[*key.IdentityFile] = key
 	}
 	return m
@@ -196,7 +196,7 @@ func (s Servers) SortByName() {
 // SSHUser ssh user
 type SSHUser struct {
 	SSHUsername string
-	KeyName     string // pem file name
+	KeyName     string // pem file name, 这里是支持本地读取内容的
 	Base64Pem   string // base64 pem
 	Password    string
 }

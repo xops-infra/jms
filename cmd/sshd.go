@@ -293,7 +293,7 @@ func execHandler(args []string, sess *ssh.Session) {
 }
 
 func sshHandler(sess *ssh.Session) {
-	jps := jump.NewService(sess, time.Duration(timeOut)*time.Second)
+	jps := jump.NewSession(sess, time.Duration(timeOut)*time.Second)
 	jps.Run()
 }
 

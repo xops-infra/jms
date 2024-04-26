@@ -57,7 +57,7 @@ func (ui *PUI) IsTimeout() bool {
 
 // getTimeout
 func (ui *PUI) GetTimeout() string {
-	return fmt.Sprintf("%s", ui.timeOut)
+	return fmt.Sprint(ui.timeOut)
 }
 
 // FlashTimeout flash timeout
