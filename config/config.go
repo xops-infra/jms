@@ -188,7 +188,7 @@ type Servers []Server
 // 按名称排序
 func (s Servers) SortByName() {
 	sort.Slice(s, func(i, j int) bool {
-		log.Debugf("%s %s", s[i].Name, s[j].Name)
+		// log.Debugf("%s %s", s[i].Name, s[j].Name)
 		return s[i].Name < s[j].Name
 	})
 }

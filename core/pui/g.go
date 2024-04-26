@@ -85,7 +85,8 @@ loopMenu:
 		menuLabels := make([]string, 0) // 菜单，用于显示
 		menuItems := make([]*MenuItem, 0)
 		if menu == nil {
-			break
+			log.Debugf("menu is nil, label: %s", label)
+			// break
 		}
 		// 返回顶级菜单
 		log.Debugf("label: %s MainLabel:%s", label, MainLabel)
@@ -110,6 +111,10 @@ loopMenu:
 			filter, err := ui.inputFilter(len(menu))
 			if err != nil {
 				break loopMenu
+			}
+			if filter == "^C" {
+
+				continue
 			}
 			for index, menuItem := range menu {
 				if menuItem.IsShow == nil || menuItem.IsShow(index, menuItem, ui.sess, selectedChain) {
@@ -148,24 +153,26 @@ loopMenu:
 		index, subMenuLabel, err := menuPui.Run()
 		if err != nil {
 			// ^C ^D is not error
-			if err.Error() == "^C" {
-				if strings.HasPrefix(label, MainLabel) {
-					continue
-				} else {
-					break
-				}
+			if strings.Contains(err.Error(), "^C") {
+				log.Debugf(label, MainLabel)
+				// 返回主菜单
+				ui.ShowMenu(MainLabel, menu, BackOptionLabel, selectedChain)
 
-			} else if err.Error() == "^D" {
+			} else if strings.Contains(err.Error(), "^D") {
 				app.App.Cache.Delete((*ui.sess).User())
 				ui.Exit()
 				break
 			}
 			log.Errorf("Select menu error %s\n", err)
-			break
 		}
 		if index == backIndex {
-			// 返回上一级菜单
-			break
+			// 返回上一级菜单，如果主菜单了则退无可退。
+			if label == MainLabel {
+				log.Debugf("main menu, no back")
+				continue
+			} else {
+				break
+			}
 		}
 
 		// get sub menu
@@ -211,6 +218,7 @@ loopMenu:
 // inputFilter input filter
 func (ui *PUI) inputFilter(nu int) (string, error) {
 	ui.FlashTimeout()
+	defer ui.SessionWrite("\033c") // clear
 	servers := instance.GetServers()
 	servers.SortByName()
 	// 发送屏幕清理指令
@@ -229,8 +237,7 @@ func (ui *PUI) inputFilter(nu int) (string, error) {
 	if err != nil {
 		// ^C ^D is not error
 		if err.Error() == "^C" {
-			ui.SessionWrite("\033c") // clear
-			return "", err
+			return "^C", nil
 		} else if err.Error() == "^D" {
 			ui.Exit()
 			return "", fmt.Errorf("exit")

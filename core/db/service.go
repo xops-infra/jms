@@ -6,7 +6,6 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
-	"github.com/xops-infra/noop/log"
 	"gorm.io/gorm"
 )
 
@@ -237,7 +236,7 @@ func (d *DBService) QueryPolicyByUser(username string) ([]Policy, error) {
 	// 精确返回
 	for _, policy := range policies {
 		if policy.Users.Contains(username) {
-			log.Debugf("policy: %s", tea.Prettify(policy))
+			// log.Debugf("policy: %s", tea.Prettify(policy))
 			matchPolicies = append(matchPolicies, policy)
 		}
 	}
