@@ -84,7 +84,6 @@ func (d *DBService) ListProxy() ([]CreateProxyRequest, error) {
 			IdentityFile: tea.String(proxy.IdentityFile),
 		})
 	}
-	log.Debugf(tea.Prettify(res))
 	return res, err
 }
 

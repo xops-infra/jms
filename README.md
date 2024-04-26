@@ -98,6 +98,7 @@ kubectl apply -f sstatefulset.yaml -n jms --create-namespace
 - feat: 增加数据库 Record 表，记录上传下载和服务器登录日志
 - feat: 支持数据库热加载配置，支持 API 操作 Key,Profile,Proxy；
 - feat: 支持服务器按名称排序；
+- feat: 支持密钥本地和数据库入库认证；
 
 ### 2024-01
 

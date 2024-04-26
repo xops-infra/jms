@@ -6,6 +6,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/jms/core/db"
+	"github.com/xops-infra/jms/utils"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	server "github.com/xops-infra/multi-cloud-sdk/pkg/service"
@@ -16,7 +17,6 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/utils"
 )
 
 var (
@@ -136,7 +136,7 @@ func (app *Application) WithPolicy() *Application {
 	}
 	// 初始化数据库
 	rdb.AutoMigrate(
-		&db.Policy{}, &db.User{},
+		&db.Policy{}, &db.User{}, &db.AuthorizedKey{},
 		&db.Key{}, &db.Profile{}, &db.Proxy{}, // 配置
 		&db.SSHLoginRecord{}, &db.ScpRecord{}, // 审计
 	)

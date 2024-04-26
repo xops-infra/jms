@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -176,27 +177,15 @@ func passwordAuth(ctx ssh.Context, pass string) bool {
 	return true
 }
 
+// 支持authorized_keys读取 pub key 认证
+// 还支持pubkey在数据库
 func publicKeyAuth(ctx ssh.Context, key ssh.PublicKey) bool {
-	hostAuthorizedKeys := sshDir + "authorized_keys"
-	data, err := os.ReadFile(hostAuthorizedKeys)
-	if err != nil {
-		log.Error(err.Error())
-		return false
+	if app.App.Config.WithPolicy.Enable {
+		// 数据库读取数据认证
+		return app.App.DBService.AuthKey(ctx.User(), key)
 	}
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		if strings.Contains(line, ctx.User()) {
-			allowed, _, _, _, _ := ssh.ParseAuthorizedKey([]byte(line))
-			if ssh.KeysEqual(key, allowed) {
-				log.Debugf("user: %s, pub: %s", ctx.User(), line)
-				return true
-			}
-		}
-	}
-	return false
+	// 否则走文件认证
+	return utils.AuthFromFile(ctx, key, sshDir)
 }
 
 func sessionHandler(sess *ssh.Session) {
@@ -236,19 +225,23 @@ func sessionHandler(sess *ssh.Session) {
 	log.Debugf("cmd: %s, args: %s\n", cmd, args)
 	switch cmd {
 	case "exec":
-		execHandler(args, sess)
+		execHandler(sess)
 	case "scp":
 		scpHandler(args, sess)
+	case "exit":
+		(*sess).Exit(0)
+	case "ssh":
+		sshHandler(sess)
 	default:
 		if strings.Contains(cmd, "umask") {
 			// 版本问题导致的 cmd不一致问题
-			execHandler(args, sess)
+			execHandler(sess)
 		}
 		sshHandler(sess)
 	}
 }
 
-func execHandler(args []string, sess *ssh.Session) {
+func execHandler(sess *ssh.Session) {
 	// 执行命令
 	// 获取用户后续输入的 pubKey 存放到 authorized_keys 文件中
 	pubKey, err := bufio.NewReader(*sess).ReadString('\n')
@@ -257,37 +250,24 @@ func execHandler(args []string, sess *ssh.Session) {
 		return
 	}
 	if !strings.Contains(pubKey, "ssh-rsa") {
-		sshd.ErrorInfo(fmt.Errorf("pub key already exists"), sess)
+		sshd.ErrorInfo(errors.New("not ssh-rsa key"), sess)
 		return
 	}
-	hostAuthorizedKeys := sshDir + "authorized_keys"
-	data, err := os.ReadFile(hostAuthorizedKeys)
-	if err != nil {
-		log.Error(err.Error())
-	}
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "#") {
-			continue
+	if app.App.Config.WithPolicy.Enable {
+		// 数据库读取数据认证
+		if err := app.App.DBService.AddAuthorizedKey((*sess).User(), pubKey); err != nil {
+			sshd.ErrorInfo(err, sess)
+			log.Errorf("add authorized key error: %s", err.Error())
+			return
 		}
-		if strings.Contains(line, pubKey) {
-			sshd.Info("pub key already exists", sess)
+	} else {
+		// 否则走文件认证
+		err := utils.AddAuthToFile((*sess).User(), pubKey, sshDir)
+		if err != nil {
+			sshd.ErrorInfo(err, sess)
 			return
 		}
 	}
-	// 将公钥添加到authorized_keys的第一行
-	f, err := os.OpenFile(hostAuthorizedKeys, os.O_RDWR|os.O_CREATE, 0600)
-	if err != nil {
-		log.Error(err.Error())
-		return
-	}
-	defer f.Close()
-	_, err = f.WriteString((*sess).User() + " " + pubKey + "\n" + string(data))
-	if err != nil {
-		log.Error(err.Error())
-		return
-	}
-	log.Infof("add pub key: %s to %s success", pubKey, hostAuthorizedKeys)
 	// 退出
 	(*sess).Exit(0)
 }
