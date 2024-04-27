@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
 	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron"
@@ -72,7 +71,12 @@ var sshdCmd = &cobra.Command{
 		}
 
 		// init app
-		_app := app.NewSshdApplication(debug, sshDir).WithLdap()
+		_app := app.NewSshdApplication(debug, sshDir)
+
+		if app.App.Config.WithLdap.Enable {
+			log.Infof("enable ldap")
+			_app.WithLdap()
+		}
 
 		if app.App.Config.WithSSHCheck.Enable {
 			log.Infof("enable dingtalk")
@@ -84,7 +88,7 @@ var sshdCmd = &cobra.Command{
 			_app.WithDingTalk()
 		}
 
-		if app.App.Config.WithPolicy.Enable {
+		if app.App.Config.WithDB.Enable {
 			_app.WithPolicy()
 			log.Infof("enable policy")
 		} else {
@@ -92,7 +96,7 @@ var sshdCmd = &cobra.Command{
 		}
 
 		if app.App.Config.WithDingtalk.Enable {
-			if !app.App.Config.WithPolicy.Enable {
+			if !app.App.Config.WithDB.Enable {
 				log.Panicf("with-api-server-approval must be used with --with-policy=true")
 			}
 			log.Infof("enable api dingtalk Approve")
@@ -169,18 +173,23 @@ func passwordAuth(ctx ssh.Context, pass string) bool {
 		return err == nil
 	}
 	// 如果启用 policy策略，登录时需要验证用户密码
-	_, err := app.App.DBService.Login(ctx.User(), pass)
-	if err != nil {
-		log.Error(err.Error())
+	if app.App.Config.WithDB.Enable {
+		return app.App.DBService.Login(ctx.User(), pass)
+	}
+
+	// 默认认证，jms/jms
+	switch ctx.User() {
+	case "jms":
+		return pass == "jms"
+	default:
 		return false
 	}
-	return true
 }
 
 // 支持authorized_keys读取 pub key 认证
 // 还支持pubkey在数据库
 func publicKeyAuth(ctx ssh.Context, key ssh.PublicKey) bool {
-	if app.App.Config.WithPolicy.Enable {
+	if app.App.Config.WithDB.Enable {
 		// 数据库读取数据认证
 		return app.App.DBService.AuthKey(ctx.User(), key)
 	}
@@ -199,7 +208,7 @@ func sessionHandler(sess *ssh.Session) {
 		app.App.Cache.Add(user, 1, cache.DefaultExpiration)
 	}
 	// 如果启用 policy策略，默认开始注册登录用户入库
-	if app.App.Config.WithPolicy.Enable {
+	if app.App.Config.WithDB.Enable {
 		_, err := app.App.DBService.CreateUser(&db.UserRequest{
 			Username: &user,
 		})
@@ -253,7 +262,7 @@ func execHandler(sess *ssh.Session) {
 		sshd.ErrorInfo(errors.New("not ssh-rsa key"), sess)
 		return
 	}
-	if app.App.Config.WithPolicy.Enable {
+	if app.App.Config.WithDB.Enable {
 		// 数据库读取数据认证
 		if err := app.App.DBService.AddAuthorizedKey((*sess).User(), pubKey); err != nil {
 			sshd.ErrorInfo(err, sess)
@@ -312,16 +321,14 @@ func startScheduler() {
 			dingtalk.LoadApproval()
 		})
 	}
-	if app.App.Config.APPSet.Audit.Enable {
-		log.Infof("enabled audit log archiver,config: %s", tea.Prettify(app.App.Config.APPSet.Audit))
-		cron := "0 0 3 * * *"
-		if app.App.Config.APPSet.Audit.Cron != "" {
-			cron = app.App.Config.APPSet.Audit.Cron
-		}
-		c.AddFunc(cron, func() {
-			sshd.AuditLogArchiver()
-		})
+
+	cron := "0 0 3 * * *" // 默认每天早上 3 点
+	if app.App.Config.WithVideo.Cron != "" {
+		cron = app.App.Config.WithVideo.Cron
 	}
+	c.AddFunc(cron, func() {
+		sshd.AuditLogArchiver()
+	})
 
 	c.Start()
 	select {}

@@ -142,7 +142,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 		if err != nil {
 			return err
 		}
-		if app.App.Config.WithPolicy.Enable {
+		if app.App.Config.WithDB.Enable {
 			err = app.App.DBService.AddDownloadRecord(&db.AddScpRecordRequest{
 				Action: tea.String("upload"),
 				From:   tea.String(filename),
@@ -260,7 +260,7 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 				errCh <- err
 				return
 			}
-			if app.App.Config.WithPolicy.Enable {
+			if app.App.Config.WithDB.Enable {
 				err = app.App.DBService.AddDownloadRecord(&db.AddScpRecordRequest{
 					Action: tea.String("download"),
 					To:     tea.String(filename),

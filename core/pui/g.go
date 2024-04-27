@@ -71,7 +71,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 		Username: tea.String((*ui.sess).User()),
 	}
 
-	if app.App.Config.WithPolicy.Enable {
+	if app.App.Config.WithDB.Enable {
 		_user, err := app.App.DBService.DescribeUser((*ui.sess).User())
 		if err != nil {
 			log.Errorf("DescribeUser error: %s", err)
@@ -95,7 +95,7 @@ loopMenu:
 			// 顶级菜单，如果有审批则主页支持选择审批或者服务器
 			menu = make([]*MenuItem, 0)
 
-			if !app.App.Config.WithPolicy.Enable {
+			if app.App.Config.WithDB.Enable && !app.App.Config.WithDingtalk.Enable {
 				// 没有审批策略时候，会在 admin 服务器选择列表里面显示审批菜单
 				policies, err := app.App.DBService.NeedApprove((*ui.sess).User())
 				if err != nil {
@@ -202,7 +202,6 @@ loopMenu:
 		// run selected func
 		if selected.SelectedFunc != nil {
 			selectedFunc := selected.SelectedFunc
-			log.Debugf("Run selectFunc %+v", selectedFunc)
 			isTop, err := selectedFunc(index, selected, ui.sess, selectedChain)
 			if err != nil {
 				sshd.ErrorInfo(err, ui.sess)

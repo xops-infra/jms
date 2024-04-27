@@ -11,16 +11,10 @@ import (
 	"github.com/xops-infra/jms/app"
 )
 
-func init() {
-	err := os.MkdirAll(app.AuditDir, 0755)
-	if err != nil {
-		panic(err)
-	}
-}
-
 // new audit log
 func NewAuditLog(user, host string) (*os.File, error) {
-	logFile := fmt.Sprintf("%s/%s_%s_%s.log", app.AuditDir, time.Now().Format("20060102_150405"), host, user)
+	auditDir := app.App.Config.WithVideo.Dir
+	logFile := fmt.Sprintf("%s/%s_%s_%s.log", auditDir, time.Now().Format("20060102_150405"), host, user)
 	logIo, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
@@ -35,16 +29,16 @@ func AuditLogArchiver() {
 	defer func() {
 		log.Infof("AuditLogArchiver cost: %s", time.Since(startTime))
 	}()
-	if !app.App.Config.APPSet.Audit.Enable {
+	if !app.App.Config.WithVideo.Enable {
 		return
 	}
 	days := 3 * 30 * 24 * time.Hour
-	if app.App.Config.APPSet.Audit.KeepDays > 0 {
-		days = time.Duration(app.App.Config.APPSet.Audit.KeepDays) * 24 * time.Hour
+	if app.App.Config.WithVideo.KeepDays > 0 {
+		days = time.Duration(app.App.Config.WithVideo.KeepDays) * 24 * time.Hour
 	}
 	log.Debugf("days: %v", days.Hours()/24)
 	// 遍历目录下的文件，删除过期文件
-	filepath.Walk(app.AuditDir, func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(app.App.Config.WithVideo.Dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

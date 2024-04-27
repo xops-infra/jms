@@ -6,6 +6,7 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
+	"github.com/xops-infra/noop/log"
 	"gorm.io/gorm"
 )
 
@@ -36,15 +37,13 @@ func (d *DBService) InitDefault() error {
 }
 
 // login,
-func (d *DBService) Login(username, password string) (bool, error) {
+func (d *DBService) Login(username, password string) bool {
 	var user User
 	if err := d.DB.Where("username = ?", username).First(&user).Error; err != nil {
-		return false, err
+		log.Errorf("login error: %s", err)
+		return false
 	}
-	if CheckPasswd(password, string(user.Passwd)) {
-		return true, nil
-	}
-	return false, nil
+	return CheckPasswd(password, string(user.Passwd))
 }
 
 func (d *DBService) NeedApprove(username string) ([]*Policy, error) {

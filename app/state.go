@@ -1,6 +1,7 @@
 package app
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/patrickmn/go-cache"
@@ -18,21 +19,6 @@ import (
 
 	"github.com/xops-infra/jms/config"
 )
-
-var (
-	AppDir   = "/opt/jms/"
-	AuditDir = "/opt/jms/audit/"
-)
-
-func init() {
-	// set default
-	if config.Conf.APPSet.Audit.Dir != "" {
-		AuditDir = config.Conf.APPSet.Audit.Dir
-	}
-	if config.Conf.APPSet.HomeDir != "" {
-		AppDir = config.Conf.APPSet.HomeDir
-	}
-}
 
 var App *Application
 
@@ -111,18 +97,20 @@ func (app *Application) WithDingTalk() *Application {
 func (app *Application) WithPolicy() *Application {
 	// 优先匹配 pg
 	var dialector gorm.Dialector
-	if app.Config.WithPolicy.PG.Database != "" {
-		log.Debugf("with policy pg database: %s", app.Config.WithPolicy.PG.GetUrl())
-		dialector = postgres.Open(app.Config.WithPolicy.PG.GetUrl())
+	if app.Config.WithDB.PG.Database != "" {
+		log.Debugf("with policy pg database: %s", app.Config.WithDB.PG.GetUrl())
+		dialector = postgres.Open(app.Config.WithDB.PG.GetUrl())
 	} else {
-		dbFile := config.Conf.WithPolicy.DBFile
+		dbFile := config.Conf.WithDB.DBFile
 		if !strings.HasSuffix(dbFile, ".db") {
 			panic("db file must be end with .db")
 		}
 		if dbFile == "" {
 			dbFile = "jms.db"
 		}
-		dialector = sqlite.Open(AppDir + dbFile)
+		// show dbfile directory
+		log.Infof("db file path: %s/%s", filepath.Dir(dbFile), dbFile)
+		dialector = sqlite.Open(dbFile)
 	}
 
 	gormConfig := &gorm.Config{}

@@ -13,22 +13,13 @@
   - 支持文件上传下载行为入表 `record_scp`；
   - 支持服务器登录行为入表 `record_ssh_login`；
 
-## 如何部署
-
-云接入 JMS 准备工作：
-
-1. 需要云上有一个服务器只读权限的服务用户，提供 AKSK，jms 将自动同步资产；
-2. 启动方式支持 docker 和 k8s 部署，具体可以参考下面的使用手册；
-
-## 特别感谢
-
-- [TNK-Studio/gortal](https://github.com/TNK-Studio/gortal.git)
-
-## 设计拓扑
-
-![](.excalidraw.png)
-
 ## 使用手册
+
+- 准备工作：
+  - （必须）云账号 AKSK（需要服务器查询权限）；
+  - （必须）配置文件 `jms.yml`，[配置介绍](jms.yaml)；
+  - （可选）ldap 认证账号；
+  - （可选）钉钉审批账号；
 
 ```bash
 # 设置免密登录
@@ -134,3 +125,11 @@ kubectl apply -f sstatefulset.yaml -n jms --create-namespace
 - 基本功能上线
 - 增加资产分类，基于账号和区域
 - 增加 ldap 认证功能
+
+## 设计拓扑
+
+![](.excalidraw.png)
+
+## 特别感谢
+
+- [TNK-Studio/gortal](https://github.com/TNK-Studio/gortal.git)

@@ -57,7 +57,7 @@ func NewTerminal(server config.Server, sshUser config.SSHUser, sess *ssh.Session
 
 	var writer io.Writer
 
-	if app.App.Config.APPSet.Audit.Enable {
+	if app.App.Config.WithVideo.Enable {
 		// 创建日志文件
 		logFile, err := NewAuditLog((*sess).User(), server.Host)
 		if err != nil {

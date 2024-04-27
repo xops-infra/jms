@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: jms-statefulset
-  
+
 spec:
   replicas: 1
   selector:
@@ -41,12 +41,11 @@ spec:
               containerPort: 8013
               protocol: TCP
 
-
         - name: jms
           image: zhoushoujian/jms:latest
           imagePullPolicy: Always
           env:
-            - name : WITH_SSH_CHECK
+            - name: WITH_SSH_CHECK
               value: "true"
             - name: SSH_DIR
               value: /opt/jms/.ssh/
@@ -81,13 +80,13 @@ spec:
         - name: logs-volume
           hostPath:
             path: /mnt/logs/jms-tools/
-      
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jms-ssh-claim
-  
+
 spec:
   accessModes:
     - ReadWriteOnce
@@ -99,7 +98,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: jms-svc
-  
+
 spec:
   ports:
     - port: 22222
@@ -117,69 +116,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: jms-config
-  
+
 data:
   .jms.yml: |
-    appSet:
-      homeDir: "/opt/jms"
-      audit:
-        enable: true
-        cron: "0 0 3 * * *"
-        dir: "/opt/jms/audit"
-        keepDays: 60
-        
-    profiles:
-      - name: "aws"
-        ak: "xx"
-        sk: "xxx"
-        regions:
-          - "cn-northwest-1"
-        cloud: aws
-
-    keys: #（启用数据库可以不配置该选项）
-      skey-xxx: "xxx.pem" # 用于ssh连接的私钥，需要放在/opt/jms/.ssh/目录下
-
-    proxies:
-      - name: "name_a"
-        host: "1.1.1.1"
-        port: 22
-        ipPrefix: "10.159." # IP前缀匹配都用这个代理
-        sshUsers:
-          sshUsername: root
-          identityFile: xxx.pem
-          password:
-      
-    withLdap:
-      enable: false
-      host: "xxx"
-      port: 389
-      baseDN: "dc=corp,dc=xxx,dc=com"
-      bindUser: "xx"
-      bindPassword: "xxx"
-      userSearchFilter: "(sAMAccountName=%s)"
-      attributes:
-        - dn
-        - sAMAccountName
-        - email
-
-    withSSHCheck:
-      enable: false # 是否启用SSH检查并通过钉钉告警到群
-      alert:
-        robotToken: "xxx"
-      ips:
-        - "1.1.1.1"
-        
-    withPolicy:
-      enable: false # 是否启用数据库来启用授权策略
-      pg:
-        host: "xxx"
-        port: xx
-        username: "xx"
-        password: "xxx"
-        database: "jms"
-    
-    withDingTalk:
-      enable: flase # 自动接入钉钉审批实现联动
-      processCode: "xxx"
-      appKey: "xx"
-      appSecret: "xxx"
+    # 请查看 jms.yaml 的配置后在此配置。
