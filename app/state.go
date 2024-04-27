@@ -1,6 +1,7 @@
 package app
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -23,27 +24,39 @@ import (
 var App *Application
 
 type Application struct {
-	Debug          bool
-	SshDir         string
-	RobotClient    *dt.RobotClient    // 钉钉机器人
-	DingTalkClient *dt.DingTalkClient // 钉钉APP使用审批流
-	Ldap           *utils.Ldap
-	Config         *config.Config // 支持数据库和配置文件两种方式载入配置
-	Cache          *cache.Cache
+	Debug           bool
+	HomeDir, SSHDir string             // /opt/jms/
+	RobotClient     *dt.RobotClient    // 钉钉机器人
+	DingTalkClient  *dt.DingTalkClient // 钉钉APP使用审批流
+	Ldap            *utils.Ldap
+	Config          *config.Config // 支持数据库和配置文件两种方式载入配置
+	Cache           *cache.Cache
 
 	DBService *db.DBService
 	McsServer model.CommonContract
 }
 
 // Manager,Agent,Worker need to be initialized
-func NewSshdApplication(debug bool, sshDir string) *Application {
+func NewSshdApplication(debug bool) *Application {
 	App = &Application{
-		SshDir: sshDir,
-		Debug:  debug,
-		Config: config.Conf,
-		Cache:  cache.New(cache.NoExpiration, cache.NoExpiration),
+		HomeDir: "/opt/jms/",
+		SSHDir:  "/opt/jms/.ssh/",
+		Debug:   debug,
+		Config:  config.Conf,
+		Cache:   cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
-
+	// mkdir
+	err := os.MkdirAll(App.SSHDir, 0755)
+	if err != nil {
+		panic(err)
+	}
+	// 判断文件hostAuthorizedKeys是否存在，不存在则创建
+	hostAuthorizedKeys := App.SSHDir + "authorized_keys"
+	if !utils.FileExited(hostAuthorizedKeys) {
+		// 600权限
+		os.Create(hostAuthorizedKeys)
+		os.Chmod(hostAuthorizedKeys, 0600)
+	}
 	return App
 }
 

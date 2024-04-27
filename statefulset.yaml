@@ -23,8 +23,8 @@ spec:
             - name: API
               value: "true"
           volumeMounts:
-            - mountPath: /opt/jms/.jms.yml
-              subPath: .jms.yml
+            - mountPath: /opt/jms/config.yaml
+              subPath: config.yaml
               name: jms-config-volume
               readOnly: true
             - mountPath: /opt/jms/
@@ -55,8 +55,8 @@ spec:
             - mountPath: /opt/logs/
               name: logs-volume
               readOnly: false
-            - mountPath: /opt/jms/.jms.yml
-              subPath: .jms.yml
+            - mountPath: /opt/jms/config.yaml
+              subPath: config.yaml
               name: jms-config-volume
               readOnly: true
           resources:
@@ -118,5 +118,5 @@ metadata:
   name: jms-config
 
 data:
-  .jms.yml: |
-    # 请查看 jms.yaml 的配置后在此配置。
+  config.yaml: |
+    # 请查看 config.yaml 的配置后在此配置。

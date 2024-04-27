@@ -154,7 +154,7 @@ func newSshConfig(sshUser config.SSHUser) (*gossh.ClientConfig, error) {
 		}
 		config.Auth = append(config.Auth, gossh.PublicKeys(signer))
 	} else if sshUser.KeyName != "" {
-		signer, err := getSignerFromLocal(strings.TrimSuffix(app.App.SshDir, "/") + "/" + strings.TrimPrefix(sshUser.KeyName, "/"))
+		signer, err := getSignerFromLocal(app.App.SSHDir + strings.TrimPrefix(sshUser.KeyName, "/"))
 		if err != nil {
 			return nil, err
 		}

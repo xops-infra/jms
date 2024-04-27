@@ -7,7 +7,7 @@ withVideo:
 
 # profiles 是配置云厂商 AKSK的地方。cloud 必须指定用来区分，目前支持 aws 和 tencent
 profiles:
-  - name: "tencent"
+  - name: "tencent-account"
     ak: "xx"
     sk: "xx"
     regions:
@@ -17,29 +17,24 @@ profiles:
 
 # keys 是用来ssh连接的私钥，需要放在/opt/jms/.ssh/目录下
 keys:
-  - identity_file: aws.pem
-    pem_base64: xxxpem_base64
-    key_id: awskey-xxx
-    profile: aws
-  - identity_file: tencent.pem
-    pem_base64: xxxpem_base64
-    key_id: skey-xxx
-    profile: tencent
+  - identity_file: tencent4258_dev_root.pem
+    # pem_base64: xxxpem_base64
+    key_id: skey-gyqojq9d
+    profile: tencent-account
 
 # proxies 是用来ssh连接的代理。云上环境基本上和 jms服务不会在一起，
 # 所以需要各个云上启用代理机器，这样每个环境都可以通过代理访问，
 # 这里通过机器 IP前缀来匹配适配的机器，每个公司内网规划应该不会出现相同子网复用情况。
 proxies:
-  - name: "name_a"
+  - name: "proxy-1"
     host: "1.1.1.1"
     port: 22
-    ipPrefix: "10.159." # IP前缀匹配都用这个代理
-    sshUsers:
-      sshUsername: root
-      identityFile: xxx.pem
-      password:
+    ip_prefix: "10.159." # IP前缀匹配都用这个代理
+    login_user: root
+    # login_passwd: ""
+    identity_file: tencent.pem
 
-# ssh登录是否通过ldap认证的。
+# ssh登录是否通过ldap认证的。不启用的时候默认是通过密码认证，jms/jms
 withLdap:
   enable: false
   host: "xxx"
@@ -53,18 +48,6 @@ withLdap:
     - sAMAccountName
     - email
 
-# 是否启用数据库来启用授权策略
-# 启用数据库还会使用数据库用户信息来认证用户登录，支持用户公钥登录以及密码登录。
-# 如果 ldap和数据库都没有启用则默认只有一个用户能登录 jms/jms
-withDB:
-  enable: false
-  pg:
-    host: "xxx"
-    port: 5432
-    username: "xx"
-    password: "xxx"
-    database: "jms"
-
 # 支持对管理的机器进行 ssh登录检查，通过钉钉告警到群
 withSSHCheck:
   enable: false
@@ -72,6 +55,16 @@ withSSHCheck:
     robotToken: "xxx" # 钉钉机器人 token
   ips:
     - "1.1.1.1"
+
+# 是否启用数据库来启用授权策略
+withDB:
+  enable: true
+  pg:
+    host: "x.x.x.x"
+    port: 5432
+    username: "jms"
+    password: "xx"
+    database: "jms"
 
 # 是否启用钉钉审批
 withDingTalk:

@@ -13,13 +13,25 @@
   - 支持文件上传下载行为入表 `record_scp`；
   - 支持服务器登录行为入表 `record_ssh_login`；
 
-## 使用手册
+## 部署手册
 
 - 准备工作：
   - （必须）云账号 AKSK（需要服务器查询权限）；
   - （必须）配置文件 `jms.yml`，[配置介绍](jms.yaml)；
   - （可选）ldap 认证账号；
-  - （可选）钉钉审批账号；
+  - （可选）钉钉审批；
+
+---
+
+### 启动 Server
+
+`jms sshd --port 22222 --config jms.yml`
+
+- `--port`：指定端口，默认 22222；
+- `--config`：指定配置文件，默认 `jms.yml`；
+- `--debug`：开启调试模式；
+- `--timeout`：设置会话超时时间，默认 30 分钟；
+- `--log-dir`：设置日志文件路径，默认 `/opt/jms/logs/`；
 
 ```bash
 # 设置免密登录
@@ -45,7 +57,7 @@ README1.md                                    100% 2506     1.8MB/s   00:00
 
 
 # docker启动
-docker run --rm --network=host -dit -v /root/jms/ssh/:/root/.ssh/ -v /root/jms/jms.yml:/opt/jms/.jms.yml -p 22222:22222 --name jms_test -e WITH_SSH_CHECK=true zhoushoujian/jms:latest
+docker run --rm --network=host -dit -v /root/jms/ssh/:/root/.ssh/ -v /root/jms/jms.yml:/opt/jms/config.yaml -p 22222:22222 --name jms_test -e WITH_SSH_CHECK=true zhoushoujian/jms:latest
 
 # k8s 部署，完善好 configmap配置后，直接部署即可
 kubectl apply -f sstatefulset.yaml -n jms --create-namespace

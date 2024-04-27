@@ -25,7 +25,6 @@ import (
 )
 
 var (
-	sshDir   string
 	logDir   string
 	timeOut  int // s
 	sshdPort int
@@ -47,30 +46,13 @@ var sshdCmd = &cobra.Command{
 			go startScheduler()
 		}
 
-		// 处理～家目录不识别问题
-		if strings.HasPrefix(sshDir, "~") {
-			sshDir = strings.Replace(sshDir, "~", os.Getenv("HOME"), 1)
-		}
 		err := os.MkdirAll(utils.FilePath(logDir), 0755)
 		if err != nil {
 			log.Fatalf("create log dir failed: %s", err.Error())
 		}
 
-		// 判断文件hostAuthorizedKeys是否存在，不存在则创建
-		hostAuthorizedKeys := sshDir + "authorized_keys"
-		if !utils.FileExited(hostAuthorizedKeys) {
-			// 600权限
-			os.Create(hostAuthorizedKeys)
-			os.Chmod(hostAuthorizedKeys, 0600)
-		}
-		hostKeyFile := sshDir + "id_rsa"
-		// log.Panicf(hostKeyFile)
-		if !utils.FileExited(hostKeyFile) {
-			sshd.GenKey(hostKeyFile)
-		}
-
 		// init app
-		_app := app.NewSshdApplication(debug, sshDir)
+		_app := app.NewSshdApplication(debug)
 
 		if app.App.Config.WithLdap.Enable {
 			log.Infof("enable ldap")
@@ -123,6 +105,11 @@ var sshdCmd = &cobra.Command{
 		})
 
 		var wrapped *wrappedConn
+		hostKeyFile := app.App.SSHDir + "id_rsa"
+		// log.Panicf(hostKeyFile)
+		if !utils.FileExited(hostKeyFile) {
+			sshd.GenKey(hostKeyFile)
+		}
 
 		log.Infof("starting ssh server on port %d timeout %d...", sshdPort, timeOut)
 		err = ssh.ListenAndServe(
@@ -153,14 +140,11 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.jms.yaml)")
-
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.AddCommand(sshdCmd)
-	sshdCmd.Flags().StringVar(&sshDir, "ssh-dir", "~/.ssh/", "ssh dir")
 	sshdCmd.Flags().IntVar(&sshdPort, "port", 22222, "ssh port")
-	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/logs/apps/", "log dir")
+	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/jms/logs/", "log dir")
 	sshdCmd.Flags().IntVar(&timeOut, "timeout", 1800, "ssh timeout")
 }
 
@@ -196,7 +180,7 @@ func publicKeyAuth(ctx ssh.Context, key ssh.PublicKey) bool {
 		return app.App.DBService.AuthKey(ctx.User(), key)
 	}
 	// 否则走文件认证
-	return utils.AuthFromFile(ctx, key, sshDir)
+	return utils.AuthFromFile(ctx, key, app.App.SSHDir)
 }
 
 func sessionHandler(sess *ssh.Session) {
@@ -258,7 +242,7 @@ func execHandler(sess *ssh.Session) {
 		}
 	} else {
 		// 否则走文件认证
-		err := utils.AddAuthToFile((*sess).User(), pubKey, sshDir)
+		err := utils.AddAuthToFile((*sess).User(), pubKey, app.App.SSHDir)
 		if err != nil {
 			sshd.ErrorInfo(err, sess)
 			return
