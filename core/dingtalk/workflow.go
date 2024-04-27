@@ -138,7 +138,7 @@ func LoadApproval() {
 		return
 	}
 	for _, policy := range policies {
-		if policy.ApprovalID == nil {
+		if policy.ApprovalID == nil && *policy.ApprovalID == "" {
 			continue
 		}
 		if policy.Approver != nil && strings.Contains(*policy.Approver, "BusinessId") {
