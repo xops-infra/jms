@@ -17,7 +17,6 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	appConfig "github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/jump"
@@ -91,13 +90,11 @@ var sshdCmd = &cobra.Command{
 		if app.App.Config.WithDB.Enable {
 			_app.WithPolicy()
 			log.Infof("enable policy")
-		} else {
-			log.Warnf("--with-policy=false, this mode any server can be connected")
 		}
 
 		if app.App.Config.WithDingtalk.Enable {
 			if !app.App.Config.WithDB.Enable {
-				log.Panicf("with-api-server-approval must be used with --with-policy=true")
+				log.Panicf("with-api-server-approval must be used WithDB")
 			}
 			log.Infof("enable api dingtalk Approve")
 		}
@@ -174,15 +171,20 @@ func passwordAuth(ctx ssh.Context, pass string) bool {
 	}
 	// 如果启用 policy策略，登录时需要验证用户密码
 	if app.App.Config.WithDB.Enable {
-		return app.App.DBService.Login(ctx.User(), pass)
-	}
-
-	// 默认认证，jms/jms
-	switch ctx.User() {
-	case "jms":
-		return pass == "jms"
-	default:
-		return false
+		allow, err := app.App.DBService.Login(ctx.User(), pass)
+		if err != nil {
+			log.Error(err.Error())
+			return false
+		}
+		return allow
+	} else {
+		// 当 ladp和数据库都么启用的时候， 默认认证，jms/jms
+		switch ctx.User() {
+		case "jms":
+			return pass == "jms"
+		default:
+			return false
+		}
 	}
 }
 
@@ -207,22 +209,7 @@ func sessionHandler(sess *ssh.Session) {
 	if !found {
 		app.App.Cache.Add(user, 1, cache.DefaultExpiration)
 	}
-	// 如果启用 policy策略，默认开始注册登录用户入库
-	if app.App.Config.WithDB.Enable {
-		_, err := app.App.DBService.CreateUser(&db.UserRequest{
-			Username: &user,
-		})
-		if err != nil {
-			if !strings.Contains(err.Error(), "user already exists") {
-				log.Error(err.Error())
-			}
-		} else {
-			msg := fmt.Sprintf("首次登录，用户信息%s已入库！组信息请联系管理员维护", user)
-			log.Infof(msg)
-			sshd.Info(msg, sess)
-		}
 
-	}
 	log.Infof("user: %s, remote addr: %s login success", user, remote)
 	rawCmd := (*sess).RawCommand()
 	log.Debugf("rawCmd: %s\n", rawCmd)

@@ -51,7 +51,17 @@ to quickly create a Cobra application.`,
 		}
 
 		// init app
-		app.NewApiApplication().WithPolicy().WithDingTalk()
+		_app := app.NewApiApplication()
+
+		if app.App.Config.WithDingtalk.Enable {
+			log.Infof("enable dingtalk")
+			_app.WithDingTalk()
+		}
+
+		if app.App.Config.WithDB.Enable {
+			_app.WithPolicy()
+			log.Infof("enable policy")
+		}
 
 		log.Infof("api server start on port: %d", apiPort)
 		g := api.NewGin()

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/base64"
 	"time"
 )
 
@@ -10,7 +11,7 @@ type User struct {
 	UpdatedAt      *time.Time  `json:"updated_at" gorm:"column:updated_at"`
 	IsDeleted      *bool       `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
 	Username       *string     `json:"username" gorm:"column:username;not null"`
-	Passwd         []byte      `json:"passwd" gorm:"column:passwd"` // 加密后的密码
+	Passwd         *string     `json:"passwd" gorm:"column:passwd"` // bas64
 	Email          *string     `json:"email" gorm:"column:email"`
 	DingtalkID     *string     `json:"dingtalk_id" gorm:"column:dingtalk_id"`
 	DingtalkDeptID *string     `json:"dingtalk_dept_id" gorm:"column:dingtalk_dept_id"`
@@ -35,14 +36,13 @@ type UserPatchMut struct {
 	Groups ArrayString `json:"groups"`
 }
 
-// type Group struct {
-// 	Id        string     `json:"id" gorm:"column:id;primary_key;not null"`
-// 	CreatedAt *time.Time `json:"created_at" gorm:"column:created_at"`
-// 	UpdatedAt *time.Time `json:"updated_at" gorm:"column:updated_at"`
-// 	IsDeleted *bool      `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
-// 	Name      *string    `json:"name" gorm:"column:name;not null"`
-// }
-
-// func (Group) TableName() string {
-// 	return "jms_go_groups"
-// }
+// login,
+func (d *DBService) Login(username, password string) (bool, error) {
+	var user User
+	if err := d.DB.Where("username = ?", username).First(&user).Error; err != nil {
+		return false, err
+	}
+	// bas64 加密后比较
+	base64Pass := base64.StdEncoding.EncodeToString([]byte(password))
+	return base64Pass == *user.Passwd, nil
+}

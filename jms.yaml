@@ -39,7 +39,7 @@ proxies:
       identityFile: xxx.pem
       password:
 
-# ssh登录是否通过ldap认证的。不启用的时候默认是通过密码认证，jms/jms
+# ssh登录是否通过ldap认证的。
 withLdap:
   enable: false
   host: "xxx"
@@ -53,15 +53,9 @@ withLdap:
     - sAMAccountName
     - email
 
-# 支持对管理的机器进行 ssh登录检查，通过钉钉告警到群
-withSSHCheck:
-  enable: false
-  alert:
-    robotToken: "xxx" # 钉钉机器人 token
-  ips:
-    - "1.1.1.1"
-
 # 是否启用数据库来启用授权策略
+# 启用数据库还会使用数据库用户信息来认证用户登录，支持用户公钥登录以及密码登录。
+# 如果 ldap和数据库都没有启用则默认只有一个用户能登录 jms/jms
 withDB:
   enable: false
   pg:
@@ -70,6 +64,14 @@ withDB:
     username: "xx"
     password: "xxx"
     database: "jms"
+
+# 支持对管理的机器进行 ssh登录检查，通过钉钉告警到群
+withSSHCheck:
+  enable: false
+  alert:
+    robotToken: "xxx" # 钉钉机器人 token
+  ips:
+    - "1.1.1.1"
 
 # 是否启用钉钉审批
 withDingTalk:

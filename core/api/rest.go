@@ -36,6 +36,7 @@ func NewGin() *gin.Engine {
 
 	u := api.Group("/user")
 	u.GET("", listUser)
+	u.POST("", addUser)
 	u.PATCH("/:id", updateUserGroup)
 	u.PUT("/:id", updateUser)
 
@@ -64,7 +65,6 @@ func NewGin() *gin.Engine {
 	proxy.POST("", addProxy)
 	proxy.PUT("/:uuid", updateProxy)
 	proxy.DELETE("/:uuid", deleteProxy)
-
 
 	return r
 }

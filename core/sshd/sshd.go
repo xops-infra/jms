@@ -70,7 +70,7 @@ func NewTerminal(server config.Server, sshUser config.SSHUser, sess *ssh.Session
 	}
 
 	// 发送屏幕清理指令
-	(*sess).Write([]byte("\033c"))
+	// (*sess).Write([]byte("\033c"))
 
 	// 创建同时写入日志文件和终端的写入器
 	upstreamSess.Stdout = writer

@@ -1,12 +1,12 @@
 package db
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
-	"github.com/xops-infra/noop/log"
 	"gorm.io/gorm"
 )
 
@@ -18,32 +18,6 @@ func NewDbService(db *gorm.DB) *DBService {
 	return &DBService{
 		DB: db,
 	}
-}
-
-// InitDefault
-func (d *DBService) InitDefault() error {
-	// 创建 admin 用户
-	user := &User{
-		ID:       uuid.NewString(),
-		Username: tea.String("admin"),
-		Email:    tea.String("admin@example.com"),
-		Groups:   ArrayString{tea.String("admin")},
-		Passwd:   GeneratePasswd("admin"),
-	}
-	if err := d.DB.Create(user).Error; err != nil {
-		return err
-	}
-	return nil
-}
-
-// login,
-func (d *DBService) Login(username, password string) bool {
-	var user User
-	if err := d.DB.Where("username = ?", username).First(&user).Error; err != nil {
-		log.Errorf("login error: %s", err)
-		return false
-	}
-	return CheckPasswd(password, string(user.Passwd))
 }
 
 func (d *DBService) NeedApprove(username string) ([]*Policy, error) {
@@ -112,7 +86,8 @@ func (d *DBService) CreateUser(req *UserRequest) (string, error) {
 		DingtalkDeptID: req.DingtalkDeptID,
 	}
 	if req.Passwd != nil {
-		user.Passwd = GeneratePasswd(*req.Passwd)
+		// base64加密
+		user.Passwd = tea.String(base64.StdEncoding.EncodeToString([]byte(*req.Passwd)))
 	}
 	// 判断用户是否存在
 	var count int64
@@ -132,6 +107,10 @@ func (d *DBService) CreateUser(req *UserRequest) (string, error) {
 
 // 支持如果没有用户则报错
 func (d *DBService) UpdateUser(id string, req UserRequest) error {
+	if req.Passwd != nil {
+		// base64加密
+		req.Passwd = tea.String(base64.StdEncoding.EncodeToString([]byte(*req.Passwd)))
+	}
 	return d.DB.Model(&User{}).Where("id = ?", id).Updates(req).Error
 }
 

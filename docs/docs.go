@@ -207,7 +207,7 @@ const docTemplate = `{
         },
         "/api/v1/login": {
             "post": {
-                "description": "登录",
+                "description": "登录接口可以换token使用。",
                 "consumes": [
                     "application/json"
                 ],
@@ -215,7 +215,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "User"
+                    ""
                 ],
                 "summary": "登录",
                 "parameters": [
@@ -676,6 +676,44 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "post": {
+                "description": "添加用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "添加用户",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "token",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "description": "request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.UserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/user/:id": {
@@ -881,6 +919,11 @@ const docTemplate = `{
                     "type": "string",
                     "default": "tencent"
                 },
+                "enabled": {
+                    "description": "是否启用",
+                    "type": "boolean",
+                    "default": true
+                },
                 "name": {
                     "type": "string"
                 },
@@ -1051,6 +1094,9 @@ const docTemplate = `{
                 },
                 "cloud": {
                     "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
                 },
                 "isDelete": {
                     "type": "boolean"
