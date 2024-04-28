@@ -273,7 +273,7 @@ func startScheduler() {
 		instance.LoadServer(app.App.Config)
 	})
 
-	if true {
+	if app.App.Config.WithDB.Enable {
 		log.Infof("enabled db config hot update, 2 min check once")
 		// 启用定时热加载数据库配置,每 30s 检查一次
 		c.AddFunc("*/30 * * * * *", func() {
