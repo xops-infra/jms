@@ -17,9 +17,9 @@ profiles:
 
 # keys 是用来ssh连接的私钥，需要放在/opt/jms/.ssh/目录下
 keys:
-  - identity_file: tencent4258_dev_root.pem
+  - identity_file: tencent.pem
     # pem_base64: xxxpem_base64
-    key_id: skey-gyqojq9d
+    key_id: skey-xxxx
     profile: tencent-account
 
 # proxies 是用来ssh连接的代理。云上环境基本上和 jms服务不会在一起，
