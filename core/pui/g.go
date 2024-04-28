@@ -57,7 +57,7 @@ func (ui *PUI) IsTimeout() bool {
 
 // getTimeout
 func (ui *PUI) GetTimeout() string {
-	return fmt.Sprintf("%s", ui.timeOut)
+	return fmt.Sprint(ui.timeOut)
 }
 
 // FlashTimeout flash timeout
@@ -71,7 +71,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 		Username: tea.String((*ui.sess).User()),
 	}
 
-	if app.App.Config.WithPolicy.Enable {
+	if app.App.Config.WithDB.Enable {
 		_user, err := app.App.DBService.DescribeUser((*ui.sess).User())
 		if err != nil {
 			log.Errorf("DescribeUser error: %s", err)
@@ -85,7 +85,8 @@ loopMenu:
 		menuLabels := make([]string, 0) // 菜单，用于显示
 		menuItems := make([]*MenuItem, 0)
 		if menu == nil {
-			break
+			log.Debugf("menu is nil, label: %s", label)
+			// break
 		}
 		// 返回顶级菜单
 		log.Debugf("label: %s MainLabel:%s", label, MainLabel)
@@ -94,7 +95,7 @@ loopMenu:
 			// 顶级菜单，如果有审批则主页支持选择审批或者服务器
 			menu = make([]*MenuItem, 0)
 
-			if !app.App.Config.WithPolicy.Enable {
+			if app.App.Config.WithDB.Enable && !app.App.Config.WithDingtalk.Enable {
 				// 没有审批策略时候，会在 admin 服务器选择列表里面显示审批菜单
 				policies, err := app.App.DBService.NeedApprove((*ui.sess).User())
 				if err != nil {
@@ -110,6 +111,10 @@ loopMenu:
 			filter, err := ui.inputFilter(len(menu))
 			if err != nil {
 				break loopMenu
+			}
+			if filter == "^C" {
+
+				continue
 			}
 			for index, menuItem := range menu {
 				if menuItem.IsShow == nil || menuItem.IsShow(index, menuItem, ui.sess, selectedChain) {
@@ -148,24 +153,26 @@ loopMenu:
 		index, subMenuLabel, err := menuPui.Run()
 		if err != nil {
 			// ^C ^D is not error
-			if err.Error() == "^C" {
-				if strings.HasPrefix(label, MainLabel) {
-					continue
-				} else {
-					break
-				}
+			if strings.Contains(err.Error(), "^C") {
+				log.Debugf(label, MainLabel)
+				// 返回主菜单
+				ui.ShowMenu(MainLabel, menu, BackOptionLabel, selectedChain)
 
-			} else if err.Error() == "^D" {
+			} else if strings.Contains(err.Error(), "^D") {
 				app.App.Cache.Delete((*ui.sess).User())
 				ui.Exit()
 				break
 			}
 			log.Errorf("Select menu error %s\n", err)
-			break
 		}
 		if index == backIndex {
-			// 返回上一级菜单
-			break
+			// 返回上一级菜单，如果主菜单了则退无可退。
+			if label == MainLabel {
+				log.Debugf("main menu, no back")
+				continue
+			} else {
+				break
+			}
 		}
 
 		// get sub menu
@@ -195,7 +202,6 @@ loopMenu:
 		// run selected func
 		if selected.SelectedFunc != nil {
 			selectedFunc := selected.SelectedFunc
-			log.Debugf("Run selectFunc %+v", selectedFunc)
 			isTop, err := selectedFunc(index, selected, ui.sess, selectedChain)
 			if err != nil {
 				sshd.ErrorInfo(err, ui.sess)
@@ -211,12 +217,13 @@ loopMenu:
 // inputFilter input filter
 func (ui *PUI) inputFilter(nu int) (string, error) {
 	ui.FlashTimeout()
+	defer ui.SessionWrite("\033c") // clear
 	servers := instance.GetServers()
 	servers.SortByName()
 	// 发送屏幕清理指令
 	// 发送当前时间
 	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
-		time.Now().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount(), len(servers),
+		time.Now().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, len(servers),
 	))
 	// 发送欢迎信息
 	ui.SessionWrite(InfoLabel)
@@ -229,8 +236,7 @@ func (ui *PUI) inputFilter(nu int) (string, error) {
 	if err != nil {
 		// ^C ^D is not error
 		if err.Error() == "^C" {
-			ui.SessionWrite("\033c") // clear
-			return "", err
+			return "^C", nil
 		} else if err.Error() == "^D" {
 			ui.Exit()
 			return "", fmt.Errorf("exit")

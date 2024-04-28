@@ -142,7 +142,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 		if err != nil {
 			return err
 		}
-		if app.App.Config.WithPolicy.Enable {
+		if app.App.Config.WithDB.Enable {
 			err = app.App.DBService.AddDownloadRecord(&db.AddScpRecordRequest{
 				Action: tea.String("upload"),
 				From:   tea.String(filename),
@@ -260,7 +260,7 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 				errCh <- err
 				return
 			}
-			if app.App.Config.WithPolicy.Enable {
+			if app.App.Config.WithDB.Enable {
 				err = app.App.DBService.AddDownloadRecord(&db.AddScpRecordRequest{
 					Action: tea.String("download"),
 					To:     tea.String(filename),
@@ -363,7 +363,7 @@ func parseServerPath(fullPath, filename, currentUsername string) (*config.SSHUse
 	}
 
 	sshUsername, host := serverArgs[0], serverArgs[1]
-	if server, ok := config.ServerListToMap(servers.([]config.Server))[host]; ok {
+	if server, ok := config.ServerListToMap(servers.(config.Servers))[host]; ok {
 		if server.Host == "" {
 			return nil, nil, "", fmt.Errorf("server key '%s' of server not found", host)
 		}

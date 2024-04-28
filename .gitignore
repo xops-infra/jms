@@ -26,5 +26,4 @@ export.sh
 jms-go
 configmap.yaml
 database.db
-.jms.yml
 *.pem

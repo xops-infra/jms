@@ -133,7 +133,7 @@ func sortMenu(menu []*MenuItem) []*MenuItem {
 // 连接，上传，下载的时候，需要根据policy来判断是否允许
 func matchPolicy(user db.User, inPutAction db.Action, server config.Server, dbPolicies []db.Policy) bool {
 	// 是否启用策略
-	if !app.App.Config.WithPolicy.Enable {
+	if !app.App.Config.WithDB.Enable {
 		return true
 	}
 	// 默认策略优先判断
@@ -270,7 +270,7 @@ func GetServerSSHUsersMenu(server config.Server, timeout string, matchPolicies [
 					return false, fmt.Errorf("%s status %s, can not login", server.Host, strings.ToLower(string(server.Status)))
 				}
 				// 记录登录日志到数据库
-				if app.App.Config.WithPolicy.Enable {
+				if app.App.Config.WithDB.Enable {
 					err := app.App.DBService.AddServerLoginRecord(&db.AddSshLoginRequest{
 						TargetServer: tea.String(server.Host),
 						User:         tea.String((*sess).User()),

@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/elfgzp/ssh"
 	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron"
@@ -17,7 +17,6 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	appConfig "github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/jump"
@@ -26,7 +25,6 @@ import (
 )
 
 var (
-	sshDir   string
 	logDir   string
 	timeOut  int // s
 	sshdPort int
@@ -34,7 +32,7 @@ var (
 
 var sshdCmd = &cobra.Command{
 	Use:   "sshd",
-	Short: "A brief description of your application",
+	Short: "start sshd server as proxy server",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
@@ -48,30 +46,18 @@ var sshdCmd = &cobra.Command{
 			go startScheduler()
 		}
 
-		// 处理～家目录不识别问题
-		if strings.HasPrefix(sshDir, "~") {
-			sshDir = strings.Replace(sshDir, "~", os.Getenv("HOME"), 1)
-		}
 		err := os.MkdirAll(utils.FilePath(logDir), 0755)
 		if err != nil {
 			log.Fatalf("create log dir failed: %s", err.Error())
 		}
 
-		// 判断文件hostAuthorizedKeys是否存在，不存在则创建
-		hostAuthorizedKeys := sshDir + "authorized_keys"
-		if !utils.FileExited(hostAuthorizedKeys) {
-			// 600权限
-			os.Create(hostAuthorizedKeys)
-			os.Chmod(hostAuthorizedKeys, 0600)
-		}
-		hostKeyFile := sshDir + "id_rsa"
-		// log.Panicf(hostKeyFile)
-		if !utils.FileExited(hostKeyFile) {
-			sshd.GenKey(hostKeyFile)
-		}
-
 		// init app
-		_app := app.NewSshdApplication(debug, sshDir).WithLdap()
+		_app := app.NewSshdApplication(debug)
+
+		if app.App.Config.WithLdap.Enable {
+			log.Infof("enable ldap")
+			_app.WithLdap()
+		}
 
 		if app.App.Config.WithSSHCheck.Enable {
 			log.Infof("enable dingtalk")
@@ -83,16 +69,14 @@ var sshdCmd = &cobra.Command{
 			_app.WithDingTalk()
 		}
 
-		if app.App.Config.WithPolicy.Enable {
+		if app.App.Config.WithDB.Enable {
 			_app.WithPolicy()
 			log.Infof("enable policy")
-		} else {
-			log.Warnf("--with-policy=false, this mode any server can be connected")
 		}
 
 		if app.App.Config.WithDingtalk.Enable {
-			if !app.App.Config.WithPolicy.Enable {
-				log.Panicf("with-api-server-approval must be used with --with-policy=true")
+			if !app.App.Config.WithDB.Enable {
+				log.Panicf("with-api-server-approval must be used WithDB")
 			}
 			log.Infof("enable api dingtalk Approve")
 		}
@@ -121,6 +105,11 @@ var sshdCmd = &cobra.Command{
 		})
 
 		var wrapped *wrappedConn
+		hostKeyFile := app.App.SSHDir + "id_rsa"
+		// log.Panicf(hostKeyFile)
+		if !utils.FileExited(hostKeyFile) {
+			sshd.GenKey(hostKeyFile)
+		}
 
 		log.Infof("starting ssh server on port %d timeout %d...", sshdPort, timeOut)
 		err = ssh.ListenAndServe(
@@ -151,14 +140,11 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.jms.yaml)")
-
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.AddCommand(sshdCmd)
-	sshdCmd.Flags().StringVar(&sshDir, "ssh-dir", "~/.ssh/", "ssh dir")
 	sshdCmd.Flags().IntVar(&sshdPort, "port", 22222, "ssh port")
-	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/logs/apps/", "log dir")
+	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/jms/logs/", "log dir")
 	sshdCmd.Flags().IntVar(&timeOut, "timeout", 1800, "ssh timeout")
 }
 
@@ -168,35 +154,33 @@ func passwordAuth(ctx ssh.Context, pass string) bool {
 		return err == nil
 	}
 	// 如果启用 policy策略，登录时需要验证用户密码
-	_, err := app.App.DBService.Login(ctx.User(), pass)
-	if err != nil {
-		log.Error(err.Error())
-		return false
+	if app.App.Config.WithDB.Enable {
+		allow, err := app.App.DBService.Login(ctx.User(), pass)
+		if err != nil {
+			log.Error(err.Error())
+			return false
+		}
+		return allow
+	} else {
+		// 当 ladp和数据库都么启用的时候， 默认认证，jms/jms
+		switch ctx.User() {
+		case "jms":
+			return pass == "jms"
+		default:
+			return false
+		}
 	}
-	return true
 }
 
+// 支持authorized_keys读取 pub key 认证
+// 还支持pubkey在数据库
 func publicKeyAuth(ctx ssh.Context, key ssh.PublicKey) bool {
-	hostAuthorizedKeys := sshDir + "authorized_keys"
-	data, err := os.ReadFile(hostAuthorizedKeys)
-	if err != nil {
-		log.Error(err.Error())
-		return false
+	if app.App.Config.WithDB.Enable {
+		// 数据库读取数据认证
+		return app.App.DBService.AuthKey(ctx.User(), key)
 	}
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		if strings.Contains(line, ctx.User()) {
-			allowed, _, _, _, _ := ssh.ParseAuthorizedKey([]byte(line))
-			if ssh.KeysEqual(key, allowed) {
-				log.Debugf("user: %s, pub: %s", ctx.User(), line)
-				return true
-			}
-		}
-	}
-	return false
+	// 否则走文件认证
+	return utils.AuthFromFile(ctx, key, app.App.SSHDir)
 }
 
 func sessionHandler(sess *ssh.Session) {
@@ -209,22 +193,7 @@ func sessionHandler(sess *ssh.Session) {
 	if !found {
 		app.App.Cache.Add(user, 1, cache.DefaultExpiration)
 	}
-	// 如果启用 policy策略，默认开始注册登录用户入库
-	if app.App.Config.WithPolicy.Enable {
-		_, err := app.App.DBService.CreateUser(&db.UserRequest{
-			Username: &user,
-		})
-		if err != nil {
-			if !strings.Contains(err.Error(), "user already exists") {
-				log.Error(err.Error())
-			}
-		} else {
-			msg := fmt.Sprintf("首次登录，用户信息%s已入库！组信息请联系管理员维护", user)
-			log.Infof(msg)
-			sshd.Info(msg, sess)
-		}
 
-	}
 	log.Infof("user: %s, remote addr: %s login success", user, remote)
 	rawCmd := (*sess).RawCommand()
 	log.Debugf("rawCmd: %s\n", rawCmd)
@@ -236,19 +205,23 @@ func sessionHandler(sess *ssh.Session) {
 	log.Debugf("cmd: %s, args: %s\n", cmd, args)
 	switch cmd {
 	case "exec":
-		execHandler(args, sess)
+		execHandler(sess)
 	case "scp":
 		scpHandler(args, sess)
+	case "exit":
+		(*sess).Exit(0)
+	case "ssh":
+		sshHandler(sess)
 	default:
 		if strings.Contains(cmd, "umask") {
 			// 版本问题导致的 cmd不一致问题
-			execHandler(args, sess)
+			execHandler(sess)
 		}
 		sshHandler(sess)
 	}
 }
 
-func execHandler(args []string, sess *ssh.Session) {
+func execHandler(sess *ssh.Session) {
 	// 执行命令
 	// 获取用户后续输入的 pubKey 存放到 authorized_keys 文件中
 	pubKey, err := bufio.NewReader(*sess).ReadString('\n')
@@ -257,43 +230,30 @@ func execHandler(args []string, sess *ssh.Session) {
 		return
 	}
 	if !strings.Contains(pubKey, "ssh-rsa") {
-		sshd.ErrorInfo(fmt.Errorf("pub key already exists"), sess)
+		sshd.ErrorInfo(errors.New("not ssh-rsa key"), sess)
 		return
 	}
-	hostAuthorizedKeys := sshDir + "authorized_keys"
-	data, err := os.ReadFile(hostAuthorizedKeys)
-	if err != nil {
-		log.Error(err.Error())
-	}
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "#") {
-			continue
+	if app.App.Config.WithDB.Enable {
+		// 数据库读取数据认证
+		if err := app.App.DBService.AddAuthorizedKey((*sess).User(), pubKey); err != nil {
+			sshd.ErrorInfo(err, sess)
+			log.Errorf("add authorized key error: %s", err.Error())
+			return
 		}
-		if strings.Contains(line, pubKey) {
-			sshd.Info("pub key already exists", sess)
+	} else {
+		// 否则走文件认证
+		err := utils.AddAuthToFile((*sess).User(), pubKey, app.App.SSHDir)
+		if err != nil {
+			sshd.ErrorInfo(err, sess)
 			return
 		}
 	}
-	// 将公钥添加到authorized_keys的第一行
-	f, err := os.OpenFile(hostAuthorizedKeys, os.O_RDWR|os.O_CREATE, 0600)
-	if err != nil {
-		log.Error(err.Error())
-		return
-	}
-	defer f.Close()
-	_, err = f.WriteString((*sess).User() + " " + pubKey + "\n" + string(data))
-	if err != nil {
-		log.Error(err.Error())
-		return
-	}
-	log.Infof("add pub key: %s to %s success", pubKey, hostAuthorizedKeys)
 	// 退出
 	(*sess).Exit(0)
 }
 
 func sshHandler(sess *ssh.Session) {
-	jps := jump.NewService(sess, time.Duration(timeOut)*time.Second)
+	jps := jump.NewSession(sess, time.Duration(timeOut)*time.Second)
 	jps.Run()
 }
 
@@ -332,16 +292,14 @@ func startScheduler() {
 			dingtalk.LoadApproval()
 		})
 	}
-	if app.App.Config.APPSet.Audit.Enable {
-		log.Infof("enabled audit log archiver,config: %s", tea.Prettify(app.App.Config.APPSet.Audit))
-		cron := "0 0 3 * * *"
-		if app.App.Config.APPSet.Audit.Cron != "" {
-			cron = app.App.Config.APPSet.Audit.Cron
-		}
-		c.AddFunc(cron, func() {
-			sshd.AuditLogArchiver()
-		})
+
+	cron := "0 0 3 * * *" // 默认每天早上 3 点
+	if app.App.Config.WithVideo.Cron != "" {
+		cron = app.App.Config.WithVideo.Cron
 	}
+	c.AddFunc(cron, func() {
+		sshd.AuditLogArchiver()
+	})
 
 	c.Start()
 	select {}

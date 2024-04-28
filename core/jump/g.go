@@ -14,7 +14,7 @@ type Service struct {
 	persionUI *pui.PUI
 }
 
-func NewService(sess *ssh.Session, timeout time.Duration) *Service {
+func NewSession(sess *ssh.Session, timeout time.Duration) *Service {
 	return &Service{
 		persionUI: pui.NewPui(sess, timeout),
 	}

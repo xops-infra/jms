@@ -75,13 +75,13 @@ func (d *DBService) ListProxy() ([]CreateProxyRequest, error) {
 	var res []CreateProxyRequest
 	for _, proxy := range proxies {
 		res = append(res, CreateProxyRequest{
-			Name:         &proxy.Name,
-			Host:         &proxy.Host,
-			Port:         &proxy.Port,
-			IPPrefix:     &proxy.IPPrefix,
-			LoginUser:    &proxy.LoginUser,
-			LoginPasswd:  &proxy.LoginPasswd,
-			IdentityFile: &proxy.IdentityFile,
+			Name:         tea.String(proxy.Name),
+			Host:         tea.String(proxy.Host),
+			Port:         tea.Int(proxy.Port),
+			IPPrefix:     tea.String(proxy.IPPrefix),
+			LoginUser:    tea.String(proxy.LoginUser),
+			LoginPasswd:  tea.String(proxy.LoginPasswd),
+			IdentityFile: tea.String(proxy.IdentityFile),
 		})
 	}
 	return res, err
@@ -96,13 +96,13 @@ func (d *DBService) GetProxyByIP(ip string) (*CreateProxyRequest, error) {
 	for _, proxy := range proxies {
 		if strings.HasPrefix(ip, proxy.IPPrefix) {
 			return &CreateProxyRequest{
-				Name:         &proxy.Name,
-				Host:         &proxy.Host,
-				Port:         &proxy.Port,
-				IPPrefix:     &proxy.IPPrefix,
-				LoginUser:    &proxy.LoginUser,
-				LoginPasswd:  &proxy.LoginPasswd,
-				IdentityFile: &proxy.IdentityFile,
+				Name:         tea.String(proxy.Name),
+				Host:         tea.String(proxy.Host),
+				Port:         tea.Int(proxy.Port),
+				IPPrefix:     tea.String(proxy.IPPrefix),
+				LoginUser:    tea.String(proxy.LoginUser),
+				LoginPasswd:  tea.String(proxy.LoginPasswd),
+				IdentityFile: tea.String(proxy.IdentityFile),
 			}, nil
 		}
 	}

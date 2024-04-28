@@ -12,8 +12,8 @@ import (
 
 func init() {
 	log.Default().Init()
-	config.LoadYaml("/opt/jms/.jms.yml")
-	app.NewSshdApplication(true, "~/.ssh/").WithPolicy()
+	config.LoadYaml("/opt/jms/config.yaml")
+	app.NewSshdApplication(true).WithPolicy()
 }
 
 func TestAuditArch(t *testing.T) {

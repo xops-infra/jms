@@ -18,10 +18,22 @@ services:
     ports: 
       - "22222:22222"
     environment:
-      - DEBUG=true
-      - API=false # true为api模式，false为ssh服务模式
-      # - SSH_DIR=/root/.ssh
+      - TIMEOUT=1800
+      - DEBUG=false
+      - API=false
     volumes: 
-      - "/opt/jms/.ssh/:/root/.ssh"
-      - "/opt/jms/:/opt/jms/"
-      - "/opt/jms/logs/:/opt/logs/"
+      - "./config.yaml:/opt/jms/config.yaml"
+      - "/opt/jms/.ssh/:/opt/jms/.ssh/" # 持久化数据
+  jms-api:
+    depends_on:
+      - pg
+    restart: always
+    image: zhoushoujian/jms:latest
+    ports: 
+      - "8013:8013"
+    environment:
+      - DEBUG=false
+      - API=true # true为api模式，false为ssh服务模式
+    volumes: 
+      - "./config.yaml:/opt/jms/config.yaml"
+      - "/opt/jms/.ssh/:/opt/jms/.ssh/" # 持久化数据

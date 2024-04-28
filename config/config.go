@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/fsnotify/fsnotify"
+	"github.com/robfig/cron"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 	"github.com/xops-infra/jms/core/db"
@@ -23,13 +23,13 @@ func init() {
 
 // Config config
 type Config struct {
-	APPSet       APPSet                    `mapstructure:"appSet"`       // 全局配置
 	Profiles     []db.CreateProfileRequest `mapstructure:"profiles"`     // 云账号配置，用来自动同步云服务器信息
 	Proxys       []db.CreateProxyRequest   `mapstructure:"proxies"`      // ssh代理
 	Keys         Keys                      `mapstructure:"keys"`         // ssh key pair 不启用数据库时使用
+	WithVideo    WithVideo                 `mapstructure:"withVideo"`    // 视频存储
 	WithLdap     WithLdap                  `mapstructure:"withLdap"`     // 配置ldap
 	WithSSHCheck WithSSHCheck              `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
-	WithPolicy   WithPolicy                `mapstructure:"withPolicy"`   // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
+	WithDB       WithPolicy                `mapstructure:"withDB"`       // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
 	WithDingtalk WithDingtalk              `mapstructure:"withDingtalk"` // 配置钉钉审批流程
 }
 
@@ -47,7 +47,7 @@ func (k Keys) ToMap() map[string]db.AddKeyRequest {
 func (k Keys) ToMapWithName() map[string]db.AddKeyRequest {
 	m := make(map[string]db.AddKeyRequest)
 	for _, key := range k {
-		log.Debugf("key: %v", tea.Prettify(key))
+		// log.Debugf("key: %v", tea.Prettify(key))
 		m[*key.IdentityFile] = key
 	}
 	return m
@@ -62,13 +62,8 @@ func ServerListToMap(s []Server) map[string]Server {
 	return m
 }
 
-type APPSet struct {
-	HomeDir string `mapstructure:"homeDir"` // 主目录,默认/opt/jms/
-	Audit   Audit  `mapstructure:"audit"`   // 回放日志配置
-}
-
-type Audit struct {
-	Enable   bool   `mapstructure:"enable"`   // 是否启用
+type WithVideo struct {
+	Enable   bool   `mapstructure:"enable"`
 	Cron     string `mapstructure:"cron"`     // 定时任务默认 "0 0 3 * * *" 表示每天凌晨 3 点触发
 	Dir      string `mapstructure:"dir"`      // 日志目录,默认/opt/jms/audit/
 	KeepDays int    `mapstructure:"keepDays"` // 保留天数,默认 3 个月
@@ -145,6 +140,8 @@ func LoadYaml(configFile string) {
 		panic(err)
 	}
 
+	configCheck()
+
 	// 使用fsnotify监视配置文件变化
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
@@ -155,10 +152,23 @@ func LoadYaml(configFile string) {
 			Conf = &Config{}
 			viper.Unmarshal(Conf)
 			// TODO: 热加载
-			log.Debugf("config file changed:", e.Name, tea.Prettify(Conf))
+			log.Debugf("config file %s changed", e.Name)
 		}
 	})
 
+}
+
+func configCheck() {
+	// 校验 corn配置是否正确
+	if Conf.WithVideo.Enable {
+		if _, err := cron.Parse(Conf.WithVideo.Cron); err != nil {
+			panic(fmt.Errorf("cron parse error: %s", err))
+		}
+		err := os.MkdirAll(Conf.WithVideo.Dir, 0755)
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 type User struct {
@@ -188,7 +198,7 @@ type Servers []Server
 // 按名称排序
 func (s Servers) SortByName() {
 	sort.Slice(s, func(i, j int) bool {
-		log.Debugf("%s %s", s[i].Name, s[j].Name)
+		// log.Debugf("%s %s", s[i].Name, s[j].Name)
 		return s[i].Name < s[j].Name
 	})
 }
@@ -196,7 +206,7 @@ func (s Servers) SortByName() {
 // SSHUser ssh user
 type SSHUser struct {
 	SSHUsername string
-	KeyName     string // pem file name
+	KeyName     string // pem file name, 这里是支持本地读取内容的
 	Base64Pem   string // base64 pem
 	Password    string
 }

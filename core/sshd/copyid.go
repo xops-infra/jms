@@ -2,13 +2,12 @@ package sshd
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 
-	"github.com/xops-infra/noop/log"
-
 	"github.com/xops-infra/jms/utils"
+	"github.com/xops-infra/noop/log"
 )
 
 // CopyID CopyID
@@ -24,7 +23,10 @@ func CopyID(username, host string, port int, passwd, pubKeyFile string) ([]byte,
 	}
 	defer file.Close()
 
-	b, err := ioutil.ReadAll(file)
+	b, err := io.ReadAll(file)
+	if err != nil {
+		return []byte(""), err
+	}
 	pubKey := fmt.Sprintf("%s %s@%s", string(b), username, host)
 
 	copyIDCmd := fmt.Sprintf("echo \"%s\" >> ~/.ssh/authorized_keys", pubKey)

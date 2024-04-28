@@ -77,6 +77,10 @@ definitions:
         default: tencent
         description: aws, aliyun, tencent
         type: string
+      enabled:
+        default: true
+        description: 是否启用
+        type: boolean
       name:
         type: string
       regions:
@@ -196,6 +200,8 @@ definitions:
         type: string
       cloud:
         type: string
+      enabled:
+        type: boolean
       isDelete:
         type: boolean
       name:
@@ -430,7 +436,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: 登录
+      description: 登录接口可以换token使用。
       parameters:
       - description: 用户名
         in: formData
@@ -447,7 +453,7 @@ paths:
       responses: {}
       summary: 登录
       tags:
-      - User
+      - ""
   /api/v1/policy:
     get:
       consumes:
@@ -730,6 +736,31 @@ paths:
               $ref: '#/definitions/db.User'
             type: array
       summary: 获取用户列表
+      tags:
+      - User
+    post:
+      consumes:
+      - application/json
+      description: 添加用户
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/db.UserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: 添加用户
       tags:
       - User
   /api/v1/user/:id:

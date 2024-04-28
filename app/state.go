@@ -1,11 +1,14 @@
 package app
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/patrickmn/go-cache"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/jms/core/db"
+	"github.com/xops-infra/jms/utils"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	server "github.com/xops-infra/multi-cloud-sdk/pkg/service"
@@ -16,48 +19,44 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/utils"
 )
-
-var (
-	AppDir   = "/opt/jms/"
-	AuditDir = "/opt/jms/audit/"
-)
-
-func init() {
-	// set default
-	if config.Conf.APPSet.Audit.Dir != "" {
-		AuditDir = config.Conf.APPSet.Audit.Dir
-	}
-	if config.Conf.APPSet.HomeDir != "" {
-		AppDir = config.Conf.APPSet.HomeDir
-	}
-}
 
 var App *Application
 
 type Application struct {
-	Debug          bool
-	SshDir         string
-	RobotClient    *dt.RobotClient    // 钉钉机器人
-	DingTalkClient *dt.DingTalkClient // 钉钉APP使用审批流
-	Ldap           *utils.Ldap
-	Config         *config.Config // 支持数据库和配置文件两种方式载入配置
-	Cache          *cache.Cache
+	Debug           bool
+	HomeDir, SSHDir string             // /opt/jms/
+	RobotClient     *dt.RobotClient    // 钉钉机器人
+	DingTalkClient  *dt.DingTalkClient // 钉钉APP使用审批流
+	Ldap            *utils.Ldap
+	Config          *config.Config // 支持数据库和配置文件两种方式载入配置
+	Cache           *cache.Cache
 
 	DBService *db.DBService
 	McsServer model.CommonContract
 }
 
 // Manager,Agent,Worker need to be initialized
-func NewSshdApplication(debug bool, sshDir string) *Application {
+func NewSshdApplication(debug bool) *Application {
 	App = &Application{
-		SshDir: sshDir,
-		Debug:  debug,
-		Config: config.Conf,
-		Cache:  cache.New(cache.NoExpiration, cache.NoExpiration),
+		HomeDir: "/opt/jms/",
+		SSHDir:  "/opt/jms/.ssh/",
+		Debug:   debug,
+		Config:  config.Conf,
+		Cache:   cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
-
+	// mkdir
+	err := os.MkdirAll(App.SSHDir, 0755)
+	if err != nil {
+		panic(err)
+	}
+	// 判断文件hostAuthorizedKeys是否存在，不存在则创建
+	hostAuthorizedKeys := App.SSHDir + "authorized_keys"
+	if !utils.FileExited(hostAuthorizedKeys) {
+		// 600权限
+		os.Create(hostAuthorizedKeys)
+		os.Chmod(hostAuthorizedKeys, 0600)
+	}
 	return App
 }
 
@@ -111,18 +110,20 @@ func (app *Application) WithDingTalk() *Application {
 func (app *Application) WithPolicy() *Application {
 	// 优先匹配 pg
 	var dialector gorm.Dialector
-	if app.Config.WithPolicy.PG.Database != "" {
-		log.Debugf("with policy pg database: %s", app.Config.WithPolicy.PG.GetUrl())
-		dialector = postgres.Open(app.Config.WithPolicy.PG.GetUrl())
+	if app.Config.WithDB.PG.Database != "" {
+		log.Debugf("with policy pg database: %s", app.Config.WithDB.PG.GetUrl())
+		dialector = postgres.Open(app.Config.WithDB.PG.GetUrl())
 	} else {
-		dbFile := config.Conf.WithPolicy.DBFile
+		dbFile := config.Conf.WithDB.DBFile
 		if !strings.HasSuffix(dbFile, ".db") {
 			panic("db file must be end with .db")
 		}
 		if dbFile == "" {
 			dbFile = "jms.db"
 		}
-		dialector = sqlite.Open(AppDir + dbFile)
+		// show dbfile directory
+		log.Infof("db file path: %s/%s", filepath.Dir(dbFile), dbFile)
+		dialector = sqlite.Open(dbFile)
 	}
 
 	gormConfig := &gorm.Config{}
@@ -136,7 +137,7 @@ func (app *Application) WithPolicy() *Application {
 	}
 	// 初始化数据库
 	rdb.AutoMigrate(
-		&db.Policy{}, &db.User{},
+		&db.Policy{}, &db.User{}, &db.AuthorizedKey{},
 		&db.Key{}, &db.Profile{}, &db.Proxy{}, // 配置
 		&db.SSHLoginRecord{}, &db.ScpRecord{}, // 审计
 	)
