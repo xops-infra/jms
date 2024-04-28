@@ -58,7 +58,7 @@ withSSHCheck:
 
 # 是否启用数据库来启用授权策略
 withDB:
-  enable: true
+  enable: false
   pg:
     host: "x.x.x.x"
     port: 5432

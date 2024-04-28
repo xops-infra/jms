@@ -29,13 +29,10 @@ var apiPort int
 // @BasePath
 var apiCmd = &cobra.Command{
 	Use:   "api",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "api server",
+	Long: `api server for jms, must withDB
+	swagger url: http://localhost:8013/swagger/index.html
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		appConfig.LoadYaml(config)
 		log.Default().WithLevel(log.InfoLevel).WithHumanTime(time.Local).WithFilename(strings.TrimSuffix(logDir, "/") + "/api.log").Init()
@@ -53,15 +50,15 @@ to quickly create a Cobra application.`,
 		// init app
 		_app := app.NewApiApplication()
 
+		if !app.App.Config.WithDB.Enable {
+			panic("请配置 withDB")
+		}
+
 		if app.App.Config.WithDingtalk.Enable {
 			log.Infof("enable dingtalk")
 			_app.WithDingTalk()
 		}
-
-		if app.App.Config.WithDB.Enable {
-			_app.WithPolicy()
-			log.Infof("enable policy")
-		}
+		_app.WithPolicy()
 
 		log.Infof("api server start on port: %d", apiPort)
 		g := api.NewGin()

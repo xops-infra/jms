@@ -32,7 +32,7 @@ var (
 
 var sshdCmd = &cobra.Command{
 	Use:   "sshd",
-	Short: "A brief description of your application",
+	Short: "start sshd server as proxy server",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
