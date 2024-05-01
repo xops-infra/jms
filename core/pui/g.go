@@ -70,6 +70,7 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 	user := db.User{
 		Username: tea.String((*ui.sess).User()),
 	}
+	var broadcast *db.Broadcast
 
 	if app.App.Config.WithDB.Enable {
 		_user, err := app.App.DBService.DescribeUser((*ui.sess).User())
@@ -78,6 +79,12 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			sshd.ErrorInfo(err, ui.sess)
 		}
 		user = _user
+		_broadcast, err := app.App.DBService.GetBroadcast()
+		if err != nil {
+			log.Errorf("GetBroadcast error: %s", err)
+		} else {
+			broadcast = _broadcast
+		}
 	}
 
 loopMenu:
@@ -108,7 +115,7 @@ loopMenu:
 			}
 			menu = append(menu, GetServersMenuV2(ui.sess, user, ui.GetTimeout())...)
 
-			filter, err := ui.inputFilter(len(menu))
+			filter, err := ui.inputFilter(broadcast)
 			if err != nil {
 				break loopMenu
 			}
@@ -215,7 +222,7 @@ loopMenu:
 }
 
 // inputFilter input filter
-func (ui *PUI) inputFilter(nu int) (string, error) {
+func (ui *PUI) inputFilter(broadcast *db.Broadcast) (string, error) {
 	ui.FlashTimeout()
 	defer ui.SessionWrite("\033c") // clear
 	servers := instance.GetServers()
@@ -226,9 +233,13 @@ func (ui *PUI) inputFilter(nu int) (string, error) {
 		time.Now().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, len(servers),
 	))
 	// 发送欢迎信息
-	ui.SessionWrite(InfoLabel)
+	if broadcast != nil {
+		ui.SessionWrite(fmt.Sprintf(InfoLabel, app.App.Version, "\n"+broadcast.Message))
+	} else {
+		ui.SessionWrite(fmt.Sprintf(InfoLabel, app.App.Version, ""))
+	}
 	prompt := promptui.Prompt{
-		Label:  fmt.Sprintf("Filter[%d]", nu),
+		Label:  "Filter",
 		Stdin:  *ui.sess,
 		Stdout: *ui.sess,
 	}

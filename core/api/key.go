@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/db"
+	"github.com/xops-infra/noop/log"
 )
 
 // @Summary 列出密钥
@@ -40,6 +42,7 @@ func addKey(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
+	log.Debugf("add key: %s", tea.Prettify(req))
 	id, err := app.App.DBService.AddKey(req)
 	if err != nil {
 		c.JSON(500, err.Error())

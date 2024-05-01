@@ -52,7 +52,7 @@ var sshdCmd = &cobra.Command{
 		}
 
 		// init app
-		_app := app.NewSshdApplication(debug)
+		_app := app.NewSshdApplication(debug, rootCmd.Version)
 
 		if app.App.Config.WithLdap.Enable {
 			log.Infof("enable ldap")
@@ -146,6 +146,7 @@ func init() {
 	sshdCmd.Flags().IntVar(&sshdPort, "port", 22222, "ssh port")
 	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/jms/logs/", "log dir")
 	sshdCmd.Flags().IntVar(&timeOut, "timeout", 1800, "ssh timeout")
+
 }
 
 func passwordAuth(ctx ssh.Context, pass string) bool {
@@ -273,7 +274,7 @@ func startScheduler() {
 		instance.LoadServer(app.App.Config)
 	})
 
-	if true {
+	if app.App.Config.WithDB.Enable {
 		log.Infof("enabled db config hot update, 2 min check once")
 		// 启用定时热加载数据库配置,每 30s 检查一次
 		c.AddFunc("*/30 * * * * *", func() {

@@ -69,6 +69,17 @@ definitions:
       is_pass:
         type: boolean
     type: object
+  db.CreateBroadcastRequest:
+    properties:
+      keepDays:
+        description: 保留天数，0 表示永久
+        type: integer
+      messages:
+        description: 消息内容
+        type: string
+    required:
+    - messages
+    type: object
   db.CreateProfileRequest:
     properties:
       ak:
@@ -269,10 +280,8 @@ definitions:
       is_ldap:
         type: boolean
       passwd:
-        description: 加密后的密码
-        items:
-          type: integer
-        type: array
+        description: bas64
+        type: string
       updated_at:
         type: string
       username:
@@ -366,6 +375,24 @@ paths:
       summary: 更新审批
       tags:
       - Approval
+  /api/v1/broadcast:
+    post:
+      consumes:
+      - application/json
+      description: broadcast
+      parameters:
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/db.CreateBroadcastRequest'
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+      summary: Broadcast
   /api/v1/key:
     get:
       consumes:

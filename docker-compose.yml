@@ -13,7 +13,7 @@ services:
   jms:
     depends_on:
       - pg
-    restart: always
+    restart: always # 支持 always, on-failure, unless-stopped
     image: zhoushoujian/jms:latest
     ports: 
       - "22222:22222"

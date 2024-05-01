@@ -34,6 +34,8 @@ func NewGin() *gin.Engine {
 	api := r.Group("/api/v1")
 	api.POST("/login", login)
 
+	api.POST("/broadcast", broadcast)
+
 	u := api.Group("/user")
 	u.GET("", listUser)
 	u.POST("", addUser)

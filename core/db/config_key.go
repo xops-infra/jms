@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
@@ -9,7 +10,7 @@ import (
 )
 
 type AddKeyRequest struct {
-	IdentityFile *string `json:"identity_file" mapstructure:"identity_file"`              // 云上下载下来的名字，比如 jms-key.pem
+	IdentityFile *string `json:"identity_file" mapstructure:"identity_file"`              // 云上下载下来的名字，比如 jms-key.pem，private key file name
 	PemBase64    *string `json:"pem_base64" binding:"required" mapstructure:"pem_base64"` // base64
 	KeyID        *string `json:"key_id" binding:"required" mapstructure:"key_id"`         // 云上的key id，比如 skey-123456
 	Profile      *string `json:"profile"`                                                 // 云账号的 profile，比如 aws, aliyun
@@ -59,14 +60,20 @@ func (d *DBService) ListKey() ([]Key, error) {
 
 // 支持判断 keyname 是否存在
 func (d *DBService) AddKey(req AddKeyRequest) (string, error) {
+	if req.IdentityFile == nil || req.PemBase64 == nil || req.KeyID == nil || req.Profile == nil {
+		return "", fmt.Errorf("invalid request")
+	}
+	if !strings.HasSuffix(*req.IdentityFile, ".pem") {
+		return "", fmt.Errorf("invalid identity_file(private key file name), must end with .pem, casue you download from cloud auto has .pem")
+	}
 	// 先查询是否存在
 	var count int64
-	err := d.DB.Model(Key{}).Where("key_name = ?", tea.StringValue(req.IdentityFile)).Where("is_delete is false").Count(&count).Error
+	err := d.DB.Model(Key{}).Where("key_name = ?", *req.IdentityFile).Where("is_delete is false").Count(&count).Error
 	if err != nil {
 		return "", err
 	}
 	if count > 0 {
-		return "", fmt.Errorf("key name %s already exists", tea.StringValue(req.IdentityFile))
+		return "", fmt.Errorf("key_name %s already exists", tea.StringValue(req.IdentityFile))
 	}
 	key := &Key{
 		IsDelete:  false,
