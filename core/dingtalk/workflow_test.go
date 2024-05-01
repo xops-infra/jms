@@ -12,7 +12,7 @@ import (
 func init() {
 	log.Default().Init()
 	config.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(true).WithPolicy().WithDingTalk()
+	app.NewSshdApplication(true, "").WithPolicy().WithDingTalk()
 }
 
 func TestLoadDingtalkUsers(t *testing.T) {

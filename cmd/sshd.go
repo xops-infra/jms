@@ -25,9 +25,10 @@ import (
 )
 
 var (
-	logDir   string
-	timeOut  int // s
-	sshdPort int
+	logDir     string
+	timeOut    int // s
+	sshdPort   int
+	serverInfo string // 提示信息，会在用户登录后打印出来
 )
 
 var sshdCmd = &cobra.Command{
@@ -52,7 +53,7 @@ var sshdCmd = &cobra.Command{
 		}
 
 		// init app
-		_app := app.NewSshdApplication(debug)
+		_app := app.NewSshdApplication(debug, rootCmd.Version)
 
 		if app.App.Config.WithLdap.Enable {
 			log.Infof("enable ldap")
@@ -146,6 +147,8 @@ func init() {
 	sshdCmd.Flags().IntVar(&sshdPort, "port", 22222, "ssh port")
 	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/jms/logs/", "log dir")
 	sshdCmd.Flags().IntVar(&timeOut, "timeout", 1800, "ssh timeout")
+	sshdCmd.Flags().StringVar(&serverInfo, "debug", "jms", "print server info")
+
 }
 
 func passwordAuth(ctx ssh.Context, pass string) bool {

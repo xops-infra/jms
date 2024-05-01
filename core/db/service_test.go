@@ -15,7 +15,7 @@ import (
 func init() {
 	log.Default().Init()
 	config.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(true).WithPolicy()
+	app.NewSshdApplication(true, "---").WithPolicy()
 }
 
 func TestCreatePolicy(t *testing.T) {

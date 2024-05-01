@@ -34,7 +34,7 @@ var (
 	SelectAction        = "Please select action"
 	BybLabel            = "\n拜拜! 退出时间：%s\n"
 	InfoLabel           = `-----------------------------------------------------------------------
-欢迎使用jms堡垒机连接工具
+欢迎使用jms堡垒机连接工具-%s
 - 提交bug或者star🌟,👉 https://github.com/xops-infra/jms ;
 - 你可以看到所有服务器，但是在连接或者上传下载时会校验你的权限，如果没有权限可以进行交互申请；
 - 你可以选择不可连接服务器[x]进行权限申请。

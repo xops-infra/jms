@@ -25,7 +25,8 @@ var App *Application
 
 type Application struct {
 	Debug           bool
-	HomeDir, SSHDir string             // /opt/jms/
+	HomeDir, SSHDir string // /opt/jms/
+	Version         string
 	RobotClient     *dt.RobotClient    // 钉钉机器人
 	DingTalkClient  *dt.DingTalkClient // 钉钉APP使用审批流
 	Ldap            *utils.Ldap
@@ -37,10 +38,11 @@ type Application struct {
 }
 
 // Manager,Agent,Worker need to be initialized
-func NewSshdApplication(debug bool) *Application {
+func NewSshdApplication(debug bool, version string) *Application {
 	App = &Application{
 		HomeDir: "/opt/jms/",
 		SSHDir:  "/opt/jms/.ssh/",
+		Version: version,
 		Debug:   debug,
 		Config:  config.Conf,
 		Cache:   cache.New(cache.NoExpiration, cache.NoExpiration),

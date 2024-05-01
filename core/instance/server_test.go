@@ -13,7 +13,7 @@ import (
 func init() {
 	log.Default().Init()
 	config.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(false).WithRobot()
+	app.NewSshdApplication(false, "---").WithRobot()
 }
 
 func TestServerLiveness(t *testing.T) {

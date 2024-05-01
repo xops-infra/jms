@@ -226,7 +226,7 @@ func (ui *PUI) inputFilter(nu int) (string, error) {
 		time.Now().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, len(servers),
 	))
 	// 发送欢迎信息
-	ui.SessionWrite(InfoLabel)
+	ui.SessionWrite(fmt.Sprintf(InfoLabel, app.App.Version))
 	prompt := promptui.Prompt{
 		Label:  fmt.Sprintf("Filter[%d]", nu),
 		Stdin:  *ui.sess,

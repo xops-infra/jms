@@ -13,7 +13,7 @@ import (
 func init() {
 	log.Default().Init()
 	config.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(true)
+	app.NewSshdApplication(true, "---")
 }
 
 // TEST SHOW CONFIG
