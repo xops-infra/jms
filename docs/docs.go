@@ -104,6 +104,34 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/broadcast": {
+            "post": {
+                "description": "broadcast",
+                "consumes": [
+                    "application/json"
+                ],
+                "summary": "Broadcast",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.CreateBroadcastRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/key": {
             "get": {
                 "description": "列出密钥，数据隐藏",
@@ -908,6 +936,22 @@ const docTemplate = `{
                 }
             }
         },
+        "db.CreateBroadcastRequest": {
+            "type": "object",
+            "required": [
+                "messages"
+            ],
+            "properties": {
+                "keepDays": {
+                    "description": "保留天数，0 表示永久",
+                    "type": "integer"
+                },
+                "messages": {
+                    "description": "消息内容",
+                    "type": "string"
+                }
+            }
+        },
         "db.CreateProfileRequest": {
             "type": "object",
             "properties": {
@@ -1198,11 +1242,8 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "passwd": {
-                    "description": "加密后的密码",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "description": "bas64",
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"

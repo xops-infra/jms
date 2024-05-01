@@ -39,6 +39,9 @@ type Application struct {
 
 // Manager,Agent,Worker need to be initialized
 func NewSshdApplication(debug bool, version string) *Application {
+	if version == "" {
+		version = "unknown"
+	}
 	App = &Application{
 		HomeDir: "/opt/jms/",
 		SSHDir:  "/opt/jms/.ssh/",
@@ -142,6 +145,7 @@ func (app *Application) WithPolicy() *Application {
 		&db.Policy{}, &db.User{}, &db.AuthorizedKey{},
 		&db.Key{}, &db.Profile{}, &db.Proxy{}, // 配置
 		&db.SSHLoginRecord{}, &db.ScpRecord{}, // 审计
+		&db.Broadcast{},
 	)
 	App.DBService = db.NewDbService(rdb)
 	app.LoadFromDB()

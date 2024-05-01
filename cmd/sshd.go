@@ -25,10 +25,9 @@ import (
 )
 
 var (
-	logDir     string
-	timeOut    int // s
-	sshdPort   int
-	serverInfo string // 提示信息，会在用户登录后打印出来
+	logDir   string
+	timeOut  int // s
+	sshdPort int
 )
 
 var sshdCmd = &cobra.Command{
@@ -147,7 +146,6 @@ func init() {
 	sshdCmd.Flags().IntVar(&sshdPort, "port", 22222, "ssh port")
 	sshdCmd.Flags().StringVar(&logDir, "log-dir", "/opt/jms/logs/", "log dir")
 	sshdCmd.Flags().IntVar(&timeOut, "timeout", 1800, "ssh timeout")
-	sshdCmd.Flags().StringVar(&serverInfo, "debug", "jms", "print server info")
 
 }
 
