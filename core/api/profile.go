@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/db"
+	"github.com/xops-infra/noop/log"
 )
 
 // @Summary List profile
@@ -40,6 +41,7 @@ func createProfile(c *gin.Context) {
 	}
 	id, err := app.App.DBService.CreateProfile(req)
 	if err != nil {
+		log.Errorf("create profile error: %v", err)
 		c.JSON(500, err.Error())
 		return
 	}
@@ -68,6 +70,7 @@ func updateProfile(c *gin.Context) {
 	}
 	err := app.App.DBService.UpdateProfile(uuid, req)
 	if err != nil {
+		log.Errorf("update profile error: %v", err)
 		c.JSON(500, err.Error())
 		return
 	}
@@ -91,6 +94,7 @@ func deleteProfile(c *gin.Context) {
 	}
 	err := app.App.DBService.DeleteProfile(uuid)
 	if err != nil {
+		log.Errorf("delete profile error: %v", err)
 		c.JSON(500, err.Error())
 		return
 	}

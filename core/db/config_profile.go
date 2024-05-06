@@ -11,9 +11,9 @@ import (
 )
 
 type CreateProfileRequest struct {
-	Name    *string     `json:"name" `
-	AK      *string     `json:"ak" `
-	SK      *string     `json:"sk" `
+	Name    *string     `json:"name"`
+	AK      *string     `json:"ak"`
+	SK      *string     `json:"sk"`
 	Cloud   *string     `json:"cloud"  default:"tencent"` // aws, aliyun, tencent
 	Regions StringSlice `json:"regions"`
 	Enabled bool        `json:"enabled" default:"true"` // 是否启用
@@ -79,7 +79,7 @@ func (d *DBService) CreateProfile(req CreateProfileRequest) (string, error) {
 	var count int64
 	err := d.DB.Model(Profile{}).Where("name = ?", *req.Name).Where("is_delete is false").Count(&count).Error
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("query profile error: %v", err)
 	}
 	if count > 0 {
 		return "", fmt.Errorf("profile name %s already exists", *req.Name)
