@@ -175,7 +175,7 @@ func ProxyClient(instance config.Server, proxy db.CreateProxyRequest, sshUser co
 	if proxy.LoginPasswd != nil && *proxy.LoginPasswd != "" {
 		log.Debugf("proxy login passwd: %s", *proxy.LoginPasswd)
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.Password(*proxy.LoginPasswd))
-	} else if proxy.KeyID != nil {
+	} else if proxy.KeyID != nil && *proxy.KeyID != "" {
 		// 走 proxy keyID 去获取认证信息
 		log.Debugf("proxy keyID: %s", *proxy.KeyID)
 		signerProxy, err := getSigner(*proxy.KeyID)
@@ -183,7 +183,7 @@ func ProxyClient(instance config.Server, proxy db.CreateProxyRequest, sshUser co
 			return nil, nil, err
 		}
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.PublicKeys(signerProxy))
-	} else if proxy.IdentityFile != nil {
+	} else if proxy.IdentityFile != nil && *proxy.IdentityFile != "" {
 		// 走文件认证
 		log.Debugf("proxy identityFile: %s", *proxy.IdentityFile)
 		signerProxy, err := getSignerFromLocal(app.App.SSHDir + strings.TrimPrefix(*proxy.IdentityFile, "/"))
