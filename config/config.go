@@ -35,8 +35,8 @@ type Config struct {
 
 type Keys []db.AddKeyRequest
 
-// ToMap convert to map with keyID
-func (k Keys) ToMap() map[string]db.AddKeyRequest {
+// ToMapWithID convert to map with keyID
+func (k Keys) ToMapWithID() map[string]db.AddKeyRequest {
 	m := make(map[string]db.AddKeyRequest)
 	for _, key := range k {
 		m[*key.KeyID] = key

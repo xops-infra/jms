@@ -47,7 +47,7 @@ func LoadServer(conf *config.Config) {
 			}
 		}
 	}
-	instanceAll := fmtServer(mcsServers, conf.Keys.ToMap())
+	instanceAll := fmtServer(mcsServers, conf.Keys.ToMapWithID())
 	app.App.Cache.Set("servers", instanceAll, cache.NoExpiration)
 	log.Infof("%s len: %d", time.Since(startTime), len(instanceAll))
 }
@@ -108,17 +108,16 @@ func GetServers() config.Servers {
 	return servers.(config.Servers)
 }
 
-// 通过机器的密钥对 Key Name 获取对应的密钥Pem的路径
-func getKeyPair(keyNames []*string) []db.AddKeyRequest {
+// 通过机器的密钥对 KeyIDs 获取对应的密钥Pem的路径
+func getKeyPair(keyIDS []*string) []db.AddKeyRequest {
 	keysAll := make([]db.AddKeyRequest, 0)
-	configKeys := app.App.Config.Keys.ToMap()
-	for _, keyName := range keyNames {
-		if keyName == nil {
+	configKeys := app.App.Config.Keys.ToMapWithID()
+	for _, keyID := range keyIDS {
+		if keyID == nil {
 			continue
 		}
-		lowKey := strings.ToLower(*keyName)
-		if _, ok := configKeys[lowKey]; ok {
-			keysAll = append(keysAll, configKeys[lowKey])
+		if key, ok := configKeys[*keyID]; ok {
+			keysAll = append(keysAll, key)
 		}
 	}
 	return keysAll
@@ -130,6 +129,7 @@ func fmtSuperUser(instance model.Instance) []config.SSHUser {
 	var sshUser []config.SSHUser
 	for _, key := range keys {
 		u := config.SSHUser{}
+		// KeyName 是支持本地读取内容的
 		if key.IdentityFile != nil {
 			u.KeyName = tea.StringValue(key.IdentityFile)
 		}

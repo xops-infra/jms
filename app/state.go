@@ -112,7 +112,7 @@ func (app *Application) WithDingTalk() *Application {
 }
 
 // 启用 Policy 规则的情况下，使用数据库记录规则信息
-func (app *Application) WithPolicy() *Application {
+func (app *Application) WithDB() *Application {
 	// 优先匹配 pg
 	var dialector gorm.Dialector
 	if app.Config.WithDB.PG.Database != "" {
@@ -141,12 +141,16 @@ func (app *Application) WithPolicy() *Application {
 		panic("无法连接到数据库")
 	}
 	// 初始化数据库
-	rdb.AutoMigrate(
+	err = rdb.AutoMigrate(
 		&db.Policy{}, &db.User{}, &db.AuthorizedKey{},
 		&db.Key{}, &db.Profile{}, &db.Proxy{}, // 配置
 		&db.SSHLoginRecord{}, &db.ScpRecord{}, // 审计
 		&db.Broadcast{},
 	)
+	if err != nil {
+		panic(err)
+	}
+	log.Infof("init db success")
 	App.DBService = db.NewDbService(rdb)
 	app.LoadFromDB()
 	return app
@@ -161,7 +165,7 @@ func (app *Application) LoadFromDB() {
 	}
 	App.Config.Profiles = profiles
 
-	resp, err := App.DBService.InternalLoad()
+	resp, err := App.DBService.InternalLoadKey()
 	if err != nil {
 		log.Panicf("load keys failed: %v", err)
 	}

@@ -865,7 +865,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "identity_file": {
-                    "description": "云上下载下来的名字，比如 jms-key.pem",
+                    "description": "云上下载下来的名字，比如 jms-key.pem，private key file name",
                     "type": "string"
                 },
                 "key_id": {
@@ -992,11 +992,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "identity_file": {
-                    "description": "密码或者key必须有一个, 优先使用密码",
+                    "description": "KeyID和IdentityFile都是用pem来验证，KeyID是唯一的，IdentityFile在名称命名时候不同账号可能会同名。当出现IdentityFile不唯一的时候可以用 keyID, 优先使用KeyID",
                     "type": "string"
                 },
                 "ip_prefix": {
                     "description": "适配哪些机器 IP 前缀使用 Proxy, 例如 192.168.1",
+                    "type": "string"
+                },
+                "key_id": {
+                    "description": "KeyID和IdentityFile都是用pem来验证，KeyID是唯一的，IdentityFile在名称命名时候不同账号可能会同名。当出现IdentityFile不唯一的时候可以用 keyID, 优先使用KeyID",
                     "type": "string"
                 },
                 "login_passwd": {
@@ -1177,6 +1181,9 @@ const docTemplate = `{
                 },
                 "isDelete": {
                     "type": "boolean"
+                },
+                "keyID": {
+                    "type": "string"
                 },
                 "loginPasswd": {
                     "type": "string"

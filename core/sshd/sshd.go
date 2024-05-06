@@ -93,10 +93,7 @@ func NewTerminal(server config.Server, sshUser config.SSHUser, sess *ssh.Session
 		}
 	}()
 	fmt.Println((*sess).Environ(), (*sess).RemoteAddr())
-	err = app.App.Cache.Add((*sess).RemoteAddr().String(), true, cache.DefaultExpiration)
-	if err != nil {
-		log.Errorf("add cache error: %s", err)
-	}
+	app.App.Cache.Set((*sess).RemoteAddr().String(), true, cache.DefaultExpiration)
 	defer app.App.Cache.Delete((*sess).RemoteAddr().String())
 
 	if err := upstreamSess.Wait(); err != nil {
@@ -178,13 +175,24 @@ func ProxyClient(instance config.Server, proxy db.CreateProxyRequest, sshUser co
 	if proxy.LoginPasswd != nil && *proxy.LoginPasswd != "" {
 		log.Debugf("proxy login passwd: %s", *proxy.LoginPasswd)
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.Password(*proxy.LoginPasswd))
-	} else if proxy.IdentityFile != nil {
-		log.Debugf("proxy identity file: %s", *proxy.IdentityFile)
-		signerProxy, err := getSigner(*proxy.IdentityFile)
+	} else if proxy.KeyID != nil {
+		// 走 proxy keyID 去获取认证信息
+		log.Debugf("proxy keyID: %s", *proxy.KeyID)
+		signerProxy, err := getSigner(*proxy.KeyID)
 		if err != nil {
 			return nil, nil, err
 		}
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.PublicKeys(signerProxy))
+	} else if proxy.IdentityFile != nil {
+		// 走文件认证
+		log.Debugf("proxy identityFile: %s", *proxy.IdentityFile)
+		signerProxy, err := getSignerFromLocal(app.App.SSHDir + strings.TrimPrefix(*proxy.IdentityFile, "/"))
+		if err != nil {
+			return nil, nil, err
+		}
+		proxyConfig.Auth = append(proxyConfig.Auth, gossh.PublicKeys(signerProxy))
+	} else {
+		return nil, nil, fmt.Errorf("proxy config error has no auth, %s", tea.Prettify(proxy))
 	}
 	log.Infof("connecting %s with proxy connect: %s:%d", instance.Host, *proxy.Host, *proxy.Port)
 	proxyClient, err := gossh.Dial("tcp", fmt.Sprintf("%s:%d", *proxy.Host, *proxy.Port), proxyConfig)
@@ -211,18 +219,14 @@ func ProxyClient(instance config.Server, proxy db.CreateProxyRequest, sshUser co
 }
 
 // 在 key里面获取签名，支持数据库 base64 或者本地文件
-func getSigner(identityFile string) (gossh.Signer, error) {
-	if key, ok := app.App.Config.Keys.ToMapWithName()[identityFile]; ok {
+func getSigner(keyID string) (gossh.Signer, error) {
+	if key, ok := app.App.Config.Keys.ToMapWithID()[keyID]; ok {
 		if key.PemBase64 != nil {
-			log.Debugf("got pem base64 for %s", identityFile)
+			log.Debugf("got pem base64 for %s", keyID)
 			return getSignerFromBase64(*key.PemBase64)
 		}
-		if key.IdentityFile != nil {
-			log.Debugf("got pem file for %s", identityFile)
-			return getSignerFromLocal(*key.IdentityFile)
-		}
 	}
-	return nil, fmt.Errorf("key %s not found", identityFile)
+	return nil, fmt.Errorf("key %s not found", keyID)
 }
 
 func getSignerFromLocal(identityFile string) (gossh.Signer, error) {

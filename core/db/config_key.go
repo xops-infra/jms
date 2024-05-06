@@ -30,7 +30,7 @@ func (Key) TableName() string {
 	return "key_table"
 }
 
-func (d *DBService) InternalLoad() ([]AddKeyRequest, error) {
+func (d *DBService) InternalLoadKey() ([]AddKeyRequest, error) {
 	var keys []Key
 	err := d.DB.Where("is_delete is false").Find(&keys).Order("created_at").Error
 	if err != nil {
@@ -58,7 +58,7 @@ func (d *DBService) ListKey() ([]Key, error) {
 	return keys, err
 }
 
-// 支持判断 keyname 是否存在
+// 支持判断 key_id 是否存在
 func (d *DBService) AddKey(req AddKeyRequest) (string, error) {
 	if req.IdentityFile == nil || req.PemBase64 == nil || req.KeyID == nil || req.Profile == nil {
 		return "", fmt.Errorf("invalid request")
@@ -68,12 +68,12 @@ func (d *DBService) AddKey(req AddKeyRequest) (string, error) {
 	}
 	// 先查询是否存在
 	var count int64
-	err := d.DB.Model(Key{}).Where("key_name = ?", *req.IdentityFile).Where("is_delete is false").Count(&count).Error
+	err := d.DB.Model(Key{}).Where("key_id = ?", *req.KeyID).Where("is_delete is false").Count(&count).Error
 	if err != nil {
 		return "", err
 	}
 	if count > 0 {
-		return "", fmt.Errorf("key_name %s already exists", tea.StringValue(req.IdentityFile))
+		return "", fmt.Errorf("key_id %s already exists", tea.StringValue(req.KeyID))
 	}
 	key := &Key{
 		IsDelete:  false,

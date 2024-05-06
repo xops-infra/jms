@@ -70,7 +70,7 @@ var sshdCmd = &cobra.Command{
 		}
 
 		if app.App.Config.WithDB.Enable {
-			_app.WithPolicy()
+			_app.WithDB()
 			log.Infof("enable policy")
 		}
 
