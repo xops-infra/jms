@@ -513,6 +513,13 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/db.CreateProfileRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "profile uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -585,31 +592,6 @@ const docTemplate = `{
                     }
                 }
             },
-            "put": {
-                "tags": [
-                    "proxy"
-                ],
-                "summary": "UpdateProxy",
-                "parameters": [
-                    {
-                        "description": "proxy server info",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/db.CreateProxyRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/db.Proxy"
-                        }
-                    }
-                }
-            },
             "post": {
                 "description": "add proxy server",
                 "tags": [
@@ -635,8 +617,48 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/proxy/:uuid": {
+            "put": {
+                "tags": [
+                    "proxy"
+                ],
+                "summary": "UpdateProxy",
+                "parameters": [
+                    {
+                        "description": "proxy server info",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.CreateProxyRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "proxy server uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/db.Proxy"
+                        }
+                    }
+                }
             },
             "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "proxy"
                 ],

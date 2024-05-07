@@ -665,6 +665,11 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/db.CreateProfileRequest'
+      - description: profile uuid
+        in: path
+        name: uuid
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -678,21 +683,6 @@ paths:
       tags:
       - profile
   /api/v1/proxy:
-    delete:
-      parameters:
-      - description: proxy server uuid
-        in: path
-        name: uuid
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: string
-      summary: DeleteProxy
-      tags:
-      - proxy
     get:
       consumes:
       - application/json
@@ -726,6 +716,26 @@ paths:
       summary: AddProxy
       tags:
       - proxy
+  /api/v1/proxy/:uuid:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: proxy server uuid
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: DeleteProxy
+      tags:
+      - proxy
     put:
       parameters:
       - description: proxy server info
@@ -734,6 +744,11 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/db.CreateProxyRequest'
+      - description: proxy server uuid
+        in: path
+        name: uuid
+        required: true
+        type: string
       responses:
         "200":
           description: OK

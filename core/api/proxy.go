@@ -46,8 +46,9 @@ func addProxy(c *gin.Context) {
 // @Summary UpdateProxy
 // @Tags proxy
 // @Param body body db.CreateProxyRequest true "proxy server info"
+// @Param uuid path string true "proxy server uuid"
 // @Success 200 {object} db.Proxy
-// @Router /api/v1/proxy [put]
+// @Router /api/v1/proxy/:uuid [put]
 func updateProxy(c *gin.Context) {
 
 	var req db.CreateProxyRequest
@@ -65,10 +66,12 @@ func updateProxy(c *gin.Context) {
 
 // @Summary DeleteProxy
 // @Tags proxy
+// @Accept json
+// @Produce json
 // @Param uuid path string true "proxy server uuid"
 // @Success 200 {string} success
-// @Router /api/v1/proxy [delete]
-func deleteProxy(c *gin.Context) { 
+// @Router /api/v1/proxy/:uuid [delete]
+func deleteProxy(c *gin.Context) {
 
 	err := app.App.DBService.DeleteProxy(c.Param("uuid"))
 	if err != nil {

@@ -55,6 +55,7 @@ func createProfile(c *gin.Context) {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param profile body db.CreateProfileRequest true "profile"
+// @Param uuid path string true "profile uuid"
 // @Success 200 {string} string
 // @Router /api/v1/profile/:uuid [put]
 func updateProfile(c *gin.Context) {
