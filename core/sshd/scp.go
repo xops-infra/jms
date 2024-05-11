@@ -513,6 +513,7 @@ func copyToUpstreamSession(r *bufio.Reader, upstreamSess *gossh.Session, perm, f
 		}
 
 		if err = checkResponse(stdout); err != nil {
+			// TODO: here is a bug. send to closed channel by windows tools pscp.
 			errCh <- err
 			return
 		}

@@ -68,5 +68,14 @@ func NewGin() *gin.Engine {
 	proxy.PUT("/:uuid", updateProxy)
 	proxy.DELETE("/:uuid", deleteProxy)
 
+	shell := api.Group("/shell/task")
+	shell.GET("", listShellTask)
+	shell.POST("", addShellTask)
+	shell.PUT("/:uuid", updateShellTask)
+	shell.DELETE("/:uuid", deleteShellTask)
+
+	shellRecord := api.Group("/shell/record")
+	shellRecord.GET("", listShellRecord)
+
 	return r
 }

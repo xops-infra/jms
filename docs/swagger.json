@@ -673,6 +673,168 @@
                 }
             }
         },
+        "/api/v1/shell/record": {
+            "get": {
+                "description": "list shell record",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shell"
+                ],
+                "summary": "ListShellRecord",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "taskid",
+                        "name": "taskid",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "serverip",
+                        "name": "serverip",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/db.ShellTaskRecord"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shell/task": {
+            "get": {
+                "description": "list shell tasks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shell"
+                ],
+                "summary": "ListShellTask",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/db.ShellTask"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "add shell task",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shell"
+                ],
+                "summary": "AddShellTask",
+                "parameters": [
+                    {
+                        "description": "shell",
+                        "name": "shell",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.CreateShellTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shell/task/:uuid": {
+            "put": {
+                "description": "update shell task",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shell"
+                ],
+                "summary": "UpdateShellTask",
+                "parameters": [
+                    {
+                        "description": "shell",
+                        "name": "shell",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/db.CreateShellTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "delete shell task",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shell"
+                ],
+                "summary": "DeleteShellTask",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "shell task uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/user": {
             "get": {
                 "description": "获取用户列表",
@@ -1033,6 +1195,36 @@
                 }
             }
         },
+        "db.CreateShellTaskRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "servers",
+                "shell"
+            ],
+            "properties": {
+                "corn": {
+                    "description": "corn表达式，支持定时执行任务，执行一次可以不传",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "任务名称，唯一",
+                    "type": "string"
+                },
+                "servers": {
+                    "description": "执行的机器",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/db.ServerFilter"
+                        }
+                    ]
+                },
+                "shell": {
+                    "description": "脚本内容",
+                    "type": "string"
+                }
+            }
+        },
         "db.Key": {
             "type": "object",
             "properties": {
@@ -1219,15 +1411,81 @@
             "type": "object",
             "properties": {
                 "env_type": {
+                    "description": "机器 Tags 中的 EnvType，支持* 匹配所有",
                     "type": "string"
                 },
                 "ip_addr": {
+                    "description": "IP 地址完全匹配，支持* 匹配所有",
                     "type": "string"
+                },
+                "name": {
+                    "description": "名字完全匹配，支持*",
+                    "type": "string"
+                },
+                "team": {
+                    "description": "机器 Tags 中的 Team，支持* 匹配所有",
+                    "type": "string"
+                }
+            }
+        },
+        "db.ShellTask": {
+            "type": "object",
+            "properties": {
+                "corn": {
+                    "type": "string"
+                },
+                "cost_time": {
+                    "type": "integer"
+                },
+                "is_deleted": {
+                    "type": "boolean"
                 },
                 "name": {
                     "type": "string"
                 },
-                "team": {
+                "servers": {
+                    "$ref": "#/definitions/db.ServerFilter"
+                },
+                "shell": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "submit_user": {
+                    "description": "直接在token中获取",
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "db.ShellTaskRecord": {
+            "type": "object",
+            "properties": {
+                "cost_time": {
+                    "type": "integer"
+                },
+                "output": {
+                    "type": "string"
+                },
+                "server_ip": {
+                    "type": "string"
+                },
+                "server_name": {
+                    "type": "string"
+                },
+                "shell": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "task_name": {
+                    "type": "string"
+                },
+                "uuid": {
                     "type": "string"
                 }
             }

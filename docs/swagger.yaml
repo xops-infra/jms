@@ -130,6 +130,26 @@ definitions:
     required:
     - name
     type: object
+  db.CreateShellTaskRequest:
+    properties:
+      corn:
+        description: corn表达式，支持定时执行任务，执行一次可以不传
+        type: string
+      name:
+        description: 任务名称，唯一
+        type: string
+      servers:
+        allOf:
+        - $ref: '#/definitions/db.ServerFilter'
+        description: 执行的机器
+      shell:
+        description: 脚本内容
+        type: string
+    required:
+    - name
+    - servers
+    - shell
+    type: object
   db.Key:
     properties:
       isDelete:
@@ -258,12 +278,57 @@ definitions:
   db.ServerFilter:
     properties:
       env_type:
+        description: 机器 Tags 中的 EnvType，支持* 匹配所有
         type: string
       ip_addr:
+        description: IP 地址完全匹配，支持* 匹配所有
         type: string
       name:
+        description: 名字完全匹配，支持*
         type: string
       team:
+        description: 机器 Tags 中的 Team，支持* 匹配所有
+        type: string
+    type: object
+  db.ShellTask:
+    properties:
+      corn:
+        type: string
+      cost_time:
+        type: integer
+      is_deleted:
+        type: boolean
+      name:
+        type: string
+      servers:
+        $ref: '#/definitions/db.ServerFilter'
+      shell:
+        type: string
+      status:
+        type: string
+      submit_user:
+        description: 直接在token中获取
+        type: string
+      uuid:
+        type: string
+    type: object
+  db.ShellTaskRecord:
+    properties:
+      cost_time:
+        type: integer
+      output:
+        type: string
+      server_ip:
+        type: string
+      server_name:
+        type: string
+      shell:
+        type: string
+      task_id:
+        type: string
+      task_name:
+        type: string
+      uuid:
         type: string
     type: object
   db.User:
@@ -757,6 +822,112 @@ paths:
       summary: UpdateProxy
       tags:
       - proxy
+  /api/v1/shell/record:
+    get:
+      consumes:
+      - application/json
+      description: list shell record
+      parameters:
+      - description: taskid
+        in: query
+        name: taskid
+        type: string
+      - description: serverip
+        in: query
+        name: serverip
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/db.ShellTaskRecord'
+            type: array
+      summary: ListShellRecord
+      tags:
+      - shell
+  /api/v1/shell/task:
+    get:
+      consumes:
+      - application/json
+      description: list shell tasks
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/db.ShellTask'
+            type: array
+      summary: ListShellTask
+      tags:
+      - shell
+    post:
+      consumes:
+      - application/json
+      description: add shell task
+      parameters:
+      - description: shell
+        in: body
+        name: shell
+        required: true
+        schema:
+          $ref: '#/definitions/db.CreateShellTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: AddShellTask
+      tags:
+      - shell
+  /api/v1/shell/task/:uuid:
+    delete:
+      consumes:
+      - application/json
+      description: delete shell task
+      parameters:
+      - description: shell task uuid
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: DeleteShellTask
+      tags:
+      - shell
+    put:
+      consumes:
+      - application/json
+      description: update shell task
+      parameters:
+      - description: shell
+        in: body
+        name: shell
+        required: true
+        schema:
+          $ref: '#/definitions/db.CreateShellTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: UpdateShellTask
+      tags:
+      - shell
   /api/v1/user:
     get:
       consumes:

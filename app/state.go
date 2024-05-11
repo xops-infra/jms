@@ -146,6 +146,7 @@ func (app *Application) WithDB() *Application {
 		&db.Key{}, &db.Profile{}, &db.Proxy{}, // 配置
 		&db.SSHLoginRecord{}, &db.ScpRecord{}, // 审计
 		&db.Broadcast{},
+		&db.ShellTask{}, &db.ShellTaskRecord{}, // 定时任务功能
 	)
 	if err != nil {
 		panic(err)

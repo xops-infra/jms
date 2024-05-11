@@ -71,7 +71,9 @@ var sshdCmd = &cobra.Command{
 
 		if app.App.Config.WithDB.Enable {
 			_app.WithDB()
-			log.Infof("enable policy")
+			log.Infof("enable db")
+			// 并且启动shell任务
+			go instance.ServerShellRun()
 		}
 
 		if app.App.Config.WithDingtalk.Enable {
@@ -83,17 +85,6 @@ var sshdCmd = &cobra.Command{
 
 		app.App.WithMcs()
 		instance.LoadServer(app.App.Config)
-
-		// 启动检测机器 ssh可连接性并依据配置发送钉钉告警通知
-		if app.App.Config.WithSSHCheck.Enable {
-			log.Infof("with ssh check,5min check once")
-			go func() {
-				for {
-					instance.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
-					time.Sleep(5 * time.Minute)
-				}
-			}()
-		}
 
 		ssh.Handle(func(sess ssh.Session) {
 			defer func() {
@@ -281,6 +272,7 @@ func startScheduler() {
 			app.App.LoadFromDB()
 		})
 	}
+
 	if app.App.Config.WithDingtalk.Enable {
 		c.AddFunc("0 0 2 * * *", func() {
 			err := dingtalk.LoadUsers()
@@ -301,6 +293,14 @@ func startScheduler() {
 	c.AddFunc(cron, func() {
 		sshd.AuditLogArchiver()
 	})
+
+	// 启动检测机器 ssh可连接性并依据配置发送钉钉告警通知
+	if app.App.Config.WithSSHCheck.Enable {
+		log.Infof("with ssh check,5min check once")
+		c.AddFunc("*/5 * * * * *", func() {
+			instance.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
+		})
+	}
 
 	c.Start()
 	select {}
