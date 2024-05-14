@@ -3,16 +3,13 @@ package dingtalk
 import (
 	"testing"
 
-	"github.com/xops-infra/noop/log"
-
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
 )
 
 func init() {
-	log.Default().Init()
 	config.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(true, "").WithDB().WithDingTalk()
+	app.NewSshdApplication(true, "", "").WithDB().WithDingTalk()
 }
 
 func TestLoadDingtalkUsers(t *testing.T) {

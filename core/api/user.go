@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/config"
 )
 
 // @Summary 获取用户列表
@@ -16,7 +16,7 @@ import (
 // @Param Authorization header string false "token"
 // @Param name query string false "name 支持用户名或者email查询"
 // @Param group query string false "group"
-// @Success 200 {object} []db.User
+// @Success 200 {object} []User
 // @Router /api/v1/user [get]
 func listUser(c *gin.Context) {
 	name := c.Query("name")
@@ -54,11 +54,11 @@ func listUser(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param Authorization header string false "token"
-// @Param request body db.UserRequest true "request"
+// @Param request body UserRequest true "request"
 // @Success 200 {string} success
 // @Router /api/v1/user [post]
 func addUser(c *gin.Context) {
-	var req db.UserRequest
+	var req UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -78,7 +78,7 @@ func addUser(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "user id"
-// @Param request body db.UserPatchMut true "request"
+// @Param request body UserPatchMut true "request"
 // @Success 200 {string} success
 // @Router /api/v1/user/:id [patch]
 func updateUserGroup(c *gin.Context) {
@@ -87,7 +87,7 @@ func updateUserGroup(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *db.UserPatchMut
+	var req *UserPatchMut
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -106,7 +106,7 @@ func updateUserGroup(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "user id"
-// @Param request body db.UserRequest true "request"
+// @Param request body UserRequest true "request"
 // @Success 200 {string} success
 // @Router /api/v1/user/:id [put]
 func updateUser(c *gin.Context) {
@@ -115,7 +115,7 @@ func updateUser(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *db.UserRequest
+	var req *UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return

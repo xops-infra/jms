@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/config"
 )
 
 /*
@@ -15,7 +15,7 @@ Shell API 提供了一个接口让用户能够对管理的机器执行脚本的�
 // @Tags shell
 // @Accept json
 // @Produce json
-// @Success 200 {object} []db.ShellTask
+// @Success 200 {object} []ShellTask
 // @Router /api/v1/shell/task [get]
 func listShellTask(c *gin.Context) {
 	tasks, err := app.App.DBService.ListShellTask()
@@ -31,11 +31,11 @@ func listShellTask(c *gin.Context) {
 // @Tags shell
 // @Accept json
 // @Produce json
-// @Param shell body db.CreateShellTaskRequest true "shell"
+// @Param shell body CreateShellTaskRequest true "shell"
 // @Success 200 {string} id
 // @Router /api/v1/shell/task [post]
 func addShellTask(c *gin.Context) {
-	var req db.CreateShellTaskRequest
+	var req CreateShellTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.String(400, err.Error())
 		return
@@ -53,11 +53,11 @@ func addShellTask(c *gin.Context) {
 // @Tags shell
 // @Accept json
 // @Produce json
-// @Param shell body db.CreateShellTaskRequest true "shell"
+// @Param shell body CreateShellTaskRequest true "shell"
 // @Success 200 {string} success
 // @Router /api/v1/shell/task/:uuid [put]
 func updateShellTask(c *gin.Context) {
-	var req db.CreateShellTaskRequest
+	var req CreateShellTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.String(400, err.Error())
 		return
@@ -94,12 +94,12 @@ func deleteShellTask(c *gin.Context) {
 // @Produce json
 // @Param taskid query string false "taskid"
 // @Param serverip query string false "serverip"
-// @Success 200 {object} []db.ShellTaskRecord
+// @Success 200 {object} []ShellTaskRecord
 // @Router /api/v1/shell/record [get]
 func listShellRecord(c *gin.Context) {
 	taskid := c.Query("taskid")
 	serverIP := c.Query("serverip")
-	req := db.QueryRecordRequest{}
+	req := QueryRecordRequest{}
 	if taskid != "" {
 		req.TaskID = &taskid
 	}

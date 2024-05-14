@@ -11,7 +11,7 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/config"
 )
 
 func CreateApproval(applicant string, values []dt.FormComponentValue) (string, error) {

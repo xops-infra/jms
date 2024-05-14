@@ -10,7 +10,6 @@ import (
 	"github.com/robfig/cron"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
-	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	"github.com/xops-infra/noop/log"
 )
@@ -23,29 +22,29 @@ func init() {
 
 // Config config
 type Config struct {
-	Profiles     []db.CreateProfileRequest `mapstructure:"profiles"`     // 云账号配置，用来自动同步云服务器信息
-	Proxys       []db.CreateProxyRequest   `mapstructure:"proxies"`      // ssh代理
-	Keys         Keys                      `mapstructure:"keys"`         // ssh key pair 不启用数据库时使用
-	WithVideo    WithVideo                 `mapstructure:"withVideo"`    // 视频存储
-	WithLdap     WithLdap                  `mapstructure:"withLdap"`     // 配置ldap
-	WithSSHCheck WithSSHCheck              `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
-	WithDB       WithPolicy                `mapstructure:"withDB"`       // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
-	WithDingtalk WithDingtalk              `mapstructure:"withDingtalk"` // 配置钉钉审批流程
+	Profiles     []CreateProfileRequest `mapstructure:"profiles"`     // 云账号配置，用来自动同步云服务器信息
+	Proxys       []CreateProxyRequest   `mapstructure:"proxies"`      // ssh代理
+	Keys         Keys                   `mapstructure:"keys"`         // ssh key pair 不启用数据库时使用
+	WithVideo    WithVideo              `mapstructure:"withVideo"`    // 视频存储
+	WithLdap     WithLdap               `mapstructure:"withLdap"`     // 配置ldap
+	WithSSHCheck WithSSHCheck           `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
+	WithDB       WithPolicy             `mapstructure:"withDB"`       // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
+	WithDingtalk WithDingtalk           `mapstructure:"withDingtalk"` // 配置钉钉审批流程
 }
 
-type Keys []db.AddKeyRequest
+type Keys []AddKeyRequest
 
 // ToMapWithID convert to map with keyID
-func (k Keys) ToMapWithID() map[string]db.AddKeyRequest {
-	m := make(map[string]db.AddKeyRequest)
+func (k Keys) ToMapWithID() map[string]AddKeyRequest {
+	m := make(map[string]AddKeyRequest)
 	for _, key := range k {
 		m[*key.KeyID] = key
 	}
 	return m
 }
 
-func (k Keys) ToMapWithName() map[string]db.AddKeyRequest {
-	m := make(map[string]db.AddKeyRequest)
+func (k Keys) ToMapWithName() map[string]AddKeyRequest {
+	m := make(map[string]AddKeyRequest)
 	for _, key := range k {
 		// log.Debugf("key: %v", tea.Prettify(key))
 		m[*key.IdentityFile] = key
@@ -171,12 +170,12 @@ func configCheck() {
 	}
 }
 
-type User struct {
-	Username   string `yaml:"username"`
-	HashPasswd string `yaml:"hashPasswd"`
-	Admin      bool   `yaml:"admin"`
-	PublicKey  string `yaml:"publickey"`
-}
+// type User struct {
+// 	Username   string `yaml:"username"`
+// 	HashPasswd string `yaml:"hashPasswd"`
+// 	Admin      bool   `yaml:"admin"`
+// 	PublicKey  string `yaml:"publickey"`
+// }
 
 // Server server
 type Server struct {
@@ -185,7 +184,7 @@ type Server struct {
 	Host     string // 默认取私有 IP 第一个
 	Port     int
 	KeyPairs []*string // key pair name
-	// Proxy    *db.CreateProxyRequest
+	// Proxy    *CreateProxyRequest
 	Profile  string
 	Region   string
 	Tags     model.Tags

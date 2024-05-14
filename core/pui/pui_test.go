@@ -6,16 +6,15 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 
-	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/pui"
 )
 
 func TestMatchServer(t *testing.T) {
-	filter := db.ServerFilter{
+	filter := ServerFilter{
 		EnvType: tea.String("!prod"),
 	}
-	server := config.Server{
+	server := Server{
 		Tags: model.Tags{
 			{
 				Key:   "EnvType",
@@ -24,7 +23,7 @@ func TestMatchServer(t *testing.T) {
 		},
 	}
 
-	if pui.MatchServer(filter, server) {
+	if pui.MatchServerByFilter(filter, server) {
 		t.Error("should match")
 	}
 
@@ -34,7 +33,7 @@ func TestMatchServer(t *testing.T) {
 			Value: "dev",
 		},
 	}
-	if !pui.MatchServer(filter, server) {
+	if !pui.MatchServerByFilter(filter, server) {
 		t.Error("should not match")
 	}
 

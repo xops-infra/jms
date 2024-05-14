@@ -9,23 +9,21 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/db"
 )
 
 func init() {
-	log.Default().Init()
 	config.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(true, "---").WithDB()
+	app.NewSshdApplication(true, "", "---").WithDB()
 }
 
 func TestCreatePolicy(t *testing.T) {
 	expiredAt := time.Now().Add(time.Hour * 24 * 365 * 100)
-	req := db.PolicyMut{
+	req := config.PolicyMut{
 		Name:         tea.String("zhoushoujian-policy-1"),
-		Users:        db.ArrayString{tea.String("zhoushoujian")},
-		Groups:       db.ArrayString{tea.String("admin")},
-		ServerFilter: &db.ServerFilter{Name: tea.String("*")},
-		Actions:      db.All,
+		Users:        config.ArrayString{tea.String("zhoushoujian")},
+		Groups:       config.ArrayString{tea.String("admin")},
+		ServerFilter: &config.ServerFilter{Name: tea.String("*")},
+		Actions:      config.All,
 		ExpiresAt:    &expiredAt,
 	}
 	result, err := app.App.DBService.CreatePolicy(&req, nil)
@@ -45,8 +43,8 @@ func TestDeletePolicy(t *testing.T) {
 }
 
 func TestUpdateUserGroups(t *testing.T) {
-	err := app.App.DBService.UpdateUser("yaolong", db.UserRequest{
-		Groups: db.ArrayString{tea.String("admin")},
+	err := app.App.DBService.UpdateUser("yaolong", config.UserRequest{
+		Groups: config.ArrayString{tea.String("admin")},
 	})
 	if err != nil {
 		t.Error(err)

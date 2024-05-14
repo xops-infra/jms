@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/patrickmn/go-cache"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
@@ -38,10 +39,12 @@ type Application struct {
 }
 
 // Manager,Agent,Worker need to be initialized
-func NewSshdApplication(debug bool, version string) *Application {
+// logdir 如果为空,默认为/opt/jms/logs
+func NewSshdApplication(debug bool, logDir string, version string) *Application {
 	if version == "" {
 		version = "unknown"
 	}
+
 	App = &Application{
 		HomeDir: "/opt/jms/",
 		SSHDir:  "/opt/jms/.ssh/",
@@ -50,6 +53,17 @@ func NewSshdApplication(debug bool, version string) *Application {
 		Config:  config.Conf,
 		Cache:   cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
+	// init log
+	if logDir == "" {
+		logDir = App.HomeDir + "logs/"
+	}
+	logfile := strings.TrimSuffix(logDir, "/") + "/sshd.log"
+	if debug {
+		log.Default().WithLevel(log.DebugLevel).WithHumanTime(time.Local).WithFilename(logfile).Init()
+	} else {
+		log.Default().WithLevel(log.InfoLevel).WithHumanTime(time.Local).WithFilename(logfile).Init()
+	}
+
 	// mkdir
 	err := os.MkdirAll(App.SSHDir, 0755)
 	if err != nil {
@@ -140,14 +154,18 @@ func (app *Application) WithDB() *Application {
 	if err != nil {
 		panic("无法连接到数据库")
 	}
-	// 初始化数据库
-	err = rdb.AutoMigrate(
-		&db.Policy{}, &db.User{}, &db.AuthorizedKey{},
-		&db.Key{}, &db.Profile{}, &db.Proxy{}, // 配置
-		&db.SSHLoginRecord{}, &db.ScpRecord{}, // 审计
-		&db.Broadcast{},
-		&db.ShellTask{}, &db.ShellTaskRecord{}, // 定时任务功能
-	)
+	// 初始化数据库,debug模式不初始化
+	if !app.Debug {
+		log.Infof("auto migrate db!")
+		err = rdb.AutoMigrate(
+			&config.Policy{}, &config.User{}, &config.AuthorizedKey{},
+			&config.Key{}, &config.Profile{}, &config.Proxy{}, // 配置
+			&config.SSHLoginRecord{}, &config.ScpRecord{}, // 审计
+			&config.Broadcast{},
+			&config.ShellTask{}, &config.ShellTaskRecord{}, // 定时任务功能
+		)
+	}
+
 	if err != nil {
 		panic(err)
 	}
@@ -179,7 +197,7 @@ func (app *Application) LoadFromDB() {
 	App.Config.Proxys = proxys
 }
 
-func DBProfilesToMcsProfiles(profiles []db.CreateProfileRequest) []model.ProfileConfig {
+func DBProfilesToMcsProfiles(profiles []config.CreateProfileRequest) []model.ProfileConfig {
 	var mcsProfiles []model.ProfileConfig
 	for _, profile := range profiles {
 		mcsProfiles = append(mcsProfiles, model.ProfileConfig{

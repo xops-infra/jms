@@ -12,7 +12,7 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/sshd"
 )
@@ -67,10 +67,10 @@ func (ui *PUI) FlashTimeout() {
 
 // ShowMenu show menu
 func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, selectedChain []*MenuItem) {
-	user := db.User{
+	user := User{
 		Username: tea.String((*ui.sess).User()),
 	}
-	var broadcast *db.Broadcast
+	var broadcast *Broadcast
 
 	if app.App.Config.WithDB.Enable {
 		_user, err := app.App.DBService.DescribeUser((*ui.sess).User())
@@ -222,7 +222,7 @@ loopMenu:
 }
 
 // inputFilter input filter
-func (ui *PUI) inputFilter(broadcast *db.Broadcast) (string, error) {
+func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	ui.FlashTimeout()
 	defer ui.SessionWrite("\033c") // clear
 	servers := instance.GetServers()

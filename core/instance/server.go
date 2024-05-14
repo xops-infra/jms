@@ -10,12 +10,11 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/config"
 )
 
 // 支持数据库和配置文件两种方式获取 KEY以及 Profile.
-func LoadServer(conf *config.Config) {
+func LoadServer(conf *Config) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorf("LoadServer panic: %v", err)
@@ -52,8 +51,8 @@ func LoadServer(conf *config.Config) {
 	log.Infof("%s len: %d", time.Since(startTime), len(instanceAll))
 }
 
-func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest) config.Servers {
-	var instanceAll config.Servers
+func fmtServer(instances []model.Instance, keys map[string]AddKeyRequest) Servers {
+	var instanceAll Servers
 	for _, instance := range instances {
 		if instance.Status != model.InstanceStatusRunning {
 			continue
@@ -82,7 +81,7 @@ func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest) con
 			continue
 		}
 		sshUser := fmtSuperUser(instance)
-		newInstance := config.Server{
+		newInstance := Server{
 			ID:       *instance.InstanceID,
 			Name:     tea.StringValue(instance.Name),
 			Host:     *instance.PrivateIP[0],
@@ -100,17 +99,17 @@ func fmtServer(instances []model.Instance, keys map[string]db.AddKeyRequest) con
 	return instanceAll
 }
 
-func GetServers() config.Servers {
+func GetServers() Servers {
 	servers, found := app.App.Cache.Get("servers")
 	if !found {
 		return nil
 	}
-	return servers.(config.Servers)
+	return servers.(Servers)
 }
 
 // 通过机器的密钥对 KeyIDs 获取对应的密钥Pem的路径
-func getKeyPair(keyIDS []*string) []db.AddKeyRequest {
-	keysAll := make([]db.AddKeyRequest, 0)
+func getKeyPair(keyIDS []*string) []AddKeyRequest {
+	keysAll := make([]AddKeyRequest, 0)
 	configKeys := app.App.Config.Keys.ToMapWithID()
 	for _, keyID := range keyIDS {
 		if keyID == nil {
@@ -124,11 +123,11 @@ func getKeyPair(keyIDS []*string) []db.AddKeyRequest {
 }
 
 // fmtSuperUser 支持多用户选择
-func fmtSuperUser(instance model.Instance) []config.SSHUser {
+func fmtSuperUser(instance model.Instance) []SSHUser {
 	keys := getKeyPair(instance.KeyIDs)
-	var sshUser []config.SSHUser
+	var sshUser []SSHUser
 	for _, key := range keys {
-		u := config.SSHUser{}
+		u := SSHUser{}
 		// KeyName 是支持本地读取内容的
 		if key.IdentityFile != nil {
 			u.KeyName = tea.StringValue(key.IdentityFile)

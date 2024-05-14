@@ -19,8 +19,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/utils"
 )
 
@@ -39,7 +38,7 @@ func GetClientByPasswd(username, host string, port int, passwd string) (*sshclie
 }
 
 // NewTerminal NewTerminal
-func NewTerminal(server config.Server, sshUser config.SSHUser, sess *ssh.Session, timeout string) error {
+func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session, timeout string) error {
 	proxyClient, upstreamClient, err := NewSSHClient(server, sshUser)
 	if err != nil {
 		log.Errorf("NewSSHClient error: %s", err)
@@ -105,7 +104,7 @@ func NewTerminal(server config.Server, sshUser config.SSHUser, sess *ssh.Session
 
 // 判断服务器是否配置了代理，配置获取方式可以是本地，或者数据库
 // 本地配置的优先级高于数据库配置
-func isProxyServer(server config.Server) (*db.CreateProxyRequest, error) {
+func isProxyServer(server Server) (*CreateProxyRequest, error) {
 	for _, proxy := range app.App.Config.Proxys {
 		log.Debugf("host %s proxy: %s\n", server.Host, tea.Prettify(proxy))
 		if strings.HasPrefix(server.Host, *proxy.IPPrefix) {
@@ -118,7 +117,7 @@ func isProxyServer(server config.Server) (*db.CreateProxyRequest, error) {
 }
 
 // NewSSHClient NewSSHClient
-func NewSSHClient(server config.Server, sshUser config.SSHUser) (*gossh.Client, *gossh.Client, error) {
+func NewSSHClient(server Server, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
 	proxy, err := isProxyServer(server)
 	if err != nil {
 		return nil, nil, err
@@ -135,7 +134,7 @@ func NewSSHClient(server config.Server, sshUser config.SSHUser) (*gossh.Client, 
 	return nil, client, err
 }
 
-func newSshConfig(sshUser config.SSHUser) (*gossh.ClientConfig, error) {
+func newSshConfig(sshUser SSHUser) (*gossh.ClientConfig, error) {
 	config := &gossh.ClientConfig{
 		User:            sshUser.SSHUsername,
 		HostKeyCallback: gossh.HostKeyCallback(func(hostname string, remote net.Addr, key gossh.PublicKey) error { return nil }),
@@ -162,7 +161,7 @@ func newSshConfig(sshUser config.SSHUser) (*gossh.ClientConfig, error) {
 	return config, nil
 }
 
-func ProxyClient(instance config.Server, proxy db.CreateProxyRequest, sshUser config.SSHUser) (*gossh.Client, *gossh.Client, error) {
+func ProxyClient(instance Server, proxy CreateProxyRequest, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
 	if proxy.LoginUser == nil || *proxy.LoginUser == "" || tea.StringValue(proxy.Host) == "" || tea.IntValue(proxy.Port) == 0 {
 		return nil, nil, fmt.Errorf("proxy config error, %s", tea.Prettify(proxy))
 	}

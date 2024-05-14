@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/noop/log"
 )
 
@@ -13,7 +13,7 @@ import (
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Success 200 {object} []db.Profile
+// @Success 200 {object} []Profile
 // @Router /api/v1/profile [get]
 func listProfile(c *gin.Context) {
 	profiles, err := app.App.DBService.ListProfile()
@@ -30,11 +30,11 @@ func listProfile(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Param profile body db.CreateProfileRequest true "profile"
+// @Param profile body CreateProfileRequest true "profile"
 // @Success 200 {string} string
 // @Router /api/v1/profile [post]
 func createProfile(c *gin.Context) {
-	var req db.CreateProfileRequest
+	var req CreateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -54,12 +54,12 @@ func createProfile(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Param profile body db.CreateProfileRequest true "profile"
+// @Param profile body CreateProfileRequest true "profile"
 // @Param uuid path string true "profile uuid"
 // @Success 200 {string} string
 // @Router /api/v1/profile/:uuid [put]
 func updateProfile(c *gin.Context) {
-	var req db.CreateProfileRequest
+	var req CreateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return

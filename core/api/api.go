@@ -10,7 +10,7 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/dingtalk"
 )
 
@@ -23,7 +23,7 @@ import (
 // @Param name query string false "name"
 // @Param id query string false "policy id"
 // @Param user query string false "user"
-// @Success 200 {object} []db.Policy
+// @Success 200 {object} []Policy
 // @Failure 500 {string} string
 // @Router /api/v1/policy [get]
 func listPolicy(c *gin.Context) {
@@ -74,7 +74,7 @@ func listPolicy(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "policy id"
-// @Param request body db.PolicyMut true "request"
+// @Param request body PolicyMut true "request"
 // @Success 200 {string} success
 // @Failure 400 {string} error
 // @Failure 500 {string} error
@@ -85,7 +85,7 @@ func updatePolicy(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *db.PolicyMut
+	var req *PolicyMut
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -125,11 +125,11 @@ func deletePolicy(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param Authorization header string false "token"
-// @Param request body db.ApprovalMut true "request"
+// @Param request body ApprovalMut true "request"
 // @Success 200 {string} id
 // @Router /api/v1/approval [post]
 func createApproval(c *gin.Context) {
-	var req db.ApprovalMut
+	var req ApprovalMut
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -202,7 +202,7 @@ func createApproval(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "approval id"
-// @Param request body db.ApprovalResult true "request"
+// @Param request body ApprovalResult true "request"
 // @Success 200 {string} success
 // @Router /api/v1/approval/:id [patch]
 func updateApproval(c *gin.Context) {
@@ -211,7 +211,7 @@ func updateApproval(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *db.ApprovalResult
+	var req *ApprovalResult
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return

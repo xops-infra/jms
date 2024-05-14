@@ -7,7 +7,7 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/noop/log"
 )
 
@@ -16,7 +16,7 @@ import (
 // @Tags Key
 // @Accept  json
 // @Produce  json
-// @Success 200 {object} []db.Key
+// @Success 200 {object} []Key
 // @Router /api/v1/key [get]
 func listKey(c *gin.Context) {
 	keys, err := app.App.DBService.ListKey()
@@ -33,11 +33,11 @@ func listKey(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param Authorization header string false "token"
-// @Param key body db.AddKeyRequest true "key"
+// @Param key body AddKeyRequest true "key"
 // @Success 200 {string} id
 // @Router /api/v1/key [post]
 func addKey(c *gin.Context) {
-	var req db.AddKeyRequest
+	var req AddKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return

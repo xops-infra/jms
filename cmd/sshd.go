@@ -37,12 +37,8 @@ var sshdCmd = &cobra.Command{
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		appConfig.LoadYaml(config)
-		log.Default().WithLevel(log.InfoLevel).WithHumanTime(time.Local).WithFilename(strings.TrimSuffix(logDir, "/") + "/sshd.log").Init()
 		log.Infof("config file: %s", config)
-		if debug {
-			log.Default().WithLevel(log.DebugLevel).WithHumanTime(time.Local).WithFilename(strings.TrimSuffix(logDir, "/") + "/sshd.log").Init()
-			log.Debugf("debug mode, disabled scheduler")
-		} else {
+		if !debug {
 			go startScheduler()
 		}
 
@@ -52,7 +48,7 @@ var sshdCmd = &cobra.Command{
 		}
 
 		// init app
-		_app := app.NewSshdApplication(debug, rootCmd.Version)
+		_app := app.NewSshdApplication(debug, logDir, rootCmd.Version)
 
 		if app.App.Config.WithLdap.Enable {
 			log.Infof("enable ldap")
@@ -72,8 +68,6 @@ var sshdCmd = &cobra.Command{
 		if app.App.Config.WithDB.Enable {
 			_app.WithDB()
 			log.Infof("enable db")
-			// 并且启动shell任务
-			go instance.ServerShellRun()
 		}
 
 		if app.App.Config.WithDingtalk.Enable {
@@ -270,6 +264,7 @@ func startScheduler() {
 		// 启用定时热加载数据库配置,每 30s 检查一次
 		c.AddFunc("*/30 * * * * *", func() {
 			app.App.LoadFromDB()
+			instance.ServerShellRun() // 30秒查询一次 shell task任务。
 		})
 	}
 

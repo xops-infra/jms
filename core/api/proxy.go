@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/config"
 )
 
 // @Summary ListProxy
@@ -11,7 +11,7 @@ import (
 // @Tags proxy
 // @Accept json
 // @Produce json
-// @Success 200 {object} []db.Proxy
+// @Success 200 {object} []Proxy
 // @Router /api/v1/proxy [get]
 func listProxy(c *gin.Context) {
 	proxies, err := app.App.DBService.ListProxy()
@@ -25,11 +25,11 @@ func listProxy(c *gin.Context) {
 // @Summary AddProxy
 // @Description add proxy server
 // @Tags proxy
-// @Param body body db.CreateProxyRequest true "proxy server info"
-// @Success 200 {object} db.Proxy
+// @Param body body CreateProxyRequest true "proxy server info"
+// @Success 200 {object} Proxy
 // @Router /api/v1/proxy [post]
 func addProxy(c *gin.Context) {
-	var req db.CreateProxyRequest
+	var req CreateProxyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -45,13 +45,13 @@ func addProxy(c *gin.Context) {
 // @Summary UpdateProxy
 // @Summary UpdateProxy
 // @Tags proxy
-// @Param body body db.CreateProxyRequest true "proxy server info"
+// @Param body body CreateProxyRequest true "proxy server info"
 // @Param uuid path string true "proxy server uuid"
-// @Success 200 {object} db.Proxy
+// @Success 200 {object} Proxy
 // @Router /api/v1/proxy/:uuid [put]
 func updateProxy(c *gin.Context) {
 
-	var req db.CreateProxyRequest
+	var req CreateProxyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return

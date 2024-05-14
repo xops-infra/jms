@@ -1,4 +1,4 @@
-package db
+package config
 
 import (
 	"database/sql/driver"
@@ -8,6 +8,20 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 )
+
+type StringSlice []string
+
+func (ss *StringSlice) Scan(src interface{}) error {
+	asBytes, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("Scan source was not []bytes")
+	}
+	return json.Unmarshal(asBytes, ss)
+}
+
+func (ss StringSlice) Value() (driver.Value, error) {
+	return json.Marshal(ss)
+}
 
 // 用来存储json数组，gorm默认不支持
 
