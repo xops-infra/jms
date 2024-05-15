@@ -37,7 +37,6 @@ var sshdCmd = &cobra.Command{
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		appConfig.LoadYaml(config)
-		log.Infof("config file: %s", config)
 		if !debug {
 			go startScheduler()
 		}
@@ -264,7 +263,9 @@ func startScheduler() {
 		// 启用定时热加载数据库配置,每 30s 检查一次
 		c.AddFunc("*/30 * * * * *", func() {
 			app.App.LoadFromDB()
-			instance.ServerShellRun() // 30秒查询一次 shell task任务。
+		})
+		c.AddFunc("* * * * * *", func() {
+			instance.ServerShellRun() // 每 1min 检查一次
 		})
 	}
 

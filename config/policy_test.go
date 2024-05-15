@@ -1,4 +1,4 @@
-package pui_test
+package config_test
 
 import (
 	"testing"
@@ -7,7 +7,6 @@ import (
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 
 	. "github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/pui"
 )
 
 func TestMatchServer(t *testing.T) {
@@ -23,7 +22,7 @@ func TestMatchServer(t *testing.T) {
 		},
 	}
 
-	if pui.MatchServerByFilter(filter, server) {
+	if MatchServerByFilter(filter, server) {
 		t.Error("should match")
 	}
 
@@ -33,7 +32,7 @@ func TestMatchServer(t *testing.T) {
 			Value: "dev",
 		},
 	}
-	if !pui.MatchServerByFilter(filter, server) {
+	if !MatchServerByFilter(filter, server) {
 		t.Error("should not match")
 	}
 

@@ -137,11 +137,11 @@ func fmtSuperUser(instance model.Instance) []SSHUser {
 		}
 
 		if strings.Contains(*instance.Platform, "Ubuntu") {
-			u.SSHUsername = "ubuntu"
+			u.UserName = "ubuntu"
 		} else if *instance.Platform == "Linux/UNIX" {
-			u.SSHUsername = "ec2-user"
+			u.UserName = "ec2-user"
 		} else {
-			u.SSHUsername = "root"
+			u.UserName = "root"
 		}
 		sshUser = append(sshUser, u)
 	}

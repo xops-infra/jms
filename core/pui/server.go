@@ -47,7 +47,7 @@ func GetServersMenuV2(sess *ssh.Session, user User, timeout string) []*MenuItem 
 		}
 		info[serverHost] = server.Host
 		for _, sshUser := range server.SSHUsers {
-			info[serverUser] += fmt.Sprintf("%s: %s", sshUser.SSHUsername, sshUser.KeyName)
+			info[serverUser] += fmt.Sprintf("%s: %s", sshUser.UserName, sshUser.KeyName)
 		}
 		// if server.Proxy != nil {
 		// 	info[serverProxy] = server.Proxy.Host
@@ -217,53 +217,13 @@ func matchUserGroup(user User, server Server) bool {
 	return false
 }
 
-// 支持!开头的反向匹配
-// 默认没有匹配到标签的允许访问
-func MatchServerByFilter(filter ServerFilter, server Server) bool {
-	if filter.Name != nil {
-		if *filter.Name == "*" || *filter.Name == server.Name {
-			return true
-		}
-	}
-	if filter.IpAddr != nil {
-		if *filter.IpAddr == "*" || *filter.IpAddr == server.Host {
-			return true
-		}
-	}
-	if filter.EnvType != nil {
-		if server.Tags.GetEnvType() == nil {
-			return true
-		}
-		if strings.HasPrefix(*filter.EnvType, "!") {
-			if strings.TrimPrefix(*filter.EnvType, "!") == *server.Tags.GetEnvType() {
-				return false
-			} else {
-				return true
-			}
-		}
-		if *filter.EnvType == "*" || *filter.EnvType == *server.Tags.GetEnvType() {
-			return true
-		}
-	}
-	if filter.Team != nil {
-		if server.Tags.GetTeam() == nil {
-			return true
-		}
-		if *filter.Team == "*" || *filter.Team == *server.Tags.GetTeam() {
-			return true
-		}
-	}
-
-	return false
-}
-
 func GetServerSSHUsersMenu(server Server, timeout string, matchPolicies []Policy) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		var menu []*MenuItem
 		subMenu := &MenuItem{}
 		for _, sshUser := range server.SSHUsers {
-			log.Debugf("server:%s user:%s", server.Host, sshUser.SSHUsername)
-			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUser.KeyName, sshUser.SSHUsername)
+			log.Debugf("server:%s user:%s", server.Host, sshUser.UserName)
+			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUser.KeyName, sshUser.UserName)
 			subMenu.SelectedFunc = func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
 				if server.Status != model.InstanceStatusRunning {
 					return false, fmt.Errorf("%s status %s, can not login", server.Host, strings.ToLower(string(server.Status)))

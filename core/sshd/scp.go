@@ -375,7 +375,7 @@ func parseServerPath(fullPath, filename, currentUsername string) (*SSHUser, *Ser
 
 	loop:
 		for _, sshUser := range server.SSHUsers {
-			if (sshUser).SSHUsername == sshUsername {
+			if (sshUser).UserName == sshUsername {
 				user = &sshUser
 				break loop
 			}

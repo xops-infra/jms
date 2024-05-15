@@ -89,6 +89,9 @@ func (d *DBService) UpdateShellTaskStatus(uuid string, status Status, output str
 	}
 	task.Status = status
 	task.ExecResult = output
+	if status == StatusRunning {
+		task.ExecTimes++
+	}
 	return d.DB.Save(&task).Error
 }
 
@@ -105,16 +108,18 @@ func (d *DBService) DeleteShellTask(uuid string) error {
 
 func (d *DBService) CreateShellTaskRecord(req *CreateShellTaskRecordRequest) error {
 	if req.TaskID == nil || req.Shell == nil ||
-		req.ServerIP == nil || req.Output == nil || req.CostTime == nil {
+		req.ServerIP == nil || req.Output == nil || req.CostTime == nil || req.IsSuccess == nil {
 		return fmt.Errorf("invalid request. check required fields")
 	}
 	record := &ShellTaskRecord{
-		UUID:     uuid.New().String(),
-		TaskID:   *req.TaskID,
-		Shell:    *req.Shell,
-		ServerIP: *req.ServerIP,
-		CostTime: *req.CostTime,
-		Output:   *req.Output,
+		UUID:      uuid.New().String(),
+		TaskID:    *req.TaskID,
+		Shell:     *req.Shell,
+		ServerIP:  *req.ServerIP,
+		CostTime:  *req.CostTime,
+		Output:    *req.Output,
+		IsSuccess: *req.IsSuccess,
+		ExecTimes: *req.ExecTimes,
 	}
 	if req.TaskName != nil {
 		record.TaskName = *req.TaskName

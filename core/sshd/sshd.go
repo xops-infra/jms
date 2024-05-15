@@ -106,17 +106,17 @@ func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session, timeout stri
 // 本地配置的优先级高于数据库配置
 func isProxyServer(server Server) (*CreateProxyRequest, error) {
 	for _, proxy := range app.App.Config.Proxys {
-		log.Debugf("host %s proxy: %s\n", server.Host, tea.Prettify(proxy))
 		if strings.HasPrefix(server.Host, *proxy.IPPrefix) {
 			log.Debugf("get proxy from config for %s, %s\n", server.Host, tea.Prettify(proxy))
 			return &proxy, nil
 		}
 	}
-	log.Debugf("no proxy found: %s\n", server.Host)
+	log.Debugf("no proxy found: %s", server.Host)
 	return nil, nil
 }
 
 // NewSSHClient NewSSHClient
+// proxy client 返回主要是为了外部 close 用。
 func NewSSHClient(server Server, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
 	proxy, err := isProxyServer(server)
 	if err != nil {
@@ -125,7 +125,7 @@ func NewSSHClient(server Server, sshUser SSHUser) (*gossh.Client, *gossh.Client,
 	if proxy != nil {
 		return ProxyClient(server, *proxy, sshUser)
 	}
-	log.Debugf("direct connect: %s:%d\n", server.Host, server.Port)
+	log.Debugf("direct connect: %s:%d", server.Host, server.Port)
 	config, err := newSshConfig(sshUser)
 	if err != nil {
 		return nil, nil, err
@@ -136,7 +136,7 @@ func NewSSHClient(server Server, sshUser SSHUser) (*gossh.Client, *gossh.Client,
 
 func newSshConfig(sshUser SSHUser) (*gossh.ClientConfig, error) {
 	config := &gossh.ClientConfig{
-		User:            sshUser.SSHUsername,
+		User:            sshUser.UserName,
 		HostKeyCallback: gossh.HostKeyCallback(func(hostname string, remote net.Addr, key gossh.PublicKey) error { return nil }),
 		Timeout:         8 * time.Second,
 	}
@@ -156,7 +156,7 @@ func newSshConfig(sshUser SSHUser) (*gossh.ClientConfig, error) {
 		}
 		config.Auth = append(config.Auth, gossh.PublicKeys(signer))
 	} else {
-		return nil, fmt.Errorf("server login user auth not set, please check password or private key for %s", sshUser.SSHUsername)
+		return nil, fmt.Errorf("server login user auth not set, please check password or private key for %s", sshUser.UserName)
 	}
 	return config, nil
 }

@@ -38,7 +38,7 @@ func ServerLiveness(dingtalkToken string) {
 				}
 				app.App.Cache.Add(server.Host, 1, 0)
 				SendMessage(dingtalkToken, fmt.Sprintf("（紧急）机器ssh连接失败，请检查机器是否失联！\n机器名称：%s\n机器IP：%s\n登录用户：%s\n告警时间：%s\n错误信息：%s", server.Name, server.Host,
-					sshUser.SSHUsername, time.Now().Format(time.RFC3339), err))
+					sshUser.UserName, time.Now().Format(time.RFC3339), err))
 				continue
 			}
 			if proxyClient != nil {
@@ -60,7 +60,7 @@ func ServerLiveness(dingtalkToken string) {
 
 			_, found := app.App.Cache.Get(server.Host)
 			if found {
-				SendMessage(dingtalkToken, fmt.Sprintf("机器ssh连接已经恢复！\n机器名称：%s\n机器IP：%s\n告警时间：%s\n登录用户：%s", server.Name, server.Host, time.Now().Format(time.RFC3339), sshUser.SSHUsername))
+				SendMessage(dingtalkToken, fmt.Sprintf("机器ssh连接已经恢复！\n机器名称：%s\n机器IP：%s\n告警时间：%s\n登录用户：%s", server.Name, server.Host, time.Now().Format(time.RFC3339), sshUser.UserName))
 				app.App.Cache.Delete(server.Host)
 			}
 		}

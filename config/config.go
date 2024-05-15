@@ -6,12 +6,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/robfig/cron"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
-	"github.com/xops-infra/noop/log"
 )
 
 var Conf *Config
@@ -141,20 +139,6 @@ func LoadYaml(configFile string) {
 
 	configCheck()
 
-	// 使用fsnotify监视配置文件变化
-	viper.WatchConfig()
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		err := viper.ReadInConfig()
-		if err != nil {
-			log.Errorf("config file changed error: %s\n", err)
-		} else {
-			Conf = &Config{}
-			viper.Unmarshal(Conf)
-			// TODO: 热加载
-			log.Debugf("config file %s changed", e.Name)
-		}
-	})
-
 }
 
 func configCheck() {
@@ -204,8 +188,8 @@ func (s Servers) SortByName() {
 
 // SSHUser ssh user
 type SSHUser struct {
-	SSHUsername string
-	KeyName     string // pem file name, 这里是支持本地读取内容的
-	Base64Pem   string // base64 pem
-	Password    string
+	UserName  string
+	KeyName   string // pem file name, 这里是支持本地读取内容的
+	Base64Pem string // base64 pem
+	Password  string
 }

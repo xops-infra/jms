@@ -28,6 +28,7 @@ type ShellTask struct {
 	Name       string       `json:"name" gorm:"column:name;not null,unique"`
 	Shell      string       `json:"shell" gorm:"column:shell;not null"`
 	Corn       string       `json:"corn" gorm:"column:cron;not null;default:''"`
+	ExecTimes  int          `json:"exec_times" gorm:"column:exec_times;not null;default:0"` // 任务执行次数
 	Status     Status       `json:"status" gorm:"column:status;not null"`
 	ExecResult string       `json:"exec_result" gorm:"column:exec_result;type:text;not null;default:''"` // 任务执行结果信息
 	Servers    ServerFilter `json:"servers" gorm:"column:servers;type:json;not null"`
@@ -45,7 +46,9 @@ type CreateShellTaskRecordRequest struct {
 	Shell      *string `json:"shell" binding:"required"`
 	ServerIP   *string `json:"server_ip" binding:"required"`
 	ServerName *string `json:"server_name"`
-	CostTime   *int64  `json:"cost_time"`
+	CostTime   *string `json:"cost_time"`
+	ExecTimes  *int    `json:"exec_times"`                    // 任务的执行次数，取自task的执行次数字段。
+	IsSuccess  *bool   `json:"is_success" binding:"required"` // 任务是否执行成功
 	Output     *string `json:"output" binding:"required"`
 }
 
@@ -54,14 +57,16 @@ type CreateShellTaskRecordRequest struct {
 // 支持服务器 IP 维度，方便后续统计和查询
 type ShellTaskRecord struct {
 	gorm.Model `json:"-"`
-	UUID       string `json:"uuid" gorm:"column:uuid;type:varchar(36);not null"`
+	UUID       string `json:"uuid" gorm:"column:uuid;type:varchar(36);unique_index;not null"`
+	ExecTimes  int    `json:"exec_times" gorm:"column:exec_times;not null"`
 	TaskID     string `json:"task_id" gorm:"column:task_id;not null"`
 	TaskName   string `json:"task_name" gorm:"column:task_name;not null"`
 	Shell      string `json:"shell" gorm:"column:shell;type:text;not null"`
 	ServerIP   string `json:"server_ip" gorm:"column:server_ip;type:varchar(255);not null"`
 	ServerName string `json:"server_name" gorm:"column:server_name;type:varchar(255);not null"`
-	CostTime   int64  `json:"cost_time" gorm:"column:cost_time;not null"`
+	CostTime   string `json:"cost_time" gorm:"column:cost_time;type:varchar(255);not null"`
 	Output     string `json:"output" gorm:"column:output;type:text;not null"`
+	IsSuccess  bool   `json:"is_success" gorm:"column:is_success;type:boolean;not null"`
 }
 
 func (s *ShellTaskRecord) TableName() string {

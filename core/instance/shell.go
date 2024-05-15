@@ -9,6 +9,7 @@ import (
 	"github.com/robfig/cron"
 	"github.com/xops-infra/jms/app"
 	. "github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/noop/log"
 )
 
@@ -31,18 +32,31 @@ func ServerShellRun() {
 			}
 			wg.Add(1)
 			go func(task ShellTask) {
-				defer wg.Done()
+				state := StatusSuccess
+				result := ""
+				defer func() {
+					log.Debugf("shell task done: %s, state: %s, result: %s", task.UUID, state, result)
+					err := app.App.DBService.UpdateShellTaskStatus(task.UUID, state, result)
+					if err != nil {
+						log.Errorf("update shell task status error: %s", err)
+					}
+					wg.Done()
+				}()
+
 				// 执行
 				startTime := time.Now()
 
 				log.Infof("shell task start: %s", task.UUID)
-				status, err := runShellTask(task)
+				servers := GetServers()
+				status, err := RunShellTask(task, servers)
 				if err != nil {
 					log.Errorf("run shell task error: %s", err)
-					app.App.DBService.UpdateShellTaskStatus(task.UUID, status, err.Error())
-
+					state = status
+					result = err.Error()
+					return
 				}
-				app.App.DBService.UpdateShellTaskStatus(task.UUID, StatusSuccess, "")
+				state = status
+				result = fmt.Sprintf("finished, cost: %s", time.Since(startTime))
 				log.Infof("shell task %s finished, cost: %s", task.UUID, time.Since(startTime))
 			}(task)
 		}
@@ -51,13 +65,97 @@ func ServerShellRun() {
 	log.Infof("shell task finished")
 }
 
-func runShellTask(task ShellTask) (Status, error) {
-	servers := GetServers()
+func RunShellTask(task ShellTask, servers Servers) (Status, error) {
+
+	wg := sync.WaitGroup{}
+
+	faildServers := []string{}
+	totalServer := 0
+
 	for _, server := range servers {
-		fmt.Println(tea.Prettify(server))
+		if MatchServerByFilter(task.Servers, server) {
+			totalServer++
+			wg.Add(1)
+			log.Debugf("shell task: %s, cmd: %s, run on server: %s", task.UUID, task.Shell, server.Host)
+			go func(server Server) {
+				defer wg.Done()
+				// 执行
+				if err := runShell(server, task); err != nil {
+					log.Errorf("server %s run shell error: %s", server.Host, err)
+					faildServers = append(faildServers, server.Host)
+					return
+				}
+				log.Infof("server %s run shell %s success", server.Host, task.Shell)
+			}(server)
+		} else {
+			log.Debugf("server %s not match filter", server.Host)
+		}
+	}
+	wg.Wait()
+
+	if len(faildServers) > 0 {
+		if len(faildServers) == totalServer {
+			return StatusFailed, fmt.Errorf("all servers failed")
+		}
+		return StatusNotAllSuccess, fmt.Errorf("some servers failed: %s", faildServers)
+	}
+
+	if totalServer == 0 {
+		return StatusFailed, fmt.Errorf("not found servers")
 	}
 
 	return StatusSuccess, nil
+}
+
+func runShell(server Server, task ShellTask) error {
+	req := &CreateShellTaskRecordRequest{
+		TaskID:     tea.String(task.UUID),
+		TaskName:   tea.String(task.Name),
+		ExecTimes:  tea.Int(task.ExecTimes + 1),
+		ServerName: tea.String(server.Name),
+		ServerIP:   tea.String(server.Host),
+		Shell:      tea.String(task.Shell),
+	}
+
+	execStartTime := time.Now()
+
+	defer func() {
+		req.CostTime = tea.String(time.Since(execStartTime).String())
+		log.Debugf("shell task record: %s", tea.Prettify(req))
+		err := app.App.DBService.CreateShellTaskRecord(req)
+		if err != nil {
+			log.Errorf("create shell task record error: %s", err)
+		}
+	}()
+
+	if len(server.SSHUsers) == 0 {
+		return fmt.Errorf("server %s has no ssh user", server.Host)
+	}
+
+	sshUser := server.SSHUsers[0]
+	proxyClient, client, err := sshd.NewSSHClient(server, sshUser)
+	if err != nil {
+		req.IsSuccess = tea.Bool(false)
+		req.Output = tea.String(err.Error())
+		return err
+	}
+	if proxyClient != nil {
+		defer proxyClient.Close()
+	}
+	defer client.Close()
+	sess, _ := client.NewSession()
+	defer sess.Close()
+
+	// 执行命令
+	info, err := sess.Output(task.Shell)
+	if err != nil {
+		req.IsSuccess = tea.Bool(false)
+		req.Output = tea.String(string(info))
+		return err
+	}
+	req.IsSuccess = tea.Bool(true)
+	req.Output = tea.String(string(info))
+	return nil
 }
 
 // corn任务的处理，实现对 corn 的支持，主要就是判断时间对了就修改一下任务状态

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -130,4 +131,44 @@ func (a *ApprovalMut) ToPolicyMut() *PolicyMut {
 type ApprovalResult struct {
 	Applicant *string `json:"applicant"`
 	IsPass    *bool   `json:"is_pass"`
+}
+
+// 支持!开头的反向匹配
+// 默认没有匹配到标签的允许访问
+func MatchServerByFilter(filter ServerFilter, server Server) bool {
+	if filter.Name != nil {
+		if *filter.Name == "*" || *filter.Name == server.Name {
+			return true
+		}
+	}
+	if filter.IpAddr != nil {
+		if *filter.IpAddr == "*" || *filter.IpAddr == server.Host {
+			return true
+		}
+	}
+	if filter.EnvType != nil {
+		if server.Tags.GetEnvType() == nil {
+			return true
+		}
+		if strings.HasPrefix(*filter.EnvType, "!") {
+			if strings.TrimPrefix(*filter.EnvType, "!") == *server.Tags.GetEnvType() {
+				return false
+			} else {
+				return true
+			}
+		}
+		if *filter.EnvType == "*" || *filter.EnvType == *server.Tags.GetEnvType() {
+			return true
+		}
+	}
+	if filter.Team != nil {
+		if server.Tags.GetTeam() == nil {
+			return true
+		}
+		if *filter.Team == "*" || *filter.Team == *server.Tags.GetTeam() {
+			return true
+		}
+	}
+
+	return false
 }
