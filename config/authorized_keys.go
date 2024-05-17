@@ -12,5 +12,5 @@ type AuthorizedKey struct {
 
 // table name
 func (AuthorizedKey) TableName() string {
-	return "authorized_key"
+	return "authorized_keys"
 }
