@@ -264,7 +264,7 @@ func startScheduler() {
 		c.AddFunc("*/30 * * * * *", func() {
 			app.App.LoadFromDB()
 		})
-		c.AddFunc("* * * * * *", func() {
+		c.AddFunc("0 * * * * *", func() {
 			instance.ServerShellRun() // 每 1min 检查一次
 		})
 	}

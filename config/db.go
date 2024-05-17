@@ -25,7 +25,7 @@ func (ss StringSlice) Value() (driver.Value, error) {
 
 // 用来存储json数组，gorm默认不支持
 
-type ArrayString []interface{}
+type ArrayString []string
 
 func (a ArrayString) Value() (driver.Value, error) {
 	return json.Marshal(a)
@@ -38,7 +38,7 @@ func (a *ArrayString) Scan(value interface{}) error {
 
 func (a ArrayString) Contains(value string) bool {
 	for _, item := range a {
-		if item == value || strings.Contains(item.(string), "*") {
+		if item == value || strings.Contains(item, "*") {
 			return true
 		}
 	}

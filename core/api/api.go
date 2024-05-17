@@ -85,7 +85,7 @@ func updatePolicy(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *PolicyMut
+	var req *PolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -140,7 +140,7 @@ func createApproval(c *gin.Context) {
 		if req.Groups != nil {
 			var vString []string
 			for _, v := range req.Groups {
-				vString = append(vString, v.(string))
+				vString = append(vString, v)
 			}
 			values = append(values, dt.FormComponentValue{
 				Name:  tea.String("Teams"),
@@ -152,6 +152,12 @@ func createApproval(c *gin.Context) {
 				Name:  tea.String("Assets"),
 				Value: tea.String(tea.Prettify(req.ServerFilter)),
 			})
+			if req.ServerFilter.EnvType != nil {
+				values = append(values, dt.FormComponentValue{
+					Name:  tea.String("EnvType"),
+					Value: tea.String(FmtDingtalkApproveFile(*req.ServerFilter.EnvType)),
+				})
+			}
 		}
 		if req.Period != nil {
 			values = append(values, dt.FormComponentValue{
@@ -159,6 +165,7 @@ func createApproval(c *gin.Context) {
 				Value: tea.String(string(*req.Period)),
 			})
 		}
+
 		values = append(values, dt.FormComponentValue{
 			Name:  tea.String("Comment"),
 			Value: tea.String("来自API接口发起的策略申请"),

@@ -4,9 +4,8 @@ import (
 	"fmt"
 
 	"github.com/go-ldap/ldap"
-	"github.com/xops-infra/noop/log"
-
 	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/noop/log"
 )
 
 type Ldap struct {

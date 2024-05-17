@@ -9,7 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func (d *DBService) CreatePolicy(req *config.PolicyMut, approval_id *string) (string, error) {
+func (d *DBService) CreatePolicy(req *config.PolicyRequest, approval_id *string) (string, error) {
+	if req.ServerFilter == nil || req.ExpiresAt == nil || approval_id == nil {
+		return "", fmt.Errorf("required. please check")
+	}
 	// 判断策略是否存在
 	var count int64
 	if err := d.DB.Model(&config.Policy{}).Where("name = ?", *req.Name).Count(&count).Error; err != nil {
@@ -19,15 +22,14 @@ func (d *DBService) CreatePolicy(req *config.PolicyMut, approval_id *string) (st
 		return "", fmt.Errorf("policy already exists")
 	}
 	newPolicy := &config.Policy{
-		ID:        uuid.NewString(),
-		Name:      req.Name,
-		IsEnabled: tea.Bool(false), // 默认不启用，需要审批
-		Users:     req.Users,
-		// Groups:       req.Groups,
+		ID:           uuid.NewString(),
+		Name:         tea.StringValue(req.Name),
+		IsEnabled:    false, // 默认不启用，需要审批
+		Users:        req.Users,
 		Actions:      req.Actions,
-		ServerFilter: req.ServerFilter,
-		ExpiresAt:    req.ExpiresAt,
-		ApprovalID:   approval_id,
+		ServerFilter: *req.ServerFilter,
+		ExpiresAt:    *req.ExpiresAt,
+		ApprovalID:   *approval_id,
 	}
 	if d.DB.Create(newPolicy).Error != nil {
 		return "", d.DB.Error
@@ -35,7 +37,7 @@ func (d *DBService) CreatePolicy(req *config.PolicyMut, approval_id *string) (st
 	return newPolicy.ID, nil
 }
 
-func (d *DBService) UpdatePolicy(id string, mut *config.PolicyMut) error {
+func (d *DBService) UpdatePolicy(id string, mut *config.PolicyRequest) error {
 	policy, err := d.QueryPolicyById(id)
 	if err != nil {
 		return err

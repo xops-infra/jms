@@ -18,10 +18,9 @@ func init() {
 
 func TestCreatePolicy(t *testing.T) {
 	expiredAt := time.Now().Add(time.Hour * 24 * 365 * 100)
-	req := config.PolicyMut{
+	req := config.PolicyRequest{
 		Name:         tea.String("zhoushoujian-policy-1"),
-		Users:        config.ArrayString{tea.String("zhoushoujian")},
-		Groups:       config.ArrayString{tea.String("admin")},
+		Users:        config.ArrayString{"zhoushoujian"},
 		ServerFilter: &config.ServerFilter{Name: tea.String("*")},
 		Actions:      config.All,
 		ExpiresAt:    &expiredAt,
@@ -44,7 +43,7 @@ func TestDeletePolicy(t *testing.T) {
 
 func TestUpdateUserGroups(t *testing.T) {
 	err := app.App.DBService.UpdateUser("yaolong", config.UserRequest{
-		Groups: config.ArrayString{tea.String("admin")},
+		Groups: config.ArrayString{"admin"},
 	})
 	if err != nil {
 		t.Error(err)

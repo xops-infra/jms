@@ -8,6 +8,7 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
+	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/utils"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
@@ -18,8 +19,6 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-
-	"github.com/xops-infra/jms/config"
 )
 
 var App *Application

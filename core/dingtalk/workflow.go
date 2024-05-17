@@ -138,14 +138,14 @@ func LoadApproval() {
 		return
 	}
 	for _, policy := range policies {
-		if policy.ApprovalID == nil && *policy.ApprovalID == "" {
+		if policy.ApprovalID == "" {
 			continue
 		}
-		if policy.Approver != nil && strings.Contains(*policy.Approver, "BusinessId") {
+		if strings.Contains(policy.Approver, "BusinessId") {
 			// 已经更新过的审批不再更新
 			continue
 		}
-		resp, err := app.App.DingTalkClient.Workflow.GetProcessInstance(*policy.ApprovalID, app.App.DingTalkClient.AccessToken.Token)
+		resp, err := app.App.DingTalkClient.Workflow.GetProcessInstance(policy.ApprovalID, app.App.DingTalkClient.AccessToken.Token)
 		if err != nil {
 			log.Errorf("GetProcessInstance failed! %s", err)
 		}
