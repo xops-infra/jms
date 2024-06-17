@@ -155,48 +155,117 @@ type ApprovalResult struct {
 	IsPass    *bool   `json:"is_pass"`
 }
 
+type MatchResult int
+
+const (
+	// 后续处理下一个匹配
+	MatchContinue MatchResult = 0
+	// 直接返回 true
+	MatchTrue MatchResult = 1
+	// 直接 return false
+	MatchFalse MatchResult = 2
+)
+
 // 支持!开头的反向匹配
-// 默认没有匹配到标签的允许访问
+// 支持*开头的模糊匹配，192.168.*开头的匹配
+// 支持!192.168.*开头的反向匹配
+// 如果输入为“” 直接返回false
+// 如果 judge 为!* 直接返回false
+/*
+为了支持 以下 4 个状态
+正向匹配命中(后续直接返回 true)，正向匹配没命中（后续处理下一个匹配），反向匹配命中（后续直接 return false），反向匹配没命中（后续处理下一个匹配）
+return 返回状态 0（后续处理下一个匹配）,1(后续直接返回 true),2后续直接 return false）
+*/
+func stringMatch(std, judge string) MatchResult {
+	if std == "" && judge == "!*" {
+		return MatchContinue
+	}
+
+	negatedJudge := false
+	if strings.HasPrefix(judge, "!") {
+		judge = strings.TrimPrefix(judge, "!")
+		negatedJudge = true
+	}
+
+	// 处理 * 开头的模糊匹配
+	if judge == "*" {
+		return MatchTrue
+	}
+
+	// 处理包含*的模糊匹配情况
+	if strings.Contains(judge, "*") {
+		if strings.HasPrefix(std, strings.TrimSuffix(judge, "*")) {
+			if negatedJudge {
+				return MatchFalse
+			} else {
+				return MatchTrue
+			}
+		}
+	} else {
+		log.Debugf("judge:%s and std:%s", judge, std)
+		if negatedJudge && std != judge {
+			// 取反未命中时候直接 return MatchTrue
+			return MatchTrue
+		} else if !negatedJudge && std == judge {
+			// 没取反命中时候直接 return MatchTrue
+			return MatchTrue
+		} else if negatedJudge && std == judge {
+			// 取反命中时候直接 return MatchFalse
+			return MatchFalse
+		}
+	}
+	return MatchContinue
+}
+
+// 匹配服务器和过滤条件是否符合
 func MatchServerByFilter(filter ServerFilter, server Server) bool {
 	log.Debugf("filter:%s", tea.Prettify(filter))
 	log.Debugf("server:%s", tea.Prettify(server))
-	if filter.Name != nil {
-		if stringMatch(*filter.Name, server.Name) {
+	for _, name := range filter.Name {
+		switch stringMatch(server.Name, name) {
+		case MatchTrue:
 			return true
-		}
-	}
-	if filter.IpAddr != nil {
-		if stringMatch(*filter.IpAddr, server.Host) {
-			return true
-		}
-	}
-	if filter.EnvType != nil {
-		if server.Tags.GetEnvType() != nil && stringMatch(*filter.EnvType, *server.Tags.GetEnvType()) {
-			return true
-		}
-	}
-	if filter.Team != nil {
-		if server.Tags.GetTeam() != nil && stringMatch(*filter.Team, *server.Tags.GetTeam()) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// 支持!开头的反向匹配，*匹配任意，不支持 2 个元素都有
-// 默认 false
-func stringMatch(s1 string, s2 string) bool {
-	if strings.HasPrefix(s1, "!") {
-		if strings.TrimPrefix(s1, "!") == s2 {
+		case MatchFalse:
 			return false
-		} else {
-			return true
+		default:
+			continue
 		}
 	}
-	if s1 == "*" || s1 == s2 {
-		return true
+	for _, ip := range filter.IpAddr {
+		switch stringMatch(server.Host, ip) {
+		case MatchTrue:
+			return true
+		case MatchFalse:
+			return false
+		default:
+			continue
+		}
 	}
+	if server.Tags.GetEnvType() != nil {
+		for _, envType := range filter.EnvType {
+			switch stringMatch(*server.Tags.GetEnvType(), envType) {
+			case MatchTrue:
+				return true
+			case MatchFalse:
+				return false
+			default:
+				continue
+			}
+		}
+	}
+	if server.Tags.GetTeam() != nil {
+		for _, team := range filter.Team {
+			switch stringMatch(*server.Tags.GetTeam(), team) {
+			case MatchTrue:
+				return true
+			case MatchFalse:
+				return false
+			default:
+				continue
+			}
+		}
+	}
+
 	return false
 }
 
@@ -313,16 +382,8 @@ func policyCheck(inPutAction Action, server Server, policy Policy) *bool {
 	return nil
 }
 
-// prod,dev,stage,none
-func FmtDingtalkApproveFile(envType string) string {
-	switch strings.ToLower(envType) {
-	case "prod":
-		return "prod"
-	case "dev":
-		return "dev"
-	case "stage":
-		return "stage"
-	default:
-		return "none"
-	}
+// 审批表单目前只支持prod,dev,stage,none
+// todo:判断策略属于审批的那个单子
+func FmtDingtalkApproveFile(envType []string) string {
+	return "prod"
 }

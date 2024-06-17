@@ -113,7 +113,12 @@ loopMenu:
 					menu = append(menu, GetApproveMenu(policies)...)
 				}
 			}
-			menu = append(menu, GetServersMenuV2(ui.sess, user, ui.GetTimeout())...)
+			_menus, err := GetServersMenuV2(ui.sess, user, ui.GetTimeout())
+			if err != nil {
+				sshd.ErrorInfo(err, ui.sess)
+				break loopMenu
+			}
+			menu = append(menu, _menus...)
 
 			filter, err := ui.inputFilter(broadcast)
 			if err != nil {

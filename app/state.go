@@ -106,6 +106,7 @@ func (app *Application) WithMcs() *Application {
 	serverTencent := io.NewTencentClient(cloudIo)
 	serverAws := io.NewAwsClient(cloudIo)
 	App.McsServer = server.NewCommonService(profiles, serverAws, serverTencent)
+	log.Infof("success load mcs")
 	return app
 }
 
@@ -182,6 +183,7 @@ func (app *Application) LoadFromDB() {
 		panic(err)
 	}
 	App.Config.Profiles = profiles
+	// 支持mcs的动态init，因为 profiles 是动态变化的
 
 	resp, err := App.DBService.InternalLoadKey()
 	if err != nil {
@@ -194,6 +196,7 @@ func (app *Application) LoadFromDB() {
 		log.Panicf("load proxy failed: %v", err)
 	}
 	App.Config.Proxys = proxys
+
 }
 
 func DBProfilesToMcsProfiles(profiles []config.CreateProfileRequest) []model.ProfileConfig {

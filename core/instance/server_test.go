@@ -3,7 +3,6 @@ package instance_test
 import (
 	"testing"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/instance"
@@ -61,7 +60,7 @@ func TestRunShellTask(t *testing.T) {
 		Shell: "pwd",
 		Name:  "测试脚本",
 		Servers: config.ServerFilter{
-			IpAddr: tea.String("*"),
+			IpAddr: []string{"*"},
 		},
 		Status: config.StatusPending,
 	}, servers)

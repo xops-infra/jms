@@ -21,7 +21,7 @@ func TestCreatePolicy(t *testing.T) {
 	req := config.PolicyRequest{
 		Name:         tea.String("zhoushoujian-policy-1"),
 		Users:        config.ArrayString{"zhoushoujian"},
-		ServerFilter: &config.ServerFilter{Name: tea.String("*")},
+		ServerFilter: &config.ServerFilter{Name: []string{"*"}},
 		Actions:      config.All,
 		ExpiresAt:    &expiredAt,
 	}

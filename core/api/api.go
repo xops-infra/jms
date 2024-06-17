@@ -155,7 +155,7 @@ func createApproval(c *gin.Context) {
 			if req.ServerFilter.EnvType != nil {
 				values = append(values, dt.FormComponentValue{
 					Name:  tea.String("EnvType"),
-					Value: tea.String(FmtDingtalkApproveFile(*req.ServerFilter.EnvType)),
+					Value: tea.String(FmtDingtalkApproveFile(req.ServerFilter.EnvType)),
 				})
 			}
 		}

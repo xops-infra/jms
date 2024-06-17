@@ -37,9 +37,6 @@ var sshdCmd = &cobra.Command{
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		appConfig.LoadYaml(config)
-		if !debug {
-			go startScheduler()
-		}
 
 		err := os.MkdirAll(utils.FilePath(logDir), 0755)
 		if err != nil {
@@ -96,6 +93,11 @@ var sshdCmd = &cobra.Command{
 		}
 
 		log.Infof("starting ssh server on port %d timeout %d...", sshdPort, timeOut)
+
+		if !debug {
+			// 服务启动后再启动定时任务
+			go startScheduler()
+		}
 		err = ssh.ListenAndServe(
 			fmt.Sprintf(":%d", sshdPort),
 			nil,
@@ -263,6 +265,7 @@ func startScheduler() {
 		// 启用定时热加载数据库配置,每 30s 检查一次
 		c.AddFunc("*/30 * * * * *", func() {
 			app.App.LoadFromDB()
+			app.App.WithMcs()
 		})
 		c.AddFunc("0 * * * * *", func() {
 			instance.ServerShellRun() // 每 1min 检查一次

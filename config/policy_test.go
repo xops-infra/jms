@@ -18,32 +18,55 @@ func init() {
 }
 
 func TestMatchServer(t *testing.T) {
-	filter := ServerFilter{
-		EnvType: tea.String("!prod"),
-	}
-	server := Server{
-		Tags: model.Tags{
+	{
+		// 测试 envType 是否匹配
+		filter := ServerFilter{
+			EnvType: []string{"!prod"},
+		}
+		server := Server{
+			Tags: model.Tags{
+				{
+					Key:   "EnvType",
+					Value: "prod",
+				},
+			},
+		}
+		assert.False(t, MatchServerByFilter(filter, server))
+		server.Tags = model.Tags{
 			{
 				Key:   "EnvType",
-				Value: "prod",
+				Value: "dev",
 			},
-		},
+		}
+		assert.True(t, MatchServerByFilter(filter, server))
 	}
+	{
+		// 测试匹配优先级
+		server := Server{
+			Name: "test-server",
+			Host: "127.0.0.1",
+			Tags: model.Tags{
+				{
+					Key:   "EnvType",
+					Value: "prod",
+				},
+			},
+		}
+		filter := ServerFilter{
+			EnvType: []string{"prod"},
+		}
+		assert.True(t, MatchServerByFilter(filter, server))
 
-	if MatchServerByFilter(filter, server) {
-		t.Error("should match")
-	}
+		// 增加 name 匹配
+		filter.Name = []string{"!test*"}
+		assert.False(t, MatchServerByFilter(filter, server))
 
-	server.Tags = model.Tags{
-		{
-			Key:   "EnvType",
-			Value: "dev",
-		},
-	}
-	if !MatchServerByFilter(filter, server) {
-		t.Error("should not match")
-	}
+		// 增加 ip 匹配
+		filter.Name = []string{"test-server"}
+		filter.IpAddr = []string{"!127.0.1.*"}
+		assert.True(t, MatchServerByFilter(filter, server))
 
+	}
 }
 
 // TEST MatchPolicy
@@ -75,7 +98,7 @@ func TestMatchPolicy(t *testing.T) {
 	user.Groups = ArrayString{}
 	{
 		// 测试普通用户,IP 匹配
-		policy.ServerFilter.IpAddr = tea.String("127.0.0.1")
+		policy.ServerFilter.IpAddr = []string{"127.0.0.1"}
 		policy.ServerFilter.Name = nil
 		policy.ServerFilter.EnvType = nil
 		policy.ServerFilter.Team = nil
@@ -90,7 +113,7 @@ func TestMatchPolicy(t *testing.T) {
 	}
 	{
 		// 普通用户，Name匹配
-		policy.ServerFilter.Name = tea.String("test")
+		policy.ServerFilter.Name = []string{"test"}
 		policy.ServerFilter.EnvType = nil
 		policy.ServerFilter.Team = nil
 		policy.ServerFilter.IpAddr = nil
@@ -108,7 +131,7 @@ func TestMatchPolicy(t *testing.T) {
 		policy.ServerFilter.Team = nil
 		policy.ServerFilter.Name = nil
 		policy.ServerFilter.IpAddr = nil
-		policy.ServerFilter.EnvType = tea.String("prod")
+		policy.ServerFilter.EnvType = []string{"prod"}
 		server.Tags = model.Tags{
 			{
 				Key:   "EnvType",
@@ -130,7 +153,7 @@ func TestMatchPolicy(t *testing.T) {
 	}
 	{
 		// 普通用户，Team匹配
-		policy.ServerFilter.Team = tea.String("ops")
+		policy.ServerFilter.Team = []string{"ops"}
 		policy.ServerFilter.Name = nil
 		policy.ServerFilter.EnvType = nil
 		policy.ServerFilter.IpAddr = nil
@@ -198,7 +221,7 @@ func TestMultipolicy(t *testing.T) {
 		Actions:   ArrayString{"connect"},
 		ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
 		ServerFilter: ServerFilter{
-			IpAddr: tea.String("127.0.0.1"),
+			IpAddr: []string{"127.0.0.1"},
 		},
 	}
 	{
@@ -217,7 +240,7 @@ func TestMultipolicy(t *testing.T) {
 				Actions:   ArrayString{string(DenyConnect)},
 				ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
 				ServerFilter: ServerFilter{
-					Name: tea.String("*"),
+					Name: []string{"*"},
 				},
 			},
 		}))
@@ -236,7 +259,7 @@ func TestMultipolicy(t *testing.T) {
 				Actions:   ArrayString{string((Connect))},
 				ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
 				ServerFilter: ServerFilter{
-					EnvType: tea.String("!prod"),
+					EnvType: []string{"!prod"},
 				},
 			},
 		}))
@@ -247,7 +270,7 @@ func TestMultipolicy(t *testing.T) {
 				Actions:   ArrayString{string((Connect))},
 				ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
 				ServerFilter: ServerFilter{
-					EnvType: tea.String("!dev"),
+					EnvType: []string{"!dev"},
 				},
 			},
 		}))
@@ -266,7 +289,7 @@ func TestMultipolicy(t *testing.T) {
 				Actions:   ArrayString{string((Connect))},
 				ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
 				ServerFilter: ServerFilter{
-					Team: tea.String("*"),
+					Team: []string{"*"},
 				},
 			},
 		}))
@@ -277,7 +300,7 @@ func TestMultipolicy(t *testing.T) {
 				Actions:   ArrayString{string((Connect))},
 				ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
 				ServerFilter: ServerFilter{
-					Team: tea.String("data"),
+					Team: []string{"data"},
 				},
 			},
 		}))

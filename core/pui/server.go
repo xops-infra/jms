@@ -18,7 +18,7 @@ import (
 	"github.com/xops-infra/jms/core/sshd"
 )
 
-func GetServersMenuV2(sess *ssh.Session, user User, timeout string) []*MenuItem {
+func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem, error) {
 	timeStart := time.Now()
 	defer log.Debugf("GetServersMenuV2 cost %s", time.Since(timeStart).String())
 	menu := make([]*MenuItem, 0)
@@ -35,6 +35,7 @@ func GetServersMenuV2(sess *ssh.Session, user User, timeout string) []*MenuItem 
 		policies, err := app.App.DBService.QueryPolicyByUser(*user.Username)
 		if err != nil {
 			log.Errorf("query policy error: %s", err)
+			return nil, err
 		}
 		matchPolicies = policies
 	}
@@ -72,7 +73,7 @@ func GetServersMenuV2(sess *ssh.Session, user User, timeout string) []*MenuItem 
 	}
 	// sort menu
 	// menu = sortMenu(menu)
-	return menu
+	return menu, nil
 }
 
 func GetApproveMenu(policies []*Policy) []*MenuItem {
@@ -129,6 +130,7 @@ func sortMenu(menu []*MenuItem) []*MenuItem {
 	return menu
 }
 
+// 判断权限在这里实现
 func GetServerSSHUsersMenu(server Server, timeout string, matchPolicies []Policy) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		var menu []*MenuItem
@@ -175,7 +177,7 @@ func getServerApproveMenu(server Server) func(int, *MenuItem, *ssh.Session, []*M
 			},
 			SubMenuTitle: SelectAction,
 			GetSubMenu: getActionMenu(ServerFilter{
-				IpAddr: tea.String(server.Host),
+				IpAddr: []string{server.Host},
 			}),
 		})
 		// serverTeam := server.Tags.GetTeam()
@@ -240,19 +242,15 @@ func getSureApplyMenu(serverFilter ServerFilter, actions ArrayString, expiredDur
 			SelectedFunc: func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
 				log.Infof("create policy: %s", tea.Prettify(policyNew))
 				var approval_id string
-				envType := "none"
 				if policyNew.ServerFilter == nil {
 					return false, fmt.Errorf("server filter is nil")
-				}
-				if policyNew.ServerFilter.EnvType != nil {
-					envType = *policyNew.ServerFilter.EnvType
 				}
 
 				if app.App.Config.WithDingtalk.Enable {
 					id, err := dingtalk.CreateApproval((*sess).User(), []dt.FormComponentValue{
 						{
 							Name:  tea.String("EnvType"),
-							Value: tea.String(FmtDingtalkApproveFile(envType)),
+							Value: tea.String(FmtDingtalkApproveFile(policyNew.ServerFilter.EnvType)),
 						},
 						{
 							Name:  tea.String("ServerFilter"),
