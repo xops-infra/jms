@@ -78,8 +78,9 @@ func NewSshdApplication(debug bool, logDir string, version string) *Application 
 	return App
 }
 
-func NewApiApplication() *Application {
+func NewApiApplication(sshd bool) *Application {
 	App = &Application{
+		Debug:  sshd,
 		Config: model1.Conf,
 	}
 
@@ -148,6 +149,9 @@ func (app *Application) WithDB() *Application {
 	gormConfig := &gorm.Config{}
 	if !app.Debug {
 		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
+	} else {
+		log.Infof("enable gorm log")
+		gormConfig.Logger = logger.Default.LogMode(logger.Info)
 	}
 
 	rdb, err := gorm.Open(dialector, gormConfig)

@@ -77,5 +77,9 @@ func NewGin() *gin.Engine {
 	shellRecord := api.Group("/shell/record")
 	shellRecord.GET("", listShellRecord)
 
+	audits := api.Group("/audit")
+	audits.GET("/login", listLoginAudit)
+	audits.GET("/scp", listScpAudit)
+
 	return r
 }

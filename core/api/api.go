@@ -74,7 +74,7 @@ func listPolicy(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "policy id"
-// @Param request body PolicyMut true "request"
+// @Param request body PolicyRequest true "request"
 // @Success 200 {string} success
 // @Failure 400 {string} error
 // @Failure 500 {string} error

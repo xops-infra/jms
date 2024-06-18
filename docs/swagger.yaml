@@ -1,5 +1,13 @@
 definitions:
-  db.Action:
+  gorm.DeletedAt:
+    properties:
+      time:
+        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
+    type: object
+  model.Action:
     enum:
     - connect
     - deny_connect
@@ -15,7 +23,7 @@ definitions:
     - DenyDownload
     - Upload
     - DenyUpload
-  db.AddKeyRequest:
+  model.AddKeyRequest:
     properties:
       identity_file:
         description: 云上下载下来的名字，比如 jms-key.pem，private key file name
@@ -33,43 +41,45 @@ definitions:
     - key_id
     - pem_base64
     type: object
-  db.ApprovalMut:
+  model.ApprovalMut:
     properties:
       actions:
         description: 申请动作，默认只有connect
         items:
-          $ref: '#/definitions/db.Action'
+          $ref: '#/definitions/model.Action'
         type: array
       applicant:
         description: 申请人AD名,或者email
         type: string
       groups:
-        items: {}
+        items:
+          type: string
         type: array
       name:
         type: string
       period:
         allOf:
-        - $ref: '#/definitions/db.Period'
+        - $ref: '#/definitions/model.Period'
         description: 审批周期，默认一周
       server_filter:
-        $ref: '#/definitions/db.ServerFilter'
+        $ref: '#/definitions/model.ServerFilterV1'
       users:
-        items: {}
+        items:
+          type: string
         type: array
     required:
     - applicant
     - server_filter
     - users
     type: object
-  db.ApprovalResult:
+  model.ApprovalResult:
     properties:
       applicant:
         type: string
       is_pass:
         type: boolean
     type: object
-  db.CreateBroadcastRequest:
+  model.CreateBroadcastRequest:
     properties:
       keepDays:
         description: 保留天数，0 表示永久
@@ -80,7 +90,7 @@ definitions:
     required:
     - messages
     type: object
-  db.CreateProfileRequest:
+  model.CreateProfileRequest:
     properties:
       ak:
         type: string
@@ -101,7 +111,7 @@ definitions:
       sk:
         type: string
     type: object
-  db.CreateProxyRequest:
+  model.CreateProxyRequest:
     properties:
       host:
         type: string
@@ -130,7 +140,7 @@ definitions:
     required:
     - name
     type: object
-  db.CreateShellTaskRequest:
+  model.CreateShellTaskRequest:
     properties:
       corn:
         description: corn表达式，支持定时执行任务，执行一次可以不传
@@ -140,7 +150,7 @@ definitions:
         type: string
       servers:
         allOf:
-        - $ref: '#/definitions/db.ServerFilter'
+        - $ref: '#/definitions/model.ServerFilterV1'
         description: 执行的机器
       shell:
         description: 脚本内容
@@ -150,7 +160,7 @@ definitions:
     - servers
     - shell
     type: object
-  db.Key:
+  model.Key:
     properties:
       isDelete:
         type: boolean
@@ -165,7 +175,7 @@ definitions:
       uuid:
         type: string
     type: object
-  db.Period:
+  model.Period:
     enum:
     - 1d
     - 1w
@@ -179,10 +189,11 @@ definitions:
     - OneMonth
     - OneYear
     - Forever
-  db.Policy:
+  model.Policy:
     properties:
       actions:
-        items: {}
+        items:
+          type: string
         type: array
       approval_id:
         description: 审批ID
@@ -203,34 +214,39 @@ definitions:
       name:
         type: string
       server_filter:
-        $ref: '#/definitions/db.ServerFilter'
+        $ref: '#/definitions/model.ServerFilter'
+      server_filter_v1:
+        $ref: '#/definitions/model.ServerFilterV1'
       updated_at:
         type: string
       users:
-        items: {}
+        items:
+          type: string
         type: array
     type: object
-  db.PolicyMut:
+  model.PolicyRequest:
     properties:
       actions:
-        items: {}
+        items:
+          type: string
         type: array
       expires_at:
         type: string
-      groups:
-        items: {}
-        type: array
       is_enabled:
         type: boolean
       name:
         type: string
       server_filter:
-        $ref: '#/definitions/db.ServerFilter'
+        $ref: '#/definitions/model.ServerFilterV1'
       users:
-        items: {}
+        items:
+          type: string
         type: array
+    required:
+    - name
+    - server_filter
     type: object
-  db.Profile:
+  model.Profile:
     properties:
       ak:
         type: string
@@ -252,7 +268,7 @@ definitions:
       uuid:
         type: string
     type: object
-  db.Proxy:
+  model.Proxy:
     properties:
       host:
         type: string
@@ -275,7 +291,53 @@ definitions:
       uuid:
         type: string
     type: object
-  db.ServerFilter:
+  model.SSHLoginRecord:
+    properties:
+      client:
+        description: 客户端
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      target:
+        description: 目标服务器
+        type: string
+      updatedAt:
+        type: string
+      user:
+        description: 用户
+        type: string
+    type: object
+  model.ScpRecord:
+    properties:
+      action:
+        description: download,upload
+        type: string
+      client:
+        description: 客户端
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      from:
+        description: 来源
+        type: string
+      id:
+        type: integer
+      to:
+        description: 目标
+        type: string
+      updatedAt:
+        type: string
+      user:
+        description: 用户
+        type: string
+    type: object
+  model.ServerFilter:
     properties:
       env_type:
         description: 机器 Tags 中的 EnvType，支持* 匹配所有
@@ -290,32 +352,65 @@ definitions:
         description: 机器 Tags 中的 Team，支持* 匹配所有
         type: string
     type: object
-  db.ShellTask:
+  model.ServerFilterV1:
+    properties:
+      env_type:
+        description: 机器 Tags 中的 EnvType，支持* 匹配所有
+        items:
+          type: string
+        type: array
+      ip_addr:
+        description: IP 地址完全匹配，支持* 匹配所有
+        items:
+          type: string
+        type: array
+      name:
+        description: 名字完全匹配，支持*
+        items:
+          type: string
+        type: array
+      team:
+        description: 机器 Tags 中的 Team，支持* 匹配所有
+        items:
+          type: string
+        type: array
+    type: object
+  model.ShellTask:
     properties:
       corn:
         type: string
       cost_time:
+        type: integer
+      exec_result:
+        description: 任务执行结果信息
+        type: string
+      exec_times:
+        description: 任务执行次数
         type: integer
       is_deleted:
         type: boolean
       name:
         type: string
       servers:
-        $ref: '#/definitions/db.ServerFilter'
+        $ref: '#/definitions/model.ServerFilterV1'
       shell:
         type: string
       status:
-        type: string
+        $ref: '#/definitions/model.Status'
       submit_user:
         description: 直接在token中获取
         type: string
       uuid:
         type: string
     type: object
-  db.ShellTaskRecord:
+  model.ShellTaskRecord:
     properties:
       cost_time:
+        type: string
+      exec_times:
         type: integer
+      is_success:
+        type: boolean
       output:
         type: string
       server_ip:
@@ -331,7 +426,23 @@ definitions:
       uuid:
         type: string
     type: object
-  db.User:
+  model.Status:
+    enum:
+    - Pending
+    - Running
+    - Success
+    - Failed
+    - NotAllSuccess
+    - Cancelled
+    type: string
+    x-enum-varnames:
+    - StatusPending
+    - StatusRunning
+    - StatusSuccess
+    - StatusFailed
+    - StatusNotAllSuccess
+    - StatusCancelled
+  model.User:
     properties:
       created_at:
         type: string
@@ -343,7 +454,8 @@ definitions:
         type: string
       groups:
         description: 组不在 jms维护这里只需要和机器 tag:Team 匹配即可。
-        items: {}
+        items:
+          type: string
         type: array
       id:
         type: string
@@ -359,13 +471,14 @@ definitions:
       username:
         type: string
     type: object
-  db.UserPatchMut:
+  model.UserPatchMut:
     properties:
       groups:
-        items: {}
+        items:
+          type: string
         type: array
     type: object
-  db.UserRequest:
+  model.UserRequest:
     properties:
       dingtalk_dept_id:
         type: string
@@ -374,7 +487,8 @@ definitions:
       email:
         type: string
       groups:
-        items: {}
+        items:
+          type: string
         type: array
       passwd:
         type: string
@@ -405,7 +519,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/db.ApprovalMut'
+          $ref: '#/definitions/model.ApprovalMut'
       produces:
       - application/json
       responses:
@@ -436,7 +550,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/db.ApprovalResult'
+          $ref: '#/definitions/model.ApprovalResult'
       produces:
       - application/json
       responses:
@@ -447,6 +561,70 @@ paths:
       summary: 更新审批
       tags:
       - Approval
+  /api/v1/audit/login:
+    get:
+      consumes:
+      - application/json
+      description: 服务器登录审计查询，支持查询用户、IP、时间范围的日志
+      parameters:
+      - description: days
+        in: query
+        name: days
+        type: integer
+      - description: ip
+        in: query
+        name: ip
+        type: string
+      - description: user
+        in: query
+        name: user
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.SSHLoginRecord'
+            type: array
+      summary: listLoginAudit
+      tags:
+      - audit
+  /api/v1/audit/scp:
+    get:
+      consumes:
+      - application/json
+      description: 服务器文件上传下载审计查询，支持上传upload,下载 download，文件名，服务器IP
+      parameters:
+      - description: days
+        in: query
+        name: days
+        type: integer
+      - description: action
+        in: query
+        name: action
+        type: string
+      - description: keyword
+        in: query
+        name: keyword
+        type: string
+      - description: user
+        in: query
+        name: user
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.ScpRecord'
+            type: array
+      summary: listScpAudit
+      tags:
+      - audit
   /api/v1/broadcast:
     post:
       consumes:
@@ -458,7 +636,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/db.CreateBroadcastRequest'
+          $ref: '#/definitions/model.CreateBroadcastRequest'
       responses:
         "200":
           description: ok
@@ -477,7 +655,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/db.Key'
+              $ref: '#/definitions/model.Key'
             type: array
       summary: 列出密钥
       tags:
@@ -496,7 +674,7 @@ paths:
         name: key
         required: true
         schema:
-          $ref: '#/definitions/db.AddKeyRequest'
+          $ref: '#/definitions/model.AddKeyRequest'
       produces:
       - application/json
       responses:
@@ -582,7 +760,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/db.Policy'
+              $ref: '#/definitions/model.Policy'
             type: array
         "500":
           description: Internal Server Error
@@ -635,7 +813,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/db.PolicyMut'
+          $ref: '#/definitions/model.PolicyRequest'
       produces:
       - application/json
       responses:
@@ -666,7 +844,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/db.Profile'
+              $ref: '#/definitions/model.Profile'
             type: array
       security:
       - ApiKeyAuth: []
@@ -683,7 +861,7 @@ paths:
         name: profile
         required: true
         schema:
-          $ref: '#/definitions/db.CreateProfileRequest'
+          $ref: '#/definitions/model.CreateProfileRequest'
       produces:
       - application/json
       responses:
@@ -729,7 +907,7 @@ paths:
         name: profile
         required: true
         schema:
-          $ref: '#/definitions/db.CreateProfileRequest'
+          $ref: '#/definitions/model.CreateProfileRequest'
       - description: profile uuid
         in: path
         name: uuid
@@ -759,7 +937,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/db.Proxy'
+              $ref: '#/definitions/model.Proxy'
             type: array
       summary: ListProxy
       tags:
@@ -772,12 +950,12 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/db.CreateProxyRequest'
+          $ref: '#/definitions/model.CreateProxyRequest'
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/db.Proxy'
+            $ref: '#/definitions/model.Proxy'
       summary: AddProxy
       tags:
       - proxy
@@ -808,7 +986,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/db.CreateProxyRequest'
+          $ref: '#/definitions/model.CreateProxyRequest'
       - description: proxy server uuid
         in: path
         name: uuid
@@ -818,7 +996,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/db.Proxy'
+            $ref: '#/definitions/model.Proxy'
       summary: UpdateProxy
       tags:
       - proxy
@@ -843,7 +1021,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/db.ShellTaskRecord'
+              $ref: '#/definitions/model.ShellTaskRecord'
             type: array
       summary: ListShellRecord
       tags:
@@ -860,7 +1038,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/db.ShellTask'
+              $ref: '#/definitions/model.ShellTask'
             type: array
       summary: ListShellTask
       tags:
@@ -875,7 +1053,7 @@ paths:
         name: shell
         required: true
         schema:
-          $ref: '#/definitions/db.CreateShellTaskRequest'
+          $ref: '#/definitions/model.CreateShellTaskRequest'
       produces:
       - application/json
       responses:
@@ -917,7 +1095,7 @@ paths:
         name: shell
         required: true
         schema:
-          $ref: '#/definitions/db.CreateShellTaskRequest'
+          $ref: '#/definitions/model.CreateShellTaskRequest'
       produces:
       - application/json
       responses:
@@ -953,7 +1131,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/db.User'
+              $ref: '#/definitions/model.User'
             type: array
       summary: 获取用户列表
       tags:
@@ -972,7 +1150,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/db.UserRequest'
+          $ref: '#/definitions/model.UserRequest'
       produces:
       - application/json
       responses:
@@ -1003,7 +1181,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/db.UserPatchMut'
+          $ref: '#/definitions/model.UserPatchMut'
       produces:
       - application/json
       responses:
@@ -1033,7 +1211,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/db.UserRequest'
+          $ref: '#/definitions/model.UserRequest'
       produces:
       - application/json
       responses:

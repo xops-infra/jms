@@ -48,7 +48,7 @@ var apiCmd = &cobra.Command{
 		}
 
 		// init app
-		_app := app.NewApiApplication()
+		_app := app.NewApiApplication(debug)
 
 		if !app.App.Config.WithDB.Enable {
 			panic("请配置 withDB")
