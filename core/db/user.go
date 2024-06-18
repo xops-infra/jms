@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 
 	"github.com/alibabacloud-go/tea/tea"
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 )
 
 // login,

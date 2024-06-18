@@ -1,4 +1,4 @@
-package config_test
+package model_test
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	"github.com/xops-infra/noop/log"
 
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 )
 
 func init() {

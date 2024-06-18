@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/robfig/cron"
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 )
 
 /*

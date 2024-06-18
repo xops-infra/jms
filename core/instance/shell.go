@@ -8,15 +8,15 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/robfig/cron"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/sshd"
+	. "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
 )
 
 // 查询数据库的批量脚本任务，符合条件后开始执行
 func ServerShellRun() {
 	// 查库
-	tasks, err := app.App.DBService.ListShellTask()
+	tasks, err := app.App.JmsDBService.ListShellTask()
 	if err != nil {
 		log.Errorf("list shell task error: %s", err)
 	}
@@ -25,7 +25,7 @@ func ServerShellRun() {
 		log.Debugf("shell task: %s", tea.Prettify(task))
 		if task.Status == StatusPending {
 			// 状态更新
-			err = app.App.DBService.UpdateShellTaskStatus(task.UUID, StatusRunning, "")
+			err = app.App.JmsDBService.UpdateShellTaskStatus(task.UUID, StatusRunning, "")
 			if err != nil {
 				log.Errorf("update shell task status error: %s", err)
 				continue
@@ -36,7 +36,7 @@ func ServerShellRun() {
 				result := ""
 				defer func() {
 					log.Debugf("shell task done: %s, state: %s, result: %s", task.UUID, state, result)
-					err := app.App.DBService.UpdateShellTaskStatus(task.UUID, state, result)
+					err := app.App.JmsDBService.UpdateShellTaskStatus(task.UUID, state, result)
 					if err != nil {
 						log.Errorf("update shell task status error: %s", err)
 					}
@@ -122,7 +122,7 @@ func runShell(server Server, task ShellTask) error {
 	defer func() {
 		req.CostTime = tea.String(time.Since(execStartTime).String())
 		log.Debugf("shell task record: %s", tea.Prettify(req))
-		err := app.App.DBService.CreateShellTaskRecord(req)
+		err := app.App.JmsDBService.CreateShellTaskRecord(req)
 		if err != nil {
 			log.Errorf("create shell task record error: %s", err)
 		}
@@ -160,7 +160,7 @@ func runShell(server Server, task ShellTask) error {
 
 // corn任务的处理，实现对 corn 的支持，主要就是判断时间对了就修改一下任务状态
 func ServerCronRun() {
-	tasks, err := app.App.DBService.ListShellTask()
+	tasks, err := app.App.JmsDBService.ListShellTask()
 	if err != nil {
 		log.Errorf("list shell task error: %s", err)
 	}
@@ -173,7 +173,7 @@ func ServerCronRun() {
 			continue
 		}
 		// 更新任务状态
-		err = app.App.DBService.UpdateShellTaskStatus(task.UUID, StatusPending, "system reset pengding cause cron time match")
+		err = app.App.JmsDBService.UpdateShellTaskStatus(task.UUID, StatusPending, "system reset pengding cause cron time match")
 		if err != nil {
 			log.Errorf("update shell task status error: %s", err)
 		}

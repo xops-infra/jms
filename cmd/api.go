@@ -14,8 +14,8 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	appConfig "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/api"
+	appConfig "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
 

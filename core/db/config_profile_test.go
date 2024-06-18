@@ -10,7 +10,7 @@ import (
 
 // TEST LoadProfile
 func TestLoadProfile(t *testing.T) {
-	profiles, err := app.App.DBService.LoadProfile()
+	profiles, err := app.App.JmsDBService.LoadProfile()
 	if err != nil {
 		t.Error(err)
 		return

@@ -19,7 +19,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
 

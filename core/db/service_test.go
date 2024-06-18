@@ -8,24 +8,24 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/model"
 )
 
 func init() {
-	config.LoadYaml("/opt/jms/config.yaml")
+	model.LoadYaml("/opt/jms/config.yaml")
 	app.NewSshdApplication(true, "", "---").WithDB()
 }
 
 func TestCreatePolicy(t *testing.T) {
 	expiredAt := time.Now().Add(time.Hour * 24 * 365 * 100)
-	req := config.PolicyRequest{
+	req := model.PolicyRequest{
 		Name:         tea.String("zhoushoujian-policy-1"),
-		Users:        config.ArrayString{"zhoushoujian"},
-		ServerFilter: &config.ServerFilter{Name: []string{"*"}},
-		Actions:      config.All,
+		Users:        model.ArrayString{"zhoushoujian"},
+		ServerFilter: &model.ServerFilter{Name: []string{"*"}},
+		Actions:      model.All,
 		ExpiresAt:    &expiredAt,
 	}
-	result, err := app.App.DBService.CreatePolicy(&req, nil)
+	result, err := app.App.JmsDBService.CreatePolicy(&req, nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -34,7 +34,7 @@ func TestCreatePolicy(t *testing.T) {
 }
 
 func TestDeletePolicy(t *testing.T) {
-	err := app.App.DBService.DeletePolicy("default")
+	err := app.App.JmsDBService.DeletePolicy("default")
 	if err != nil {
 		t.Error(err)
 		return
@@ -42,8 +42,8 @@ func TestDeletePolicy(t *testing.T) {
 }
 
 func TestUpdateUserGroups(t *testing.T) {
-	err := app.App.DBService.UpdateUser("yaolong", config.UserRequest{
-		Groups: config.ArrayString{"admin"},
+	err := app.App.JmsDBService.UpdateUser("yaolong", model.UserRequest{
+		Groups: model.ArrayString{"admin"},
 	})
 	if err != nil {
 		t.Error(err)
@@ -51,7 +51,7 @@ func TestUpdateUserGroups(t *testing.T) {
 }
 
 func TestQueryPolicy(t *testing.T) {
-	result, err := app.App.DBService.QueryAllPolicy()
+	result, err := app.App.JmsDBService.QueryAllPolicy()
 	if err != nil {
 		t.Error(err)
 		return
@@ -60,7 +60,7 @@ func TestQueryPolicy(t *testing.T) {
 }
 
 func TestQueryUser(t *testing.T) {
-	result, err := app.App.DBService.DescribeUser("zhoushoujian")
+	result, err := app.App.JmsDBService.DescribeUser("zhoushoujian")
 	if err != nil {
 		t.Error(err)
 		return
@@ -69,7 +69,7 @@ func TestQueryUser(t *testing.T) {
 }
 
 func TestQueryPolicyByUser(t *testing.T) {
-	result, err := app.App.DBService.QueryPolicyByUser("zhoushoujian")
+	result, err := app.App.JmsDBService.QueryPolicyByUser("zhoushoujian")
 	if err != nil {
 		t.Error(err)
 		return

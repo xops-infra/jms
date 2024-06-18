@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/model"
 )
 
 func init() {
-	config.LoadYaml("/opt/jms/config.yaml")
+	model.LoadYaml("/opt/jms/config.yaml")
 	app.NewSshdApplication(true, "", "").WithDB().WithDingTalk()
 }
 

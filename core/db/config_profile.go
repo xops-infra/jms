@@ -6,12 +6,12 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
-	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
 )
 
-func (d *DBService) ListProfile() ([]config.Profile, error) {
-	var profiles []config.Profile
+func (d *DBService) ListProfile() ([]model.Profile, error) {
+	var profiles []model.Profile
 	err := d.DB.Where("is_delete is false").Find(&profiles).Order("created_at").Error
 	// 隐藏敏感信息
 	for i := range profiles {
@@ -21,20 +21,20 @@ func (d *DBService) ListProfile() ([]config.Profile, error) {
 }
 
 // 内部服务调用，不隐藏敏感信息
-func (d *DBService) LoadProfile() ([]config.CreateProfileRequest, error) {
-	var profiles []config.Profile
+func (d *DBService) LoadProfile() ([]model.CreateProfileRequest, error) {
+	var profiles []model.Profile
 	err := d.DB.Where("is_delete is false").Find(&profiles).Error
 	if err != nil {
 		return nil, err
 	}
-	var reqs []config.CreateProfileRequest
+	var reqs []model.CreateProfileRequest
 	// base64 解密
 	for i := range profiles {
 		sk, err := base64.StdEncoding.DecodeString(profiles[i].SK)
 		if err != nil {
 			return nil, fmt.Errorf("base64 decode error: %v", err)
 		}
-		reqs = append(reqs, config.CreateProfileRequest{
+		reqs = append(reqs, model.CreateProfileRequest{
 			Name:    tea.String(profiles[i].Name),
 			AK:      tea.String(profiles[i].AK),
 			SK:      tea.String(string(sk)),
@@ -46,13 +46,13 @@ func (d *DBService) LoadProfile() ([]config.CreateProfileRequest, error) {
 	return reqs, nil
 }
 
-func (d *DBService) CreateProfile(req config.CreateProfileRequest) (string, error) {
+func (d *DBService) CreateProfile(req model.CreateProfileRequest) (string, error) {
 	if req.Name == nil || req.AK == nil || req.SK == nil || req.Cloud == nil || len(req.Regions) == 0 {
 		return "", fmt.Errorf("name, ak, sk, cloud, regions are required")
 	}
 	// 先查询是否存在
 	var count int64
-	err := d.DB.Model(config.Profile{}).Where("name = ?", *req.Name).Where("is_delete is false").Count(&count).Error
+	err := d.DB.Model(model.Profile{}).Where("name = ?", *req.Name).Where("is_delete is false").Count(&count).Error
 	if err != nil {
 		return "", fmt.Errorf("query profile error: %v", err)
 	}
@@ -61,7 +61,7 @@ func (d *DBService) CreateProfile(req config.CreateProfileRequest) (string, erro
 	}
 	// SK base64 加密
 	baseSK := base64.StdEncoding.EncodeToString([]byte(*req.SK))
-	profile := config.Profile{
+	profile := model.Profile{
 		UUID:    uuid.New().String(),
 		Name:    *req.Name,
 		AK:      *req.AK,
@@ -74,8 +74,8 @@ func (d *DBService) CreateProfile(req config.CreateProfileRequest) (string, erro
 	return profile.UUID, err
 }
 
-func (d *DBService) UpdateProfile(uuid string, req config.CreateProfileRequest) error {
-	profile := config.Profile{}
+func (d *DBService) UpdateProfile(uuid string, req model.CreateProfileRequest) error {
+	profile := model.Profile{}
 	if req.Name != nil {
 		profile.Name = *req.Name
 	}
@@ -92,16 +92,16 @@ func (d *DBService) UpdateProfile(uuid string, req config.CreateProfileRequest) 
 	if len(req.Regions) > 0 {
 		profile.Regions = req.Regions
 	}
-	err := d.DB.Model(config.Profile{}).Where("uuid = ?", uuid).Updates(&profile).Error
+	err := d.DB.Model(model.Profile{}).Where("uuid = ?", uuid).Updates(&profile).Error
 	return err
 }
 
 func (d *DBService) DeleteProfile(uuid string) error {
 	// 先查询是否存在
-	var profile config.Profile
+	var profile model.Profile
 	err := d.DB.Where("uuid = ?", uuid).Where("is_delete is false").First(&profile).Error
 	if err != nil {
 		return err
 	}
-	return d.DB.Model(config.Profile{}).Where("uuid = ?", uuid).Update("is_delete", true).Error
+	return d.DB.Model(model.Profile{}).Where("uuid = ?", uuid).Update("is_delete", true).Error
 }

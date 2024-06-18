@@ -12,10 +12,10 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/sshd"
+	. "github.com/xops-infra/jms/model"
 )
 
 func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem, error) {
@@ -24,7 +24,7 @@ func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem
 	menu := make([]*MenuItem, 0)
 	servers := instance.GetServers()
 	var matchPolicies []Policy
-	if app.App.DBService == nil {
+	if app.App.JmsDBService == nil {
 		// 如果没有使用数据库，则默认都可见
 		matchPolicies = append(matchPolicies, Policy{
 			Actions:   All,
@@ -32,7 +32,7 @@ func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem
 			Users:     ArrayString{*user.Username},
 		})
 	} else {
-		policies, err := app.App.DBService.QueryPolicyByUser(*user.Username)
+		policies, err := app.App.JmsDBService.QueryPolicyByUser(*user.Username)
 		if err != nil {
 			log.Errorf("query policy error: %s", err)
 			return nil, err
@@ -98,7 +98,7 @@ func getApproveSubMenu(policy *Policy) func(int, *MenuItem, *ssh.Session, []*Men
 		menu = append(menu, &MenuItem{
 			Label: "Approve",
 			SelectedFunc: func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
-				err := app.App.DBService.ApprovePolicy(policy.Name, (*sess).User(), true)
+				err := app.App.JmsDBService.ApprovePolicy(policy.Name, (*sess).User(), true)
 				if err != nil {
 					return false, err
 				}
@@ -108,7 +108,7 @@ func getApproveSubMenu(policy *Policy) func(int, *MenuItem, *ssh.Session, []*Men
 		menu = append(menu, &MenuItem{
 			Label: "Reject",
 			SelectedFunc: func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
-				err := app.App.DBService.ApprovePolicy(policy.Name, (*sess).User(), false)
+				err := app.App.JmsDBService.ApprovePolicy(policy.Name, (*sess).User(), false)
 				if err != nil {
 					return false, err
 				}
@@ -144,7 +144,7 @@ func GetServerSSHUsersMenu(server Server, timeout string, matchPolicies []Policy
 				}
 				// 记录登录日志到数据库
 				if app.App.Config.WithDB.Enable {
-					err := app.App.DBService.AddServerLoginRecord(&AddSshLoginRequest{
+					err := app.App.JmsDBService.AddServerLoginRecord(&AddSshLoginRequest{
 						TargetServer: tea.String(server.Host),
 						User:         tea.String((*sess).User()),
 						Client:       tea.String((*sess).RemoteAddr().String()),
@@ -276,7 +276,7 @@ func getSureApplyMenu(serverFilter ServerFilter, actions ArrayString, expiredDur
 					approval_id = id
 					sshd.Info(fmt.Sprintf("成功创建钉钉审批:%s 等等管理员审批 完成后策略自动生效", id), sess)
 				}
-				policyId, err := app.App.DBService.CreatePolicy(policyNew, &approval_id)
+				policyId, err := app.App.JmsDBService.CreatePolicy(policyNew, &approval_id)
 				if err != nil {
 					log.Errorf("create policy error: %s", err)
 					return false, err

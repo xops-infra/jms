@@ -6,15 +6,15 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/model"
 )
 
 func init() {
-	config.LoadYaml("/opt/jms/config.yaml")
+	model.LoadYaml("/opt/jms/config.yaml")
 	app.NewSshdApplication(true, "", "---")
 }
 
 // TEST SHOW CONFIG
 func TestConfig(t *testing.T) {
-	fmt.Println(tea.Prettify(config.Conf))
+	fmt.Println(tea.Prettify(model.Conf))
 }

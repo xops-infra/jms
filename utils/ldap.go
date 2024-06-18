@@ -4,16 +4,16 @@ import (
 	"fmt"
 
 	"github.com/go-ldap/ldap"
-	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
 )
 
 type Ldap struct {
 	Conn   *ldap.Conn
-	Config config.WithLdap
+	Config model.WithLdap
 }
 
-func NewLdap(config config.WithLdap) (*Ldap, error) {
+func NewLdap(config model.WithLdap) (*Ldap, error) {
 	ldapConn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", config.Host, config.Port))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to LDAP server: %s", err.Error())

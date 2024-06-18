@@ -16,11 +16,11 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	appConfig "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/jump"
 	"github.com/xops-infra/jms/core/sshd"
+	appConfig "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
 
@@ -68,9 +68,11 @@ var sshdCmd = &cobra.Command{
 
 		if app.App.Config.WithDingtalk.Enable {
 			if !app.App.Config.WithDB.Enable {
-				log.Panicf("with-api-server-approval must be used WithDB")
+				app.App.Config.WithDingtalk.Enable = false
+				log.Warnf("dingtalk enable but db not enable, disable dingtalk")
+			} else {
+				log.Infof("enable api dingtalk Approve")
 			}
-			log.Infof("enable api dingtalk Approve")
 		}
 
 		app.App.WithMcs()
@@ -142,7 +144,7 @@ func passwordAuth(ctx ssh.Context, pass string) bool {
 	}
 	// 如果启用 policy策略，登录时需要验证用户密码
 	if app.App.Config.WithDB.Enable {
-		allow, err := app.App.DBService.Login(ctx.User(), pass)
+		allow, err := app.App.JmsDBService.Login(ctx.User(), pass)
 		if err != nil {
 			log.Error(err.Error())
 			return false
@@ -164,7 +166,7 @@ func passwordAuth(ctx ssh.Context, pass string) bool {
 func publicKeyAuth(ctx ssh.Context, key ssh.PublicKey) bool {
 	if app.App.Config.WithDB.Enable {
 		// 数据库读取数据认证
-		return app.App.DBService.AuthKey(ctx.User(), key)
+		return app.App.JmsDBService.AuthKey(ctx.User(), key)
 	}
 	// 否则走文件认证
 	return utils.AuthFromFile(ctx, key, app.App.SSHDir)
@@ -222,7 +224,7 @@ func execHandler(sess *ssh.Session) {
 	}
 	if app.App.Config.WithDB.Enable {
 		// 数据库读取数据认证
-		if err := app.App.DBService.AddAuthorizedKey((*sess).User(), pubKey); err != nil {
+		if err := app.App.JmsDBService.AddAuthorizedKey((*sess).User(), pubKey); err != nil {
 			sshd.ErrorInfo(err, sess)
 			log.Errorf("add authorized key error: %s", err.Error())
 			return

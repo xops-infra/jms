@@ -5,23 +5,23 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
-	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/model"
 	"gorm.io/gorm"
 )
 
-func (d *DBService) CreatePolicy(req *config.PolicyRequest, approval_id *string) (string, error) {
+func (d *DBService) CreatePolicy(req *model.PolicyRequest, approval_id *string) (string, error) {
 	if req.ServerFilter == nil || req.ExpiresAt == nil || approval_id == nil {
 		return "", fmt.Errorf("required. please check")
 	}
 	// 判断策略是否存在
 	var count int64
-	if err := d.DB.Model(&config.Policy{}).Where("name = ?", *req.Name).Count(&count).Error; err != nil {
+	if err := d.DB.Model(&model.Policy{}).Where("name = ?", *req.Name).Count(&count).Error; err != nil {
 		return "", err
 	}
 	if count > 0 {
 		return "", fmt.Errorf("policy already exists")
 	}
-	newPolicy := &config.Policy{
+	newPolicy := &model.Policy{
 		ID:           uuid.NewString(),
 		Name:         tea.StringValue(req.Name),
 		IsEnabled:    false, // 默认不启用，需要审批
@@ -37,7 +37,7 @@ func (d *DBService) CreatePolicy(req *config.PolicyRequest, approval_id *string)
 	return newPolicy.ID, nil
 }
 
-func (d *DBService) UpdatePolicy(id string, mut *config.PolicyRequest) error {
+func (d *DBService) UpdatePolicy(id string, mut *model.PolicyRequest) error {
 	policy, err := d.QueryPolicyById(id)
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func (d *DBService) UpdatePolicy(id string, mut *config.PolicyRequest) error {
 	return d.DB.Model(policy).Updates(mut).Error
 }
 
-func (d *DBService) UpdatePolicyStatus(id string, mut config.ApprovalResult) error {
+func (d *DBService) UpdatePolicyStatus(id string, mut model.ApprovalResult) error {
 	policy, err := d.QueryPolicyById(id)
 	if err != nil {
 		return err
@@ -61,42 +61,42 @@ func (d *DBService) DeletePolicy(id string) error {
 }
 
 func (d *DBService) ApprovePolicy(policyName, Approver string, IsEnabled bool) error {
-	return d.DB.Model(&config.Policy{}).Where("name = ?", policyName).Updates(map[string]interface{}{
+	return d.DB.Model(&model.Policy{}).Where("name = ?", policyName).Updates(map[string]interface{}{
 		"is_enabled": IsEnabled,
 		"approver":   Approver,
 	}).Error
 }
 
 func (d *DBService) AddUsersToPolicy(name string, usernames []string) error {
-	return d.DB.Model(&config.Policy{}).Where("name = ?", name).Update("users", gorm.Expr("json_array_append(users, ?)", usernames)).Error
+	return d.DB.Model(&model.Policy{}).Where("name = ?", name).Update("users", gorm.Expr("json_array_append(users, ?)", usernames)).Error
 }
 
 func (d *DBService) RemoveUsersFromPolicy(name string, usernames []string) error {
-	return d.DB.Model(&config.Policy{}).Where("name = ?", name).Update("users", gorm.Expr("json_remove(users, ?)", usernames)).Error
+	return d.DB.Model(&model.Policy{}).Where("name = ?", name).Update("users", gorm.Expr("json_remove(users, ?)", usernames)).Error
 }
 
 func (d *DBService) AddGroupsToPolicy(name string, groups []string) error {
-	return d.DB.Model(&config.Policy{}).Where("name = ?", name).Update("groups", gorm.Expr("json_array_append(groups, ?)", groups)).Error
+	return d.DB.Model(&model.Policy{}).Where("name = ?", name).Update("groups", gorm.Expr("json_array_append(groups, ?)", groups)).Error
 }
 
 // RemoveGroupsFromPolicy
 func (d *DBService) RemoveGroupsFromPolicy(name string, groups []string) error {
-	return d.DB.Model(&config.Policy{}).Where("name = ?", name).Update("groups", gorm.Expr("json_remove(groups, ?)", groups)).Error
+	return d.DB.Model(&model.Policy{}).Where("name = ?", name).Update("groups", gorm.Expr("json_remove(groups, ?)", groups)).Error
 }
 
 func (d *DBService) UpdateActionsOfPolicy(name string, actions []string) error {
-	return d.DB.Model(&config.Policy{}).Where("name = ?", name).Update("actions", actions).Error
+	return d.DB.Model(&model.Policy{}).Where("name = ?", name).Update("actions", actions).Error
 }
 
 // 只查询用户的策略
 // 支持policy users 包含*的情况，表示都能命中
-func (d *DBService) QueryPolicyByUser(username string) ([]config.Policy, error) {
-	sql := d.DB.Model(&config.Policy{}).Where("is_deleted = ?", false)
-	var policies []config.Policy
+func (d *DBService) QueryPolicyByUser(username string) ([]model.Policy, error) {
+	sql := d.DB.Model(&model.Policy{}).Where("is_deleted = ?", false)
+	var policies []model.Policy
 	if err := sql.Find(&policies).Error; err != nil {
 		return nil, err
 	}
-	var matchPolicies []config.Policy
+	var matchPolicies []model.Policy
 	// 精确返回
 	for _, policy := range policies {
 		if policy.Users.Contains(username) {
@@ -155,12 +155,12 @@ func (d *DBService) QueryPolicyByUser(username string) ([]config.Policy, error) 
 // }
 
 // 查询策略名称
-func (d *DBService) QueryPolicyByName(name string) ([]config.Policy, error) {
-	sql := d.DB.Model(&config.Policy{}).Where("is_deleted = ?", false)
+func (d *DBService) QueryPolicyByName(name string) ([]model.Policy, error) {
+	sql := d.DB.Model(&model.Policy{}).Where("is_deleted = ?", false)
 	if name != "" {
 		sql = sql.Where("name = ?", name)
 	}
-	var policies []config.Policy
+	var policies []model.Policy
 	if err := sql.Find(&policies).Error; err != nil {
 		return nil, err
 	}
@@ -168,8 +168,8 @@ func (d *DBService) QueryPolicyByName(name string) ([]config.Policy, error) {
 }
 
 // QueryPolicyById
-func (d *DBService) QueryPolicyById(id string) (*config.Policy, error) {
-	var policy config.Policy
+func (d *DBService) QueryPolicyById(id string) (*model.Policy, error) {
+	var policy model.Policy
 	if err := d.DB.Where("id = ?", id).First(&policy).Error; err != nil {
 		return nil, err
 	}
@@ -177,9 +177,9 @@ func (d *DBService) QueryPolicyById(id string) (*config.Policy, error) {
 }
 
 // 查询所有
-func (d *DBService) QueryAllPolicy() ([]config.Policy, error) {
-	sql := d.DB.Model(&config.Policy{}).Where("is_deleted = ?", false)
-	var policies []config.Policy
+func (d *DBService) QueryAllPolicy() ([]model.Policy, error) {
+	sql := d.DB.Model(&model.Policy{}).Where("is_deleted = ?", false)
+	var policies []model.Policy
 	if err := sql.Find(&policies).Error; err != nil {
 		return nil, err
 	}

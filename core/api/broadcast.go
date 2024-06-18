@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 )
 
 // @Summary Broadcast
@@ -18,7 +18,7 @@ func broadcast(c *gin.Context) {
 		c.JSON(400, err)
 		return
 	}
-	err := app.App.DBService.AddBroadcast(req)
+	err := app.App.JmsDBService.AddBroadcast(req)
 	if err != nil {
 		c.JSON(500, err)
 		return

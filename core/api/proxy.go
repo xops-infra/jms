@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 )
 
 // @Summary ListProxy
@@ -14,7 +14,7 @@ import (
 // @Success 200 {object} []Proxy
 // @Router /api/v1/proxy [get]
 func listProxy(c *gin.Context) {
-	proxies, err := app.App.DBService.ListProxy()
+	proxies, err := app.App.JmsDBService.ListProxy()
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -34,7 +34,7 @@ func addProxy(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
-	id, err := app.App.DBService.CreateProxy(req)
+	id, err := app.App.JmsDBService.CreateProxy(req)
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -56,7 +56,7 @@ func updateProxy(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
-	id, err := app.App.DBService.UpdateProxy(c.Param("uuid"), req)
+	id, err := app.App.JmsDBService.UpdateProxy(c.Param("uuid"), req)
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -73,7 +73,7 @@ func updateProxy(c *gin.Context) {
 // @Router /api/v1/proxy/:uuid [delete]
 func deleteProxy(c *gin.Context) {
 
-	err := app.App.DBService.DeleteProxy(c.Param("uuid"))
+	err := app.App.JmsDBService.DeleteProxy(c.Param("uuid"))
 	if err != nil {
 		c.JSON(500, err.Error())
 		return

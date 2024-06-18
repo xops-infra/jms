@@ -12,9 +12,9 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/sshd"
+	. "github.com/xops-infra/jms/model"
 )
 
 // PUI pui
@@ -73,13 +73,13 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 	var broadcast *Broadcast
 
 	if app.App.Config.WithDB.Enable {
-		_user, err := app.App.DBService.DescribeUser((*ui.sess).User())
+		_user, err := app.App.JmsDBService.DescribeUser((*ui.sess).User())
 		if err != nil {
 			log.Errorf("DescribeUser error: %s", err)
 			sshd.ErrorInfo(err, ui.sess)
 		}
 		user = _user
-		_broadcast, err := app.App.DBService.GetBroadcast()
+		_broadcast, err := app.App.JmsDBService.GetBroadcast()
 		if err != nil {
 			log.Errorf("GetBroadcast error: %s", err)
 		} else {
@@ -104,7 +104,7 @@ loopMenu:
 
 			if app.App.Config.WithDB.Enable && !app.App.Config.WithDingtalk.Enable {
 				// 没有审批策略时候，会在 admin 服务器选择列表里面显示审批菜单
-				policies, err := app.App.DBService.NeedApprove((*ui.sess).User())
+				policies, err := app.App.JmsDBService.NeedApprove((*ui.sess).User())
 				if err != nil {
 					log.Errorf("Get need approve policy for admin error: %s", err)
 				}

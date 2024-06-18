@@ -1,10 +1,10 @@
 package db
 
-import "github.com/xops-infra/jms/config"
+import "github.com/xops-infra/jms/model"
 
 // 文件下载记录入库
-func (d *DBService) AddDownloadRecord(req *config.AddScpRecordRequest) (err error) {
-	record := &config.ScpRecord{
+func (d *DBService) AddDownloadRecord(req *model.AddScpRecordRequest) (err error) {
+	record := &model.ScpRecord{
 		Action: *req.Action,
 		From:   *req.From,
 		To:     *req.To,

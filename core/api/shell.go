@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 )
 
 /*
@@ -18,7 +18,7 @@ Shell API 提供了一个接口让用户能够对管理的机器执行脚本的�
 // @Success 200 {object} []ShellTask
 // @Router /api/v1/shell/task [get]
 func listShellTask(c *gin.Context) {
-	tasks, err := app.App.DBService.ListShellTask()
+	tasks, err := app.App.JmsDBService.ListShellTask()
 	if err != nil {
 		c.String(500, err.Error())
 		return
@@ -40,7 +40,7 @@ func addShellTask(c *gin.Context) {
 		c.String(400, err.Error())
 		return
 	}
-	id, err := app.App.DBService.CreateShellTask(req)
+	id, err := app.App.JmsDBService.CreateShellTask(req)
 	if err != nil {
 		c.String(500, err.Error())
 		return
@@ -62,7 +62,7 @@ func updateShellTask(c *gin.Context) {
 		c.String(400, err.Error())
 		return
 	}
-	err := app.App.DBService.UpdateShellTask(c.Param("uuid"), &req)
+	err := app.App.JmsDBService.UpdateShellTask(c.Param("uuid"), &req)
 	if err != nil {
 		c.String(500, err.Error())
 		return
@@ -79,7 +79,7 @@ func updateShellTask(c *gin.Context) {
 // @Success 200 {string} success
 // @Router /api/v1/shell/task/:uuid [delete]
 func deleteShellTask(c *gin.Context) {
-	err := app.App.DBService.DeleteShellTask(c.Param("uuid"))
+	err := app.App.JmsDBService.DeleteShellTask(c.Param("uuid"))
 	if err != nil {
 		c.String(500, err.Error())
 		return
@@ -106,7 +106,7 @@ func listShellRecord(c *gin.Context) {
 	if serverIP != "" {
 		req.ServerIP = &serverIP
 	}
-	records, err := app.App.DBService.QueryShellTaskRecord(&req)
+	records, err := app.App.JmsDBService.QueryShellTaskRecord(&req)
 	if err != nil {
 		c.String(500, err.Error())
 		return

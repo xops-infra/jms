@@ -7,7 +7,7 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
 )
 
@@ -19,7 +19,7 @@ import (
 // @Success 200 {object} []Key
 // @Router /api/v1/key [get]
 func listKey(c *gin.Context) {
-	keys, err := app.App.DBService.ListKey()
+	keys, err := app.App.JmsDBService.ListKey()
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
@@ -43,7 +43,7 @@ func addKey(c *gin.Context) {
 		return
 	}
 	log.Debugf("add key: %s", tea.Prettify(req))
-	id, err := app.App.DBService.AddKey(req)
+	id, err := app.App.JmsDBService.AddKey(req)
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -65,7 +65,7 @@ func deleteKey(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("uuid is empty"))
 		return
 	}
-	if err := app.App.DBService.DeleteKey(id); err != nil {
+	if err := app.App.JmsDBService.DeleteKey(id); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}

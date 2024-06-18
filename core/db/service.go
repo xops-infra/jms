@@ -7,7 +7,7 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 	"gorm.io/gorm"
 )
 
@@ -15,7 +15,7 @@ type DBService struct {
 	DB *gorm.DB
 }
 
-func NewDbService(db *gorm.DB) *DBService {
+func NewJmsDbService(db *gorm.DB) *DBService {
 	return &DBService{
 		DB: db,
 	}

@@ -10,7 +10,7 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 )
 
 // 支持数据库和配置文件两种方式获取 KEY以及 Profile.

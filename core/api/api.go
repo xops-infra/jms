@@ -10,8 +10,8 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/dingtalk"
+	. "github.com/xops-infra/jms/model"
 )
 
 // @Summary 获取策略列表
@@ -32,7 +32,7 @@ func listPolicy(c *gin.Context) {
 	name := c.Query("name")
 	id := c.Query("id")
 	if user != "" {
-		policies, err := app.App.DBService.QueryPolicyByUser(user)
+		policies, err := app.App.JmsDBService.QueryPolicyByUser(user)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -41,7 +41,7 @@ func listPolicy(c *gin.Context) {
 		return
 	}
 	if name != "" {
-		policies, err := app.App.DBService.QueryPolicyByName(name)
+		policies, err := app.App.JmsDBService.QueryPolicyByName(name)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -50,7 +50,7 @@ func listPolicy(c *gin.Context) {
 		return
 	}
 	if id != "" {
-		policy, err := app.App.DBService.QueryPolicyById(id)
+		policy, err := app.App.JmsDBService.QueryPolicyById(id)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -59,7 +59,7 @@ func listPolicy(c *gin.Context) {
 		return
 	}
 	// 否则查询所有
-	policies, err := app.App.DBService.QueryAllPolicy()
+	policies, err := app.App.JmsDBService.QueryAllPolicy()
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -90,7 +90,7 @@ func updatePolicy(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.DBService.UpdatePolicy(id, req); err != nil {
+	if err := app.App.JmsDBService.UpdatePolicy(id, req); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}
@@ -112,7 +112,7 @@ func deletePolicy(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	if err := app.App.DBService.DeletePolicy(id); err != nil {
+	if err := app.App.JmsDBService.DeletePolicy(id); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}
@@ -186,14 +186,14 @@ func createApproval(c *gin.Context) {
 			c.JSON(500, err.Error())
 			return
 		}
-		policyId, err := app.App.DBService.CreatePolicy(req.ToPolicyMut(), &processid)
+		policyId, err := app.App.JmsDBService.CreatePolicy(req.ToPolicyMut(), &processid)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
 		}
 		c.JSON(200, policyId)
 	} else {
-		policyId, err := app.App.DBService.CreatePolicy(req.ToPolicyMut(), nil)
+		policyId, err := app.App.JmsDBService.CreatePolicy(req.ToPolicyMut(), nil)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -223,7 +223,7 @@ func updateApproval(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.DBService.UpdatePolicyStatus(id, *req); err != nil {
+	if err := app.App.JmsDBService.UpdatePolicyStatus(id, *req); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}

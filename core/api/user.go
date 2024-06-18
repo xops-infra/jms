@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 )
 
 // @Summary 获取用户列表
@@ -22,7 +22,7 @@ func listUser(c *gin.Context) {
 	name := c.Query("name")
 	group := c.Query("group")
 	if name != "" {
-		users, err := app.App.DBService.DescribeUser(name)
+		users, err := app.App.JmsDBService.DescribeUser(name)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -31,7 +31,7 @@ func listUser(c *gin.Context) {
 		return
 	}
 	if group != "" {
-		users, err := app.App.DBService.QueryUserByGroup(group)
+		users, err := app.App.JmsDBService.QueryUserByGroup(group)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -40,7 +40,7 @@ func listUser(c *gin.Context) {
 		return
 	}
 	// 否则查询所有
-	users, err := app.App.DBService.QueryAllUser()
+	users, err := app.App.JmsDBService.QueryAllUser()
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -63,7 +63,7 @@ func addUser(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
-	_, err := app.App.DBService.CreateUser(&req)
+	_, err := app.App.JmsDBService.CreateUser(&req)
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -92,7 +92,7 @@ func updateUserGroup(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.DBService.PatchUserGroup(id, req); err != nil {
+	if err := app.App.JmsDBService.PatchUserGroup(id, req); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}
@@ -120,7 +120,7 @@ func updateUser(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.DBService.UpdateUser(id, *req); err != nil {
+	if err := app.App.JmsDBService.UpdateUser(id, *req); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}

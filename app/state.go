@@ -8,8 +8,8 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
-	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/db"
+	model1 "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
@@ -30,11 +30,11 @@ type Application struct {
 	RobotClient     *dt.RobotClient    // 钉钉机器人
 	DingTalkClient  *dt.DingTalkClient // 钉钉APP使用审批流
 	Ldap            *utils.Ldap
-	Config          *config.Config // 支持数据库和配置文件两种方式载入配置
+	Config          *model1.Config // 支持数据库和配置文件两种方式载入配置
 	Cache           *cache.Cache
 
-	DBService *db.DBService
-	McsServer model.CommonContract
+	JmsDBService *db.DBService
+	McsServer    model.CommonContract
 }
 
 // Manager,Agent,Worker need to be initialized
@@ -49,7 +49,7 @@ func NewSshdApplication(debug bool, logDir string, version string) *Application 
 		SSHDir:  "/opt/jms/.ssh/",
 		Version: version,
 		Debug:   debug,
-		Config:  config.Conf,
+		Config:  model1.Conf,
 		Cache:   cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
 	// init log
@@ -80,7 +80,7 @@ func NewSshdApplication(debug bool, logDir string, version string) *Application 
 
 func NewApiApplication() *Application {
 	App = &Application{
-		Config: config.Conf,
+		Config: model1.Conf,
 	}
 
 	return App
@@ -133,7 +133,7 @@ func (app *Application) WithDB() *Application {
 		log.Debugf("with policy pg database: %s", app.Config.WithDB.PG.GetUrl())
 		dialector = postgres.Open(app.Config.WithDB.PG.GetUrl())
 	} else {
-		dbFile := config.Conf.WithDB.DBFile
+		dbFile := model1.Conf.WithDB.DBFile
 		if !strings.HasSuffix(dbFile, ".db") {
 			panic("db file must be end with .db")
 		}
@@ -158,11 +158,11 @@ func (app *Application) WithDB() *Application {
 	if !app.Debug {
 		log.Infof("auto migrate db!")
 		err = rdb.AutoMigrate(
-			&config.Policy{}, &config.User{}, &config.AuthorizedKey{},
-			&config.Key{}, &config.Profile{}, &config.Proxy{}, // 配置
-			&config.SSHLoginRecord{}, &config.ScpRecord{}, // 审计
-			&config.Broadcast{},
-			&config.ShellTask{}, &config.ShellTaskRecord{}, // 定时任务功能
+			&model1.Policy{}, &model1.User{}, &model1.AuthorizedKey{},
+			&model1.Key{}, &model1.Profile{}, &model1.Proxy{}, // 配置
+			&model1.SSHLoginRecord{}, &model1.ScpRecord{}, // 审计
+			&model1.Broadcast{},
+			&model1.ShellTask{}, &model1.ShellTaskRecord{}, // 定时任务功能
 		)
 	}
 
@@ -170,28 +170,28 @@ func (app *Application) WithDB() *Application {
 		panic(err)
 	}
 	log.Infof("init db success")
-	App.DBService = db.NewDbService(rdb)
-	app.LoadFromDB()
+	App.JmsDBService = db.NewJmsDbService(rdb)
+	app.LoadFromDB() // 加载数据库配置
 	return app
 }
 
 // 抽出来在初始化用以及定时热加载数据库
 func (app *Application) LoadFromDB() {
 	log.Debugf("load from db")
-	profiles, err := App.DBService.LoadProfile()
+	profiles, err := App.JmsDBService.LoadProfile()
 	if err != nil {
 		panic(err)
 	}
 	App.Config.Profiles = profiles
 	// 支持mcs的动态init，因为 profiles 是动态变化的
 
-	resp, err := App.DBService.InternalLoadKey()
+	resp, err := App.JmsDBService.InternalLoadKey()
 	if err != nil {
 		log.Panicf("load keys failed: %v", err)
 	}
 	App.Config.Keys = resp
 
-	proxys, err := App.DBService.ListProxy()
+	proxys, err := App.JmsDBService.ListProxy()
 	if err != nil {
 		log.Panicf("load proxy failed: %v", err)
 	}
@@ -199,7 +199,7 @@ func (app *Application) LoadFromDB() {
 
 }
 
-func DBProfilesToMcsProfiles(profiles []config.CreateProfileRequest) []model.ProfileConfig {
+func DBProfilesToMcsProfiles(profiles []model1.CreateProfileRequest) []model.ProfileConfig {
 	var mcsProfiles []model.ProfileConfig
 	for _, profile := range profiles {
 		mcsProfiles = append(mcsProfiles, model.ProfileConfig{

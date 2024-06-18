@@ -6,18 +6,18 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
-	"github.com/xops-infra/jms/config"
+	"github.com/xops-infra/jms/model"
 )
 
-func (d *DBService) InternalLoadKey() ([]config.AddKeyRequest, error) {
-	var keys []config.Key
+func (d *DBService) InternalLoadKey() ([]model.AddKeyRequest, error) {
+	var keys []model.Key
 	err := d.DB.Where("is_delete is false").Find(&keys).Order("created_at").Error
 	if err != nil {
 		return nil, err
 	}
-	var res []config.AddKeyRequest
+	var res []model.AddKeyRequest
 	for i := range keys {
-		res = append(res, config.AddKeyRequest{
+		res = append(res, model.AddKeyRequest{
 			IdentityFile: tea.String(keys[i].KeyName),
 			PemBase64:    tea.String(keys[i].PemBase64),
 			KeyID:        tea.String(keys[i].KeyID),
@@ -27,8 +27,8 @@ func (d *DBService) InternalLoadKey() ([]config.AddKeyRequest, error) {
 	return res, nil
 }
 
-func (d *DBService) ListKey() ([]config.Key, error) {
-	var keys []config.Key
+func (d *DBService) ListKey() ([]model.Key, error) {
+	var keys []model.Key
 	err := d.DB.Where("is_delete is false").Find(&keys).Order("created_at").Error
 	// 隐藏敏感信息
 	for i := range keys {
@@ -38,7 +38,7 @@ func (d *DBService) ListKey() ([]config.Key, error) {
 }
 
 // 支持判断 key_id 是否存在
-func (d *DBService) AddKey(req config.AddKeyRequest) (string, error) {
+func (d *DBService) AddKey(req model.AddKeyRequest) (string, error) {
 	if req.IdentityFile == nil || req.PemBase64 == nil || req.KeyID == nil || req.Profile == nil {
 		return "", fmt.Errorf("invalid request")
 	}
@@ -47,14 +47,14 @@ func (d *DBService) AddKey(req config.AddKeyRequest) (string, error) {
 	}
 	// 先查询是否存在
 	var count int64
-	err := d.DB.Model(config.Key{}).Where("key_id = ?", *req.KeyID).Where("is_delete is false").Count(&count).Error
+	err := d.DB.Model(model.Key{}).Where("key_id = ?", *req.KeyID).Where("is_delete is false").Count(&count).Error
 	if err != nil {
 		return "", err
 	}
 	if count > 0 {
 		return "", fmt.Errorf("key_id %s already exists", tea.StringValue(req.KeyID))
 	}
-	key := &config.Key{
+	key := &model.Key{
 		IsDelete:  false,
 		UUID:      uuid.NewString(),
 		KeyID:     tea.StringValue(req.KeyID),
@@ -67,7 +67,7 @@ func (d *DBService) AddKey(req config.AddKeyRequest) (string, error) {
 
 func (d *DBService) DeleteKey(uuid string) error {
 	// 先查询是否存在
-	var key config.Key
+	var key model.Key
 	err := d.DB.Where("uuid = ?", uuid).Where("is_delete is false").First(&key).Error
 	if err != nil {
 		return err

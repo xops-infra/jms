@@ -16,7 +16,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/config"
+	. "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
 
@@ -142,7 +142,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 			return err
 		}
 		if app.App.Config.WithDB.Enable {
-			err = app.App.DBService.AddDownloadRecord(&AddScpRecordRequest{
+			err = app.App.JmsDBService.AddDownloadRecord(&AddScpRecordRequest{
 				Action: tea.String("upload"),
 				From:   tea.String(filename),
 				To:     tea.String(args[1]),
@@ -260,7 +260,7 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 				return
 			}
 			if app.App.Config.WithDB.Enable {
-				err = app.App.DBService.AddDownloadRecord(&AddScpRecordRequest{
+				err = app.App.JmsDBService.AddDownloadRecord(&AddScpRecordRequest{
 					Action: tea.String("download"),
 					To:     tea.String(filename),
 					From:   tea.String(args[1]),

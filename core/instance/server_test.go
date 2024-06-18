@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/instance"
+	"github.com/xops-infra/jms/model"
 )
 
 func init() {
-	config.LoadYaml("/opt/jms/config.yaml")
+	model.LoadYaml("/opt/jms/config.yaml")
 	app.NewSshdApplication(true, "", "---").WithRobot().WithDB()
 }
 
@@ -30,10 +30,10 @@ func TestServerShellRun(t *testing.T) {
 
 // runShellTask
 func TestRunShellTask(t *testing.T) {
-	server := config.Server{
+	server := model.Server{
 		Host: "192.168.3.233",
 		Name: "test-server",
-		SSHUsers: []config.SSHUser{
+		SSHUsers: []model.SSHUser{
 			{
 				UserName: "root",
 				Password: "111111",
@@ -41,12 +41,12 @@ func TestRunShellTask(t *testing.T) {
 		},
 		Port: 22,
 	}
-	servers := []config.Server{
+	servers := []model.Server{
 		server,
 		{
 			Host: "192.168.16.239",
 			Name: "test1-server",
-			SSHUsers: []config.SSHUser{
+			SSHUsers: []model.SSHUser{
 				{
 					UserName: "root",
 					Password: "xxx",
@@ -55,14 +55,14 @@ func TestRunShellTask(t *testing.T) {
 			Port: 22,
 		},
 	}
-	status, err := instance.RunShellTask(config.ShellTask{
+	status, err := instance.RunShellTask(model.ShellTask{
 		UUID:  "xxxxxx",
 		Shell: "pwd",
 		Name:  "测试脚本",
-		Servers: config.ServerFilter{
+		Servers: model.ServerFilter{
 			IpAddr: []string{"*"},
 		},
-		Status: config.StatusPending,
+		Status: model.StatusPending,
 	}, servers)
 	if err != nil {
 		t.Error(err)
