@@ -15,25 +15,25 @@ const (
 )
 
 type CreateShellTaskRequest struct {
-	Name    *string       `json:"name" binding:"required"`    // 任务名称，唯一
-	Shell   *string       `json:"shell" binding:"required"`   // 脚本内容
-	Corn    *string       `json:"corn"`                       // corn表达式，支持定时执行任务，执行一次可以不传
-	Servers *ServerFilter `json:"servers" binding:"required"` // 执行的机器
+	Name    *string         `json:"name" binding:"required"`    // 任务名称，唯一
+	Shell   *string         `json:"shell" binding:"required"`   // 脚本内容
+	Corn    *string         `json:"corn"`                       // corn表达式，支持定时执行任务，执行一次可以不传
+	Servers *ServerFilterV1 `json:"servers" binding:"required"` // 执行的机器
 }
 
 type ShellTask struct {
 	gorm.Model `json:"-"`
-	IsDeleted  bool         `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
-	UUID       string       `json:"uuid" gorm:"column:uuid;type:varchar(36);unique_index;not null"`
-	Name       string       `json:"name" gorm:"column:name;not null,unique"`
-	Shell      string       `json:"shell" gorm:"column:shell;not null"`
-	Corn       string       `json:"corn" gorm:"column:cron;not null;default:''"`
-	ExecTimes  int          `json:"exec_times" gorm:"column:exec_times;not null;default:0"` // 任务执行次数
-	Status     Status       `json:"status" gorm:"column:status;not null"`
-	ExecResult string       `json:"exec_result" gorm:"column:exec_result;type:text;not null;default:''"` // 任务执行结果信息
-	Servers    ServerFilter `json:"servers" gorm:"column:servers;type:json;not null"`
-	CostTime   int64        `json:"cost_time" gorm:"column:cost_time;not null"`
-	SubmitUser string       `json:"submit_user" gorm:"column:submit_user;not null"` // 直接在token中获取
+	IsDeleted  bool           `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
+	UUID       string         `json:"uuid" gorm:"column:uuid;type:varchar(36);unique_index;not null"`
+	Name       string         `json:"name" gorm:"column:name;not null,unique"`
+	Shell      string         `json:"shell" gorm:"column:shell;not null"`
+	Corn       string         `json:"corn" gorm:"column:cron;not null;default:''"`
+	ExecTimes  int            `json:"exec_times" gorm:"column:exec_times;not null;default:0"` // 任务执行次数
+	Status     Status         `json:"status" gorm:"column:status;not null"`
+	ExecResult string         `json:"exec_result" gorm:"column:exec_result;type:text;not null;default:''"` // 任务执行结果信息
+	Servers    ServerFilterV1 `json:"servers" gorm:"column:servers;type:json;not null"`
+	CostTime   int64          `json:"cost_time" gorm:"column:cost_time;not null"`
+	SubmitUser string         `json:"submit_user" gorm:"column:submit_user;not null"` // 直接在token中获取
 }
 
 func (s *ShellTask) TableName() string {

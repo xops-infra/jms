@@ -176,7 +176,7 @@ func getServerApproveMenu(server Server) func(int, *MenuItem, *ssh.Session, []*M
 				serverInfoKey: server.Name,
 			},
 			SubMenuTitle: SelectAction,
-			GetSubMenu: getActionMenu(ServerFilter{
+			GetSubMenu: getActionMenu(ServerFilterV1{
 				IpAddr: []string{server.Host},
 			}),
 		})
@@ -196,7 +196,7 @@ func getServerApproveMenu(server Server) func(int, *MenuItem, *ssh.Session, []*M
 	}
 }
 
-func getActionMenu(serverFilter ServerFilter) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
+func getActionMenu(serverFilter ServerFilterV1) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		sshd.Info("申请行为，包括连接，上传和下载文件的权限。", sess)
 		var menu []*MenuItem
@@ -210,7 +210,7 @@ func getActionMenu(serverFilter ServerFilter) func(int, *MenuItem, *ssh.Session,
 	}
 }
 
-func getExpireMenu(serverFilter ServerFilter, actions ArrayString) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
+func getExpireMenu(serverFilter ServerFilterV1, actions ArrayString) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		var menu []*MenuItem
 		sshd.Info("选择策略生效周期，到期后会自动删除策略。", sess)
@@ -225,15 +225,15 @@ func getExpireMenu(serverFilter ServerFilter, actions ArrayString) func(int, *Me
 	}
 }
 
-func getSureApplyMenu(serverFilter ServerFilter, actions ArrayString, expiredDuration time.Duration) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
+func getSureApplyMenu(serverFilter ServerFilterV1, actions ArrayString, expiredDuration time.Duration) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		expired := time.Now().Add(expiredDuration)
 		policyNew := &PolicyRequest{
-			Actions:      actions,
-			Users:        ArrayString{(*sess).User()},
-			ServerFilter: &serverFilter,
-			ExpiresAt:    &expired,
-			Name:         tea.String(fmt.Sprintf("%s-%s", (*sess).User(), time.Now().Format("20060102_1504"))),
+			Actions:        actions,
+			Users:          ArrayString{(*sess).User()},
+			ServerFilterV1: &serverFilter,
+			ExpiresAt:      &expired,
+			Name:           tea.String(fmt.Sprintf("%s-%s", (*sess).User(), time.Now().Format("20060102_1504"))),
 		}
 		var menu []*MenuItem
 		sshd.Info(fmt.Sprintf("%s\n确定申请权限？", tea.Prettify(policyNew)), sess)
@@ -242,7 +242,7 @@ func getSureApplyMenu(serverFilter ServerFilter, actions ArrayString, expiredDur
 			SelectedFunc: func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
 				log.Infof("create policy: %s", tea.Prettify(policyNew))
 				var approval_id string
-				if policyNew.ServerFilter == nil {
+				if policyNew.ServerFilterV1 == nil {
 					return false, fmt.Errorf("server filter is nil")
 				}
 
@@ -250,11 +250,11 @@ func getSureApplyMenu(serverFilter ServerFilter, actions ArrayString, expiredDur
 					id, err := dingtalk.CreateApproval((*sess).User(), []dt.FormComponentValue{
 						{
 							Name:  tea.String("EnvType"),
-							Value: tea.String(FmtDingtalkApproveFile(policyNew.ServerFilter.EnvType)),
+							Value: tea.String(FmtDingtalkApproveFile(policyNew.ServerFilterV1.EnvType)),
 						},
 						{
 							Name:  tea.String("ServerFilter"),
-							Value: tea.String(tea.Prettify(policyNew.ServerFilter)),
+							Value: tea.String(tea.Prettify(policyNew.ServerFilterV1)),
 						},
 						{
 							Name:  tea.String("DateExpired"),

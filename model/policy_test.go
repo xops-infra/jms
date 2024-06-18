@@ -20,7 +20,7 @@ func init() {
 func TestMatchServer(t *testing.T) {
 	{
 		// 测试 envType 是否匹配
-		filter := ServerFilter{
+		filter := ServerFilterV1{
 			EnvType: []string{"!prod"},
 		}
 		server := Server{
@@ -52,7 +52,7 @@ func TestMatchServer(t *testing.T) {
 				},
 			},
 		}
-		filter := ServerFilter{
+		filter := ServerFilterV1{
 			EnvType: []string{"prod"},
 		}
 		assert.True(t, MatchServerByFilter(filter, server))
@@ -98,10 +98,10 @@ func TestMatchPolicy(t *testing.T) {
 	user.Groups = ArrayString{}
 	{
 		// 测试普通用户,IP 匹配
-		policy.ServerFilter.IpAddr = []string{"127.0.0.1"}
-		policy.ServerFilter.Name = nil
-		policy.ServerFilter.EnvType = nil
-		policy.ServerFilter.Team = nil
+		policy.ServerFilterV1.IpAddr = []string{"127.0.0.1"}
+		policy.ServerFilterV1.Name = nil
+		policy.ServerFilterV1.EnvType = nil
+		policy.ServerFilterV1.Team = nil
 		server.Host = "127.0.0.1"
 		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
@@ -113,10 +113,10 @@ func TestMatchPolicy(t *testing.T) {
 	}
 	{
 		// 普通用户，Name匹配
-		policy.ServerFilter.Name = []string{"test"}
-		policy.ServerFilter.EnvType = nil
-		policy.ServerFilter.Team = nil
-		policy.ServerFilter.IpAddr = nil
+		policy.ServerFilterV1.Name = []string{"test"}
+		policy.ServerFilterV1.EnvType = nil
+		policy.ServerFilterV1.Team = nil
+		policy.ServerFilterV1.IpAddr = nil
 		server.Name = "test"
 		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
@@ -128,10 +128,10 @@ func TestMatchPolicy(t *testing.T) {
 	}
 	{
 		// 普通用户，EnvType匹配
-		policy.ServerFilter.Team = nil
-		policy.ServerFilter.Name = nil
-		policy.ServerFilter.IpAddr = nil
-		policy.ServerFilter.EnvType = []string{"prod"}
+		policy.ServerFilterV1.Team = nil
+		policy.ServerFilterV1.Name = nil
+		policy.ServerFilterV1.IpAddr = nil
+		policy.ServerFilterV1.EnvType = []string{"prod"}
 		server.Tags = model.Tags{
 			{
 				Key:   "EnvType",
@@ -153,10 +153,10 @@ func TestMatchPolicy(t *testing.T) {
 	}
 	{
 		// 普通用户，Team匹配
-		policy.ServerFilter.Team = []string{"ops"}
-		policy.ServerFilter.Name = nil
-		policy.ServerFilter.EnvType = nil
-		policy.ServerFilter.IpAddr = nil
+		policy.ServerFilterV1.Team = []string{"ops"}
+		policy.ServerFilterV1.Name = nil
+		policy.ServerFilterV1.EnvType = nil
+		policy.ServerFilterV1.IpAddr = nil
 
 		server.Tags = model.Tags{
 			{
@@ -179,10 +179,10 @@ func TestMatchPolicy(t *testing.T) {
 	}
 	{
 		// 普通用户，Owner匹配
-		policy.ServerFilter.Team = nil
-		policy.ServerFilter.Name = nil
-		policy.ServerFilter.EnvType = nil
-		policy.ServerFilter.IpAddr = nil
+		policy.ServerFilterV1.Team = nil
+		policy.ServerFilterV1.Name = nil
+		policy.ServerFilterV1.EnvType = nil
+		policy.ServerFilterV1.IpAddr = nil
 
 		server.Tags = model.Tags{
 			{
@@ -220,7 +220,7 @@ func TestMultipolicy(t *testing.T) {
 		Users:     ArrayString{"zhoushoujian"},
 		Actions:   ArrayString{"connect"},
 		ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
-		ServerFilter: ServerFilter{
+		ServerFilterV1: &ServerFilterV1{
 			IpAddr: []string{"127.0.0.1"},
 		},
 	}
@@ -239,7 +239,7 @@ func TestMultipolicy(t *testing.T) {
 				Users:     ArrayString{"zhoushoujian"},
 				Actions:   ArrayString{string(DenyConnect)},
 				ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
-				ServerFilter: ServerFilter{
+				ServerFilterV1: &ServerFilterV1{
 					Name: []string{"*"},
 				},
 			},
@@ -258,7 +258,7 @@ func TestMultipolicy(t *testing.T) {
 				Users:     ArrayString{"zhoushoujian"},
 				Actions:   ArrayString{string((Connect))},
 				ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
-				ServerFilter: ServerFilter{
+				ServerFilterV1: &ServerFilterV1{
 					EnvType: []string{"!prod"},
 				},
 			},
@@ -269,7 +269,7 @@ func TestMultipolicy(t *testing.T) {
 				Users:     ArrayString{"zhoushoujian"},
 				Actions:   ArrayString{string((Connect))},
 				ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
-				ServerFilter: ServerFilter{
+				ServerFilterV1: &ServerFilterV1{
 					EnvType: []string{"!dev"},
 				},
 			},
@@ -288,7 +288,7 @@ func TestMultipolicy(t *testing.T) {
 				Users:     ArrayString{"zhoushoujian"},
 				Actions:   ArrayString{string((Connect))},
 				ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
-				ServerFilter: ServerFilter{
+				ServerFilterV1: &ServerFilterV1{
 					Team: []string{"*"},
 				},
 			},
@@ -299,7 +299,7 @@ func TestMultipolicy(t *testing.T) {
 				Users:     ArrayString{"zhoushoujian"},
 				Actions:   ArrayString{string((Connect))},
 				ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
-				ServerFilter: ServerFilter{
+				ServerFilterV1: &ServerFilterV1{
 					Team: []string{"data"},
 				},
 			},

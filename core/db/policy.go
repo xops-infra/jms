@@ -10,8 +10,8 @@ import (
 )
 
 func (d *DBService) CreatePolicy(req *model.PolicyRequest, approval_id *string) (string, error) {
-	if req.ServerFilter == nil || req.ExpiresAt == nil || approval_id == nil {
-		return "", fmt.Errorf("required. please check")
+	if req.Name == nil || req.ServerFilterV1 == nil || req.ExpiresAt == nil {
+		return "", fmt.Errorf("invalid request. please check required fields")
 	}
 	// 判断策略是否存在
 	var count int64
@@ -22,14 +22,15 @@ func (d *DBService) CreatePolicy(req *model.PolicyRequest, approval_id *string) 
 		return "", fmt.Errorf("policy already exists")
 	}
 	newPolicy := &model.Policy{
-		ID:           uuid.NewString(),
-		Name:         tea.StringValue(req.Name),
-		IsEnabled:    false, // 默认不启用，需要审批
-		Users:        req.Users,
-		Actions:      req.Actions,
-		ServerFilter: *req.ServerFilter,
-		ExpiresAt:    *req.ExpiresAt,
-		ApprovalID:   *approval_id,
+		ID:             uuid.NewString(),
+		Name:           tea.StringValue(req.Name),
+		IsEnabled:      false, // 默认不启用，需要审批
+		Users:          req.Users,
+		Actions:        req.Actions,
+		ServerFilter:   nil,
+		ServerFilterV1: req.ServerFilterV1,
+		ExpiresAt:      *req.ExpiresAt,
+		ApprovalID:     tea.StringValue(approval_id),
 	}
 	if d.DB.Create(newPolicy).Error != nil {
 		return "", d.DB.Error
@@ -107,53 +108,6 @@ func (d *DBService) QueryPolicyByUser(username string) ([]model.Policy, error) {
 	return matchPolicies, nil
 }
 
-// // 查询用户组的策略
-// func (d *PolicyService) QueryPolicyByGroup(group string) ([]Policy, error) {
-// 	sql := d.DB.Model(&config.Policy{}).Where("is_deleted = ?", false)
-// 	tx := sql.Where("groups like ?", fmt.Sprintf("%%%s%%", group))
-// 	var policies []Policy
-// 	if err := tx.Find(&policies).Error; err != nil {
-// 		return nil, err
-// 	}
-// 	var matchPolicies []Policy
-// 	// 精确返回
-// 	for _, policy := range policies {
-// 		if policy.Groups.Contains(group) {
-// 			matchPolicies = append(matchPolicies, policy)
-// 		}
-// 	}
-// 	return matchPolicies, nil
-// }
-
-// 查询用户和用户组的策略
-// func (d *PolicyService) QueryPolicyWithGroup(username string) ([]Policy, error) {
-// 	var policies []Policy
-// 	// 查询用户信息
-// 	userPolicies, err := d.QueryPolicyByUser(username)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	policies = append(policies, userPolicies...)
-
-// 	// 查询用户信息获取组附加组策略
-// 	user, err := d.DescribeUser(username)
-// 	if err != nil {
-// 		if err != gorm.ErrRecordNotFound {
-// 			return nil, err
-// 		} else {
-// 			return policies, nil
-// 		}
-// 	}
-// 	for _, group := range user.Groups {
-// 		groupPolicies, err := d.QueryPolicyByGroup(group.(string))
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		policies = append(policies, groupPolicies...)
-// 	}
-// 	return policies, nil
-// }
-
 // 查询策略名称
 func (d *DBService) QueryPolicyByName(name string) ([]model.Policy, error) {
 	sql := d.DB.Model(&model.Policy{}).Where("is_deleted = ?", false)
@@ -177,6 +131,15 @@ func (d *DBService) QueryPolicyById(id string) (*model.Policy, error) {
 }
 
 // 查询所有
+func (d *DBService) QueryAllPolicyOld() ([]model.PolicyOld, error) {
+	sql := d.DB.Model(&model.PolicyOld{}).Where("is_deleted = ?", false)
+	var policies []model.PolicyOld
+	if err := sql.Find(&policies).Error; err != nil {
+		return nil, err
+	}
+	return policies, nil
+}
+
 func (d *DBService) QueryAllPolicy() ([]model.Policy, error) {
 	sql := d.DB.Model(&model.Policy{}).Where("is_deleted = ?", false)
 	var policies []model.Policy

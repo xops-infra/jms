@@ -19,11 +19,13 @@ func init() {
 func TestCreatePolicy(t *testing.T) {
 	expiredAt := time.Now().Add(time.Hour * 24 * 365 * 100)
 	req := model.PolicyRequest{
-		Name:         tea.String("zhoushoujian-policy-1"),
-		Users:        model.ArrayString{"zhoushoujian"},
-		ServerFilter: &model.ServerFilter{Name: []string{"*"}},
-		Actions:      model.All,
-		ExpiresAt:    &expiredAt,
+		Name:  tea.String("zhoushoujian-policy-1"),
+		Users: model.ArrayString{"zhoushoujian"},
+		ServerFilterV1: &model.ServerFilterV1{
+			IpAddr: model.ArrayString{"244.178.44.111"},
+		},
+		Actions:   model.All,
+		ExpiresAt: &expiredAt,
 	}
 	result, err := app.App.JmsDBService.CreatePolicy(&req, nil)
 	if err != nil {

@@ -59,7 +59,7 @@ func TestRunShellTask(t *testing.T) {
 		UUID:  "xxxxxx",
 		Shell: "pwd",
 		Name:  "测试脚本",
-		Servers: model.ServerFilter{
+		Servers: model.ServerFilterV1{
 			IpAddr: []string{"*"},
 		},
 		Status: model.StatusPending,
