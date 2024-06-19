@@ -62,7 +62,8 @@ var sshdCmd = &cobra.Command{
 		}
 
 		if app.App.Config.WithDB.Enable {
-			_app.WithDB()
+			_app.WithDB(!debug)
+			_app.LoadFromDB() // 加载数据库配置
 			log.Infof("enable db")
 		}
 

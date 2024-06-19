@@ -10,7 +10,7 @@ import (
 
 func init() {
 	model.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(true, "", "---").WithDB()
+	app.NewSshdApplication(true, "", "---").WithDB(false)
 }
 
 func TestAuditArch(t *testing.T) {

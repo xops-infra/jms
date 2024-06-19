@@ -9,7 +9,7 @@ import (
 
 func init() {
 	model.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(true, "", "").WithDB().WithDingTalk()
+	app.NewSshdApplication(true, "", "").WithDB(false).WithDingTalk()
 }
 
 func TestLoadDingtalkUsers(t *testing.T) {

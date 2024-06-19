@@ -58,7 +58,7 @@ var apiCmd = &cobra.Command{
 			log.Infof("enable dingtalk")
 			_app.WithDingTalk()
 		}
-		_app.WithDB()
+		_app.WithDB(false)
 
 		log.Infof("api server start on port: %d", apiPort)
 		g := api.NewGin()

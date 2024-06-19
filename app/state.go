@@ -127,7 +127,7 @@ func (app *Application) WithDingTalk() *Application {
 }
 
 // 启用 Policy 规则的情况下，使用数据库记录规则信息
-func (app *Application) WithDB() *Application {
+func (app *Application) WithDB(migrate bool) *Application {
 	// 优先匹配 pg
 	var dialector gorm.Dialector
 	if app.Config.WithDB.PG.Database != "" {
@@ -159,7 +159,7 @@ func (app *Application) WithDB() *Application {
 		panic("无法连接到数据库")
 	}
 	// 初始化数据库,debug模式不初始化
-	if !app.Debug {
+	if migrate {
 		log.Infof("auto migrate db!")
 		err = rdb.AutoMigrate(
 			&model1.Policy{}, &model1.User{}, &model1.AuthorizedKey{},
@@ -173,9 +173,7 @@ func (app *Application) WithDB() *Application {
 	if err != nil {
 		panic(err)
 	}
-	log.Infof("init db success")
 	App.JmsDBService = db.NewJmsDbService(rdb)
-	app.LoadFromDB() // 加载数据库配置
 	return app
 }
 

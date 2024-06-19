@@ -10,7 +10,7 @@ import (
 
 func init() {
 	model.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(true, "", "---").WithRobot().WithDB()
+	app.NewSshdApplication(true, "", "---").WithRobot().WithDB(false)
 }
 
 func TestServerLiveness(t *testing.T) {
