@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func (d *DBService) CreatePolicy(req *model.PolicyRequest, approval_id *string) (string, error) {
+func (d *DBService) CreatePolicy(req *model.PolicyRequest) (string, error) {
 	if req.Name == nil || req.ServerFilterV1 == nil || req.ExpiresAt == nil {
 		return "", fmt.Errorf("invalid request. please check required fields")
 	}
@@ -30,7 +30,6 @@ func (d *DBService) CreatePolicy(req *model.PolicyRequest, approval_id *string) 
 		ServerFilter:   nil,
 		ServerFilterV1: req.ServerFilterV1,
 		ExpiresAt:      *req.ExpiresAt,
-		ApprovalID:     tea.StringValue(approval_id),
 	}
 	if d.DB.Create(newPolicy).Error != nil {
 		return "", d.DB.Error
@@ -58,7 +57,7 @@ func (d *DBService) UpdatePolicyStatus(id string, mut model.ApprovalResult) erro
 }
 
 func (d *DBService) DeletePolicy(id string) error {
-	return d.DB.Where("id = ?", id).UpdateColumn("is_deleted", true).Error
+	return d.DB.Model(&model.Policy{}).Where("id = ?", id).UpdateColumn("is_deleted", true).Error
 }
 
 func (d *DBService) ApprovePolicy(policyName, Approver string, IsEnabled bool) error {

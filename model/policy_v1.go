@@ -14,6 +14,7 @@ type PolicyRequest struct {
 	ServerFilterV1 *ServerFilterV1 `json:"server_filter" binding:"required"`
 	ExpiresAt      *time.Time      `json:"expires_at"`
 	IsEnabled      *bool           `json:"is_enabled"`
+	ApprovalID     *string         `json:"approval_id"`
 }
 
 type Policy struct {

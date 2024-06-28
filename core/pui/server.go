@@ -241,11 +241,21 @@ func getSureApplyMenu(serverFilter ServerFilterV1, actions ArrayString, expiredD
 			Label: "确定",
 			SelectedFunc: func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
 				log.Infof("create policy: %s", tea.Prettify(policyNew))
-				var approval_id string
 				if policyNew.ServerFilterV1 == nil {
 					return false, fmt.Errorf("server filter is nil")
 				}
 
+				adminMessage := ""
+				// 创建审批策略
+				policyId, err := app.App.JmsDBService.CreatePolicy(policyNew)
+				if err != nil {
+					log.Errorf("create policy error: %s", err)
+					adminMessage = "创建审批策略失败"
+					return false, err
+				}
+				log.Infof("create approve success, id: %s", policyId)
+
+				// 创建dingtalk审批
 				if app.App.Config.WithDingtalk.Enable {
 					id, err := dingtalk.CreateApproval((*sess).User(), []dt.FormComponentValue{
 						{
@@ -273,21 +283,24 @@ func getSureApplyMenu(serverFilter ServerFilterV1, actions ArrayString, expiredD
 						log.Errorf("dingtalk.CreateApproval error: %s", err)
 						return false, err
 					}
-					approval_id = id
+					// 更新审批ID到策略字段
+					if err := app.App.JmsDBService.UpdatePolicy(policyId, &PolicyRequest{
+						ApprovalID: &id,
+					}); err != nil {
+						adminMessage = fmt.Sprintf("更新审批ID到策略字段,需要人工修复审批id: %s 的approveid字段为: %s error: %s", policyId, id, err)
+						log.Errorf("update policy approval id error, report to admin: %s", err)
+						return false, err
+					}
+
 					sshd.Info(fmt.Sprintf("成功创建钉钉审批:%s 等等管理员审批 完成后策略自动生效", id), sess)
 				}
-				policyId, err := app.App.JmsDBService.CreatePolicy(policyNew, &approval_id)
-				if err != nil {
-					log.Errorf("create policy error: %s", err)
-					return false, err
-				}
-				log.Infof("create approve success, id: %s", policyId)
+
 				// 产生一个申请权限的任务，等待管理员审核
 				sshd.Info(fmt.Sprintf("审批ID:%s，创建成功！等待管理员审核。", policyId), sess)
-				if false {
+				if adminMessage != "" {
 					// TODO: 发送钉钉消息
 					instance.SendMessage(app.App.Config.WithSSHCheck.Alert.RobotToken,
-						fmt.Sprintf("新增审批ID:%s，创建成功！等待管理员审核。\n%s", policyId, tea.Prettify(policyNew)))
+						adminMessage)
 				}
 				return true, nil
 			}})

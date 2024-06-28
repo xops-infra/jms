@@ -134,6 +134,10 @@ func createApproval(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
+	if req.Applicant == nil {
+		c.JSON(400, fmt.Errorf("Applicant is empty"))
+		return
+	}
 	// 如果启用了审批，创建审批
 	if app.App.Config.WithDingtalk.Enable {
 		values := []dt.FormComponentValue{}
@@ -180,20 +184,35 @@ func createApproval(c *gin.Context) {
 				Value: tea.String(strings.Join(vString, ",")),
 			})
 		}
-		processid, err := dingtalk.CreateApproval(*req.Applicant, values)
+
+		policyId, err := app.App.JmsDBService.CreatePolicy(req.ToPolicyMut())
 		if err != nil {
-			log.Errorf("dingtalk.CreateApproval error: %s", err)
+			log.Errorf("JmsDBService.CreatePolicy error: %s", err)
 			c.JSON(500, err.Error())
 			return
 		}
-		policyId, err := app.App.JmsDBService.CreatePolicy(req.ToPolicyMut(), &processid)
+		// 再创建审批
+		processid, err := dingtalk.CreateApproval(*req.Applicant, values)
 		if err != nil {
+			log.Errorf("dingtalk.CreateApproval error: %s", err)
+			// 删除策略
+			if err := app.App.JmsDBService.DeletePolicy(policyId); err != nil {
+				log.Errorf("JmsDBService.DeletePolicy error: %s", err)
+			}
+			c.JSON(500, err.Error())
+			return
+		}
+		err = app.App.JmsDBService.UpdatePolicy(policyId, &PolicyRequest{
+			ApprovalID: &processid,
+		})
+		if err != nil {
+			log.Errorf("JmsDBService.UpdatePolicy error: %s", err)
 			c.JSON(500, err.Error())
 			return
 		}
 		c.JSON(200, policyId)
 	} else {
-		policyId, err := app.App.JmsDBService.CreatePolicy(req.ToPolicyMut(), nil)
+		policyId, err := app.App.JmsDBService.CreatePolicy(req.ToPolicyMut())
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
