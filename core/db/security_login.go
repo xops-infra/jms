@@ -11,9 +11,10 @@ import (
 // 登录记录入库
 func (d *DBService) AddServerLoginRecord(req *model.AddSshLoginRequest) (err error) {
 	record := &model.SSHLoginRecord{
-		User:   *req.User,
-		Client: *req.Client,
-		Target: *req.TargetServer,
+		User:             *req.User,
+		Client:           *req.Client,
+		Target:           *req.TargetServer,
+		TargetInstanceId: *req.InstanceID,
 	}
 	return d.DB.Create(record).Error
 }
@@ -22,8 +23,10 @@ func (d *DBService) AddServerLoginRecord(req *model.AddSshLoginRequest) (err err
 func (d *DBService) ListServerLoginRecord(req model.QueryLoginRequest) (records []model.SSHLoginRecord, err error) {
 	sql := d.DB.Model(&model.SSHLoginRecord{})
 	log.Debugf(tea.Prettify(req))
-	if req.Days != nil {
-		sql = sql.Where("created_at >= ?", time.Now().AddDate(0, 0, -*req.Days))
+	if req.Duration != nil {
+		sql = sql.Where("created_at >= ?", time.Now().Add(-time.Hour*time.Duration(*req.Duration)))
+	} else {
+		sql = sql.Where("created_at >= ?", time.Now().AddDate(0, 0, -1))
 	}
 	if req.Ip != nil {
 		sql = sql.Where("target = ?", *req.Ip)

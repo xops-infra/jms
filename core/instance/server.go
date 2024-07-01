@@ -98,7 +98,7 @@ func fmtServer(instances []model.Instance, keys map[string]AddKeyRequest) Server
 	// 载入自己配置服务器
 	for _, server := range app.App.Config.LocalServers {
 		instanceAll = append(instanceAll, Server{
-			ID:     "local",
+			ID:     "local_config",
 			Name:   server.Name,
 			Host:   server.Host,
 			Port:   server.Port,

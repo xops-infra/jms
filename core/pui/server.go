@@ -146,6 +146,7 @@ func GetServerSSHUsersMenu(server Server, timeout string, matchPolicies []Policy
 				if app.App.Config.WithDB.Enable {
 					err := app.App.JmsDBService.AddServerLoginRecord(&AddSshLoginRequest{
 						TargetServer: tea.String(server.Host),
+						InstanceID:   tea.String(server.ID),
 						User:         tea.String((*sess).User()),
 						Client:       tea.String((*sess).RemoteAddr().String()),
 					})

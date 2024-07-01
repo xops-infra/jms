@@ -83,8 +83,8 @@ type PolicyQueryRequest struct {
 }
 
 type ApprovalMut struct {
-	Users        ArrayString     `json:"users" binding:"required"`
-	Groups       ArrayString     `json:"groups"`
+	Users ArrayString `json:"users" binding:"required"`
+	// Groups       ArrayString     `json:"groups"`
 	Applicant    *string         `json:"applicant" binding:"required"` // 申请人AD名,或者email
 	Name         *string         `json:"name"`
 	Period       *Period         `json:"period"`  // 审批周期，默认一周

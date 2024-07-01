@@ -140,28 +140,17 @@ func createApproval(c *gin.Context) {
 	}
 	// 如果启用了审批，创建审批
 	if app.App.Config.WithDingtalk.Enable {
-		values := []dt.FormComponentValue{}
-		if req.Groups != nil {
-			var vString []string
-			for _, v := range req.Groups {
-				vString = append(vString, v)
-			}
-			values = append(values, dt.FormComponentValue{
-				Name:  tea.String("Teams"),
-				Value: tea.String(strings.Join(vString, ",")),
-			})
+		values := []dt.FormComponentValue{
+			{
+				Name:  tea.String("EnvType"),
+				Value: tea.String("prod"),
+			},
 		}
 		if req.ServerFilter != nil {
 			values = append(values, dt.FormComponentValue{
-				Name:  tea.String("Assets"),
+				Name:  tea.String("ServerFilter"),
 				Value: tea.String(tea.Prettify(req.ServerFilter)),
 			})
-			if req.ServerFilter.EnvType != nil {
-				values = append(values, dt.FormComponentValue{
-					Name:  tea.String("EnvType"),
-					Value: tea.String(FmtDingtalkApproveFile(req.ServerFilter.EnvType)),
-				})
-			}
 		}
 		if req.Period != nil {
 			values = append(values, dt.FormComponentValue{
@@ -172,7 +161,7 @@ func createApproval(c *gin.Context) {
 
 		values = append(values, dt.FormComponentValue{
 			Name:  tea.String("Comment"),
-			Value: tea.String("来自API接口发起的策略申请"),
+			Value: tea.String(fmt.Sprintf("%s -来自API接口发起的策略申请", *req.Name)),
 		})
 		if req.Actions != nil {
 			var vString []string

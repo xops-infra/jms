@@ -13,15 +13,15 @@ import (
 // @Tags audit
 // @Accept json
 // @Produce json
-// @Param days query int false "days"
+// @Param duration query int false "duration hours 24 = 1 day, 默认查 1 天的记录"
 // @Param ip query string false "ip"
 // @Param user query string false "user"
 // @Success 200 {object} []model.SSHLoginRecord
 // @Router /api/v1/audit/login [get]
 func listLoginAudit(c *gin.Context) {
 	req := model.QueryLoginRequest{}
-	if c.Query("days") != "" {
-		req.Days = tea.Int(cast.ToInt(c.Query("days")))
+	if c.Query("duration") != "" {
+		req.Duration = tea.Int(cast.ToInt(c.Query("days")))
 	}
 	if c.Query("ip") != "" {
 		req.Ip = tea.String(c.Query("ip"))
