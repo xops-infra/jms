@@ -23,6 +23,7 @@ type Config struct {
 	Profiles     []CreateProfileRequest `mapstructure:"profiles"`     // 云账号配置，用来自动同步云服务器信息
 	Proxys       []CreateProxyRequest   `mapstructure:"proxies"`      // ssh代理
 	Keys         Keys                   `mapstructure:"keys"`         // ssh key pair 不启用数据库时使用
+	LocalServers []LocalServer          `mapstructure:"localServers"` // 支持人工加入的服务器
 	WithVideo    WithVideo              `mapstructure:"withVideo"`    // 视频存储
 	WithLdap     WithLdap               `mapstructure:"withLdap"`     // 配置ldap
 	WithSSHCheck WithSSHCheck           `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
@@ -174,6 +175,15 @@ type Server struct {
 	Tags     model.Tags
 	Status   model.InstanceStatus
 	SSHUsers []SSHUser
+}
+
+type LocalServer struct {
+	Name   string `mapstructure:"name"`
+	Host   string `mapstructure:"host"`
+	Port   int    `mapstructure:"port"`
+	User   string `mapstructure:"user"`
+	Passwd string `mapstructure:"passwd"`
+	// IdentityFile string `mapstructure:"identity_file"`
 }
 
 type Servers []Server

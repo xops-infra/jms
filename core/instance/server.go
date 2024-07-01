@@ -95,6 +95,23 @@ func fmtServer(instances []model.Instance, keys map[string]AddKeyRequest) Server
 		}
 		instanceAll = append(instanceAll, newInstance)
 	}
+	// 载入自己配置服务器
+	for _, server := range app.App.Config.LocalServers {
+		instanceAll = append(instanceAll, Server{
+			ID:     "local",
+			Name:   server.Name,
+			Host:   server.Host,
+			Port:   server.Port,
+			Status: model.InstanceStatusRunning, // 配置加入的默认为running
+			SSHUsers: []SSHUser{
+				{
+					UserName: server.User,
+					Password: server.Passwd,
+				},
+			},
+		})
+	}
+
 	instanceAll.SortByName()
 	return instanceAll
 }
