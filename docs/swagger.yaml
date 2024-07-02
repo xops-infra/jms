@@ -49,12 +49,8 @@ definitions:
           $ref: '#/definitions/model.Action'
         type: array
       applicant:
-        description: 申请人AD名,或者email
+        description: Groups       ArrayString     `json:"groups"`
         type: string
-      groups:
-        items:
-          type: string
-        type: array
       name:
         type: string
       period:
@@ -230,6 +226,8 @@ definitions:
         items:
           type: string
         type: array
+      approval_id:
+        type: string
       expires_at:
         type: string
       is_enabled:
@@ -304,6 +302,8 @@ definitions:
         type: integer
       target:
         description: 目标服务器
+        type: string
+      target_instance_id:
         type: string
       updatedAt:
         type: string
@@ -567,9 +567,9 @@ paths:
       - application/json
       description: 服务器登录审计查询，支持查询用户、IP、时间范围的日志
       parameters:
-      - description: days
+      - description: duration hours 24 = 1 day, 默认查 1 天的记录
         in: query
-        name: days
+        name: duration
         type: integer
       - description: ip
         in: query

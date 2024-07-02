@@ -120,8 +120,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "days",
-                        "name": "days",
+                        "description": "duration hours 24 = 1 day, 默认查 1 天的记录",
+                        "name": "duration",
                         "in": "query"
                     },
                     {
@@ -1192,14 +1192,8 @@ const docTemplate = `{
                     }
                 },
                 "applicant": {
-                    "description": "申请人AD名,或者email",
+                    "description": "Groups       ArrayString     ` + "`" + `json:\"groups\"` + "`" + `",
                     "type": "string"
-                },
-                "groups": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 },
                 "name": {
                     "type": "string"
@@ -1453,6 +1447,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "approval_id": {
+                    "type": "string"
+                },
                 "expires_at": {
                     "type": "string"
                 },
@@ -1559,6 +1556,9 @@ const docTemplate = `{
                 },
                 "target": {
                     "description": "目标服务器",
+                    "type": "string"
+                },
+                "target_instance_id": {
                     "type": "string"
                 },
                 "updatedAt": {

@@ -21,7 +21,7 @@ import (
 func listLoginAudit(c *gin.Context) {
 	req := model.QueryLoginRequest{}
 	if c.Query("duration") != "" {
-		req.Duration = tea.Int(cast.ToInt(c.Query("days")))
+		req.Duration = tea.Int(cast.ToInt(c.Query("duration")))
 	}
 	if c.Query("ip") != "" {
 		req.Ip = tea.String(c.Query("ip"))
