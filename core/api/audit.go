@@ -43,7 +43,7 @@ func listLoginAudit(c *gin.Context) {
 // @Tags audit
 // @Accept json
 // @Produce json
-// @Param days query int false "days"
+// @Param duration query int false "duration hours 24 = 1 day, 默认查 1 天的记录"
 // @Param action query string false "action"
 // @Param keyword query string false "keyword"
 // @Param user query string false "user"
@@ -51,8 +51,8 @@ func listLoginAudit(c *gin.Context) {
 // @Router /api/v1/audit/scp [get]
 func listScpAudit(c *gin.Context) {
 	req := model.QueryScpRequest{}
-	if c.Query("days") != "" {
-		req.Days = tea.Int(cast.ToInt(c.Query("days")))
+	if c.Query("duration") != "" {
+		req.Duration = tea.Int(cast.ToInt(c.Query("duration")))
 	}
 	if c.Query("keyword") != "" {
 		req.KeyWord = tea.String(c.Query("keyword"))

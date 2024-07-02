@@ -166,8 +166,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "days",
-                        "name": "days",
+                        "description": "duration hours 24 = 1 day, 默认查 1 天的记录",
+                        "name": "duration",
                         "in": "query"
                     },
                     {

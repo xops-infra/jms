@@ -597,9 +597,9 @@ paths:
       - application/json
       description: 服务器文件上传下载审计查询，支持上传upload,下载 download，文件名，服务器IP
       parameters:
-      - description: days
+      - description: duration hours 24 = 1 day, 默认查 1 天的记录
         in: query
-        name: days
+        name: duration
         type: integer
       - description: action
         in: query

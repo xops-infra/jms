@@ -142,7 +142,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 			return err
 		}
 		if app.App.Config.WithDB.Enable {
-			err = app.App.JmsDBService.AddDownloadRecord(&AddScpRecordRequest{
+			err = app.App.JmsDBService.AddScpRecord(&AddScpRecordRequest{
 				Action: tea.String("upload"),
 				From:   tea.String(filename),
 				To:     tea.String(args[1]),
@@ -260,7 +260,7 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 				return
 			}
 			if app.App.Config.WithDB.Enable {
-				err = app.App.JmsDBService.AddDownloadRecord(&AddScpRecordRequest{
+				err = app.App.JmsDBService.AddScpRecord(&AddScpRecordRequest{
 					Action: tea.String("download"),
 					To:     tea.String(filename),
 					From:   tea.String(args[1]),

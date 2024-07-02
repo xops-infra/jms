@@ -3,10 +3,10 @@ package model
 import "gorm.io/gorm"
 
 type QueryScpRequest struct {
-	Days    *int    `json:"days"`
-	KeyWord *string `json:"keyWord"`
-	User    *string `json:"user"`
-	Action  *string `json:"action"`
+	Duration *int    `json:"duration" default:"24"` // 24 hours 默认
+	KeyWord  *string `json:"keyWord"`
+	User     *string `json:"user"`
+	Action   *string `json:"action"`
 }
 
 type AddScpRecordRequest struct {

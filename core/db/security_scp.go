@@ -6,8 +6,7 @@ import (
 	"github.com/xops-infra/jms/model"
 )
 
-// 文件下载记录入库
-func (d *DBService) AddDownloadRecord(req *model.AddScpRecordRequest) (err error) {
+func (d *DBService) AddScpRecord(req *model.AddScpRecordRequest) (err error) {
 	record := &model.ScpRecord{
 		Action: *req.Action,
 		From:   *req.From,
@@ -22,8 +21,10 @@ func (d *DBService) AddDownloadRecord(req *model.AddScpRecordRequest) (err error
 // ListScpRecord
 func (d *DBService) ListScpRecord(req model.QueryScpRequest) (records []model.ScpRecord, err error) {
 	sql := d.DB.Model(&model.ScpRecord{})
-	if req.Days != nil {
-		sql = sql.Where("created_at >= ?", time.Now().AddDate(0, 0, -*req.Days))
+	if req.Duration != nil {
+		sql = sql.Where("created_at >= ?", time.Now().Add(-time.Hour*time.Duration(*req.Duration)))
+	} else {
+		sql = sql.Where("created_at >= ?", time.Now().AddDate(0, 0, -1))
 	}
 	if req.User != nil {
 		sql = sql.Where("\"user\" = ?", *req.User)

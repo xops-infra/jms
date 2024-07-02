@@ -124,6 +124,16 @@ func GetServers() Servers {
 	return servers.(Servers)
 }
 
+func GetServerIDByIP(ip string) string {
+	servers := GetServers()
+	for _, server := range servers {
+		if server.Host == ip {
+			return server.ID
+		}
+	}
+	return ""
+}
+
 // 通过机器的密钥对 KeyIDs 获取对应的密钥Pem的路径
 func getKeyPair(keyIDS []*string) []AddKeyRequest {
 	keysAll := make([]AddKeyRequest, 0)
