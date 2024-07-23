@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
 	. "github.com/xops-infra/jms/model"
+	"github.com/xops-infra/noop/log"
 )
 
 /*
@@ -37,6 +38,7 @@ func listShellTask(c *gin.Context) {
 func addShellTask(c *gin.Context) {
 	var req CreateShellTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Errorf("bind json error: %s", err)
 		c.String(400, err.Error())
 		return
 	}

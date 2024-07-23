@@ -13,18 +13,20 @@ import (
 
 func init() {
 	model.LoadYaml("/opt/jms/config.yaml")
+	// load env
+
 	app.NewSshdApplication(true, "", "---").WithDB(false)
 }
 
 func TestCreatePolicy(t *testing.T) {
 	expiredAt := time.Now().Add(time.Hour * 24 * 365 * 100)
 	req := model.PolicyRequest{
-		Name:  tea.String("qianjiasong-policy-cli"),
-		Users: model.ArrayString{"qianjiasong", "zhoushoujian"},
+		Name:  tea.String("lingjun-allow-policy-manual"),
+		Users: model.ArrayString{"xupeng", "fangyang"},
 		ServerFilterV1: &model.ServerFilterV1{
 			IpAddr: model.ArrayString{"10.192.16.10", "10.193.18.15"},
 		},
-		Actions:   model.All,
+		Actions:   model.ConnectOnly,
 		ExpiresAt: &expiredAt,
 	}
 	result, err := app.App.JmsDBService.CreatePolicy(&req)
@@ -33,6 +35,21 @@ func TestCreatePolicy(t *testing.T) {
 		return
 	}
 	log.Infof(tea.Prettify(result))
+}
+
+// TEST UpdatePolicy
+func TestUpdatePolicy(t *testing.T) {
+	// {"name":null,"ip_addr":["39.101.72.129"],"env_type":null,"team":null}
+	req := model.PolicyRequest{
+		Users: model.ArrayString{"xupeng", "fangyan",
+			"fangjie", "zhangruiji", "xiayubin", "chenglinqing", "wuwentao3", "baizilong", "lushijie", "dongweijia",
+			"zhonghanmeng"},
+	}
+	err := app.App.JmsDBService.UpdatePolicy("57284668-aad8-4104-9e4f-96c8c0186568", &req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 }
 
 func TestDeletePolicy(t *testing.T) {
@@ -77,4 +94,21 @@ func TestQueryPolicyByUser(t *testing.T) {
 		return
 	}
 	log.Infof(tea.Prettify(result))
+}
+
+// TEST ListServerLoginRecord
+func TestListServerLoginRecord(t *testing.T) {
+	req := model.QueryLoginRequest{
+		Duration: tea.Int(4),
+		User:     tea.String("zhoushoujian"),
+	}
+	records, err := app.App.JmsDBService.ListServerLoginRecord(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	for _, record := range records {
+
+		log.Infof(tea.Prettify(record))
+	}
 }

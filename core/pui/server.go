@@ -1,6 +1,7 @@
 package pui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -134,8 +135,9 @@ func sortMenu(menu []*MenuItem) []*MenuItem {
 func GetServerSSHUsersMenu(server Server, timeout string, matchPolicies []Policy) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		var menu []*MenuItem
-		subMenu := &MenuItem{}
+
 		for _, sshUser := range server.SSHUsers {
+			subMenu := &MenuItem{}
 			log.Debugf("server:%s user:%s", server.Host, sshUser.UserName)
 			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUser.KeyName, sshUser.UserName)
 			subMenu.SelectedFunc = func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
@@ -160,9 +162,17 @@ func GetServerSSHUsersMenu(server Server, timeout string, matchPolicies []Policy
 				}
 				return true, nil
 			}
+			menu = append(menu, subMenu)
 		}
 
-		menu = append(menu, subMenu)
+		if len(menu) == 0 {
+			menu = append(menu, &MenuItem{
+				Label: "该机器密钥没有被 JMS 托管，无法登录",
+				SelectedFunc: func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error) {
+					return false, errors.New("pls check instance key")
+				},
+			})
+		}
 		return menu
 	}
 }

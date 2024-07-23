@@ -12,7 +12,7 @@ type PolicyRequest struct {
 	Users          ArrayString     `json:"users"`
 	Actions        ArrayString     `json:"actions"`
 	ServerFilterV1 *ServerFilterV1 `json:"server_filter" binding:"required"`
-	ExpiresAt      *time.Time      `json:"expires_at"`
+	ExpiresAt      *time.Time      `json:"expires_at"` // time.Time
 	IsEnabled      *bool           `json:"is_enabled"`
 	ApprovalID     *string         `json:"approval_id"`
 }

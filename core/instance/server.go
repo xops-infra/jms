@@ -57,24 +57,27 @@ func fmtServer(instances []model.Instance, keys map[string]AddKeyRequest) Server
 		if instance.Status != model.InstanceStatusRunning {
 			continue
 		}
+
+		// key
 		var keyName []*string
-		for _, key := range instance.KeyIDs {
-			if key == nil {
-				break
-			}
-			// 解决 key大写不识别问题
-			key = tea.String(strings.ToLower(*key))
-			if _, ok := keys[*key]; ok {
-				keyName = append(keyName, keys[*key].IdentityFile)
-			} else {
-				log.Infof("instance: %s key: %s not found in config", *instance.Name, *key)
-				continue
+		if instance.KeyIDs == nil {
+			log.Warnf("instance:%s key is nil", *instance.Name)
+		} else {
+			for _, key := range instance.KeyIDs {
+				if key == nil {
+					continue
+				}
+				// 解决 key大写不识别问题
+				key = tea.String(strings.ToLower(*key))
+				if _, ok := keys[*key]; ok {
+					keyName = append(keyName, keys[*key].IdentityFile)
+				} else {
+					log.Warnf("instance: %s key: %s not found in jms", *instance.Name, *key)
+					keyName = append(keyName, tea.String(*key))
+				}
 			}
 		}
-		if keyName == nil {
-			// 只有被 jms配置纪录的 key才会被接管，否则会出现无法登录情况。
-			continue
-		}
+
 		// log.Infof("instance:%s key: %s ips:%s\n", *instance.Name, *keyName, *instance.PrivateIP[0])
 		if len(instance.PrivateIP) < 1 {
 			log.Errorf("instance: %s private ip is empty", *instance.Name)
@@ -135,7 +138,7 @@ func GetServerIDByIP(ip string) string {
 }
 
 // 通过机器的密钥对 KeyIDs 获取对应的密钥Pem的路径
-func getKeyPair(keyIDS []*string) []AddKeyRequest {
+func getKeyPairByKeyIDS(keyIDS []*string) []AddKeyRequest {
 	keysAll := make([]AddKeyRequest, 0)
 	configKeys := app.App.Config.Keys.ToMapWithID()
 	for _, keyID := range keyIDS {
@@ -151,14 +154,18 @@ func getKeyPair(keyIDS []*string) []AddKeyRequest {
 
 // fmtSuperUser 支持多用户选择
 func fmtSuperUser(instance model.Instance) []SSHUser {
-	keys := getKeyPair(instance.KeyIDs)
+	keys := getKeyPairByKeyIDS(instance.KeyIDs)
 	var sshUser []SSHUser
 	for _, key := range keys {
 		u := SSHUser{}
+		if key.KeyID == nil {
+			continue
+		}
 		// KeyName 是支持本地读取内容的
 		if key.IdentityFile != nil {
 			u.KeyName = tea.StringValue(key.IdentityFile)
 		}
+		// 支持密钥文件为 base64 的字符串
 		if key.PemBase64 != nil {
 			u.Base64Pem = tea.StringValue(key.PemBase64)
 		}
