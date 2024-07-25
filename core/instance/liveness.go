@@ -15,7 +15,7 @@ import (
 // dingtalkToken 为钉钉机器人的token
 func ServerLiveness(dingtalkToken string) {
 	timeStart := time.Now()
-	servers := GetServers()
+	servers := app.GetServers()
 	for _, server := range servers {
 		isIgnore := true
 		for _, checkIp := range app.App.Config.WithSSHCheck.IPS {

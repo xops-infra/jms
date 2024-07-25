@@ -63,7 +63,8 @@ var sshdCmd = &cobra.Command{
 
 		if app.App.Config.WithDB.Enable {
 			_app.WithDB(!debug)
-			_app.LoadFromDB() // 加载数据库配置
+			_app.LoadFromDB()        // 加载数据库配置
+			app.SetDBPolicyToCache() // 加载数据库策略
 			log.Infof("enable db")
 		}
 
@@ -259,6 +260,7 @@ func scpHandler(args []string, sess *ssh.Session) {
 func startScheduler() {
 	c := cron.New()
 	time.Sleep(10 * time.Second) // 等待app初始化完成
+
 	c.AddFunc("0 */2 * * * *", func() {
 		instance.LoadServer(app.App.Config)
 	})
@@ -269,6 +271,10 @@ func startScheduler() {
 		c.AddFunc("*/30 * * * * *", func() {
 			app.App.LoadFromDB()
 			app.App.WithMcs()
+			err := app.SetDBPolicyToCache()
+			if err != nil {
+				log.Error(err.Error())
+			}
 		})
 		c.AddFunc("0 * * * * *", func() {
 			instance.ServerShellRun() // 每 1min 检查一次

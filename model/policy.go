@@ -134,19 +134,18 @@ const (
 	MatchFalse MatchResult = 2
 )
 
-// 支持!开头的反向匹配
-// 支持*开头的模糊匹配，192.168.*开头的匹配
-// 支持!192.168.*开头的反向匹配
-// 如果输入为“” 直接返回false
-// 如果 judge 为!* 直接返回false
 /*
+支持 ! 和 * 匹配；
 为了支持 以下 4 个状态
-正向匹配命中(后续直接返回 true)，正向匹配没命中（后续处理下一个匹配），反向匹配命中（后续直接 return false），反向匹配没命中（后续处理下一个匹配）
-return 返回状态 0（后续处理下一个匹配）,1(后续直接返回 true),2后续直接 return false）
+正向匹配命中(后续直接返回 true)，
+正向匹配没命中（后续处理下一个匹配），
+反向匹配命中（后续直接 return false），
+反向匹配没命中（后续处理下一个匹配）
 */
-func stringMatch(std, judge string) MatchResult {
+func stringMatch(std, judge string) bool {
 	if std == "" && judge == "!*" {
-		return MatchContinue
+		// 错误的输入直接返回false
+		return false
 	}
 
 	negatedJudge := false
@@ -157,81 +156,116 @@ func stringMatch(std, judge string) MatchResult {
 
 	// 处理 * 开头的模糊匹配
 	if judge == "*" {
-		return MatchTrue
+		return !negatedJudge
 	}
 
 	// 处理包含*的模糊匹配情况
 	if strings.Contains(judge, "*") {
 		if strings.HasPrefix(std, strings.TrimSuffix(judge, "*")) {
+			if !negatedJudge {
+				return true
+			}
+		} else {
 			if negatedJudge {
-				return MatchFalse
-			} else {
-				return MatchTrue
+				return true
 			}
 		}
 	} else {
-		log.Debugf("judge:%s and std:%s", judge, std)
-		if negatedJudge && std != judge {
-			// 取反未命中时候直接 return MatchTrue
-			return MatchTrue
-		} else if !negatedJudge && std == judge {
-			// 没取反命中时候直接 return MatchTrue
-			return MatchTrue
-		} else if negatedJudge && std == judge {
-			// 取反命中时候直接 return MatchFalse
-			return MatchFalse
+		// 处理没有*的模糊匹配情况
+		// log.Debugf("judge:%s and std:%s", judge, std)
+		if std == judge {
+			if !negatedJudge {
+				return true
+			}
+		} else {
+			// log.Debugf("not match negatedJudge: %s", negatedJudge)
+			if negatedJudge {
+				return true
+			}
 		}
 	}
-	return MatchContinue
+	return false
 }
 
 // 匹配服务器和过滤条件是否符合
+// 支持多维度的并联匹配，ServerFilterV1如果属性没有为nil，则要进行联合匹配
 func MatchServerByFilter(filter ServerFilterV1, server Server) bool {
 	log.Debugf("filter:%s", tea.Prettify(filter))
 	log.Debugf("server:%s", tea.Prettify(server))
-	for _, name := range filter.Name {
-		switch stringMatch(server.Name, name) {
-		case MatchTrue:
-			return true
-		case MatchFalse:
-			return false
-		default:
-			continue
-		}
+
+	if filter.EnvType == nil && filter.Team == nil &&
+		filter.Name == nil && filter.IpAddr == nil && filter.KV == nil {
+		log.Errorf("filter is empty, return false")
+		return false
 	}
-	for _, ip := range filter.IpAddr {
-		switch stringMatch(server.Host, ip) {
-		case MatchTrue:
-			return true
-		case MatchFalse:
-			return false
-		default:
-			continue
-		}
-	}
-	if server.Tags.GetEnvType() != nil {
-		for _, envType := range filter.EnvType {
-			switch stringMatch(*server.Tags.GetEnvType(), envType) {
-			case MatchTrue:
-				return true
-			case MatchFalse:
-				return false
-			default:
-				continue
+
+	IsMatchName := false
+	if filter.Name != nil {
+		for _, name := range filter.Name {
+			if stringMatch(server.Name, name) {
+				IsMatchName = true
+				break
 			}
 		}
+	} else {
+		IsMatchName = true
 	}
-	if server.Tags.GetTeam() != nil {
-		for _, team := range filter.Team {
-			switch stringMatch(*server.Tags.GetTeam(), team) {
-			case MatchTrue:
-				return true
-			case MatchFalse:
-				return false
-			default:
-				continue
+
+	IsMatchIP := false
+	if filter.IpAddr != nil {
+		for _, ip := range filter.IpAddr {
+			if stringMatch(server.Host, ip) {
+				IsMatchIP = true
+				break
 			}
 		}
+	} else {
+		IsMatchIP = true
+	}
+
+	IsMatchEnvType := false
+	if filter.EnvType != nil {
+		if server.Tags.GetEnvType() != nil {
+			for _, envType := range filter.EnvType {
+				if stringMatch(*server.Tags.GetEnvType(), envType) {
+					IsMatchEnvType = true
+					break
+				}
+			}
+		}
+	} else {
+		IsMatchEnvType = true
+	}
+
+	IsMatchTeam := false
+	if filter.Team != nil {
+		if server.Tags.GetTeam() != nil {
+			for _, team := range filter.Team {
+				if stringMatch(*server.Tags.GetTeam(), team) {
+					IsMatchTeam = true
+					break
+				}
+			}
+		}
+	} else {
+		IsMatchTeam = true
+	}
+
+	// 判断自定义 KV 匹配
+	IsMatchKV := false
+	if filter.KV != nil {
+		for _, tag := range server.Tags {
+			if tag.Key == filter.KV.Key && tag.Value == filter.KV.Value {
+				IsMatchKV = true
+				break
+			}
+		}
+	} else {
+		IsMatchKV = true
+	}
+
+	if IsMatchName && IsMatchIP && IsMatchEnvType && IsMatchTeam && IsMatchKV {
+		return true
 	}
 
 	return false
@@ -302,6 +336,7 @@ func MatchPolicy(user User, inPutAction Action, server Server, dbPolicies []Poli
 		}
 		if !*allow {
 			// 找到拒绝的策略直接拒绝
+			log.Infof("deny policy got! %s '%s', stop check other policy", dbPolicy.ID, dbPolicy.Name)
 			return false
 		}
 		// 找到允许的策略继续多策略校验
@@ -332,13 +367,15 @@ func systemPolicyCheck(user User, server Server) bool {
 // Admin level check, only find ok, default deny
 func policyCheck(inPutAction Action, server Server, policy Policy) *bool {
 	if policy.ServerFilterV1 == nil {
+		log.Debugf("ServerFilterV1 is nil")
 		return nil
 	}
 	if !MatchServerByFilter(*policy.ServerFilterV1, server) {
 		// 不符合的机器直接跳过
-		log.Debugf("server not match policy ignore")
+		log.Debugf("server not match policy ignore %s", tea.Prettify(policy.ServerFilter))
 		return nil
 	}
+	log.Debugf("server match policy allow for Policy %s", tea.Prettify(policy))
 	// 符合的机器再判断 action
 	for _, action := range policy.Actions {
 		if string(inPutAction) == action {
@@ -346,7 +383,7 @@ func policyCheck(inPutAction Action, server Server, policy Policy) *bool {
 			return tea.Bool(true)
 		}
 		if string(inPutAction) == string(ReverseAction(Action(action))) {
-			log.Debugf("action deny")
+			log.Debugf("got action deny")
 			return tea.Bool(false)
 		}
 	}

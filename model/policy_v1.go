@@ -47,6 +47,12 @@ type ServerFilterV1 struct {
 	IpAddr  []string `json:"ip_addr"`  // IP 地址完全匹配，支持* 匹配所有
 	EnvType []string `json:"env_type"` // 机器 Tags 中的 EnvType，支持* 匹配所有
 	Team    []string `json:"team"`     // 机器 Tags 中的 Team，支持* 匹配所有
+	KV      *KV      `json:"kv"`       // 支持自己指定特定的 KV 来过滤
+}
+
+type KV struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 func (a ServerFilterV1) ToString() string {

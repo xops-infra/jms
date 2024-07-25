@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/patrickmn/go-cache"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	"github.com/xops-infra/noop/log"
 
@@ -47,7 +46,7 @@ func LoadServer(conf *Config) {
 		}
 	}
 	instanceAll := fmtServer(mcsServers, conf.Keys.ToMapWithID())
-	app.App.Cache.Set("servers", instanceAll, cache.NoExpiration)
+	app.SetServers(instanceAll)
 	log.Infof("%s len: %d", time.Since(startTime), len(instanceAll))
 }
 
@@ -117,24 +116,6 @@ func fmtServer(instances []model.Instance, keys map[string]AddKeyRequest) Server
 
 	instanceAll.SortByName()
 	return instanceAll
-}
-
-func GetServers() Servers {
-	servers, found := app.App.Cache.Get("servers")
-	if !found {
-		return nil
-	}
-	return servers.(Servers)
-}
-
-func GetServerIDByIP(ip string) string {
-	servers := GetServers()
-	for _, server := range servers {
-		if server.Host == ip {
-			return server.ID
-		}
-	}
-	return ""
 }
 
 // 通过机器的密钥对 KeyIDs 获取对应的密钥Pem的路径

@@ -20,10 +20,8 @@ import (
 )
 
 func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem, error) {
-	timeStart := time.Now()
-	defer log.Debugf("GetServersMenuV2 cost %s", time.Since(timeStart).String())
 	menu := make([]*MenuItem, 0)
-	servers := instance.GetServers()
+	servers := app.GetServers()
 	var matchPolicies []Policy
 	if app.App.JmsDBService == nil {
 		// 如果没有使用数据库，则默认都可见
@@ -33,14 +31,9 @@ func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem
 			Users:     ArrayString{*user.Username},
 		})
 	} else {
-		policies, err := app.App.JmsDBService.QueryPolicyByUser(*user.Username)
-		if err != nil {
-			log.Errorf("query policy error: %s", err)
-			return nil, err
-		}
-		matchPolicies = policies
+		matchPolicies = app.QueryPolicyByUser(*user.Username)
 	}
-
+	sshd.Info(fmt.Sprintf("matchPolicies: %d", len(matchPolicies)), sess)
 	for _, server := range servers {
 		// 默认都可见，连接的时候再判断是否允许
 		info := make(map[string]string, 0)

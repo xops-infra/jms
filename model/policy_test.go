@@ -18,55 +18,44 @@ func init() {
 }
 
 func TestMatchServer(t *testing.T) {
-	{
-		// 测试 envType 是否匹配
-		filter := ServerFilterV1{
-			EnvType: []string{"!prod"},
-		}
-		server := Server{
-			Tags: model.Tags{
-				{
-					Key:   "EnvType",
-					Value: "prod",
-				},
-			},
-		}
-		assert.False(t, MatchServerByFilter(filter, server))
-		server.Tags = model.Tags{
+	server := Server{
+		Name: "test-server",
+		Host: "127.0.0.1",
+		Tags: model.Tags{
 			{
 				Key:   "EnvType",
-				Value: "dev",
+				Value: "prod",
+			}, {
+				Key:   "Team",
+				Value: "ops",
 			},
-		}
-		assert.True(t, MatchServerByFilter(filter, server))
+		},
 	}
-	{
-		// 测试匹配优先级
-		server := Server{
-			Name: "test-server",
-			Host: "127.0.0.1",
-			Tags: model.Tags{
-				{
-					Key:   "EnvType",
-					Value: "prod",
-				},
-			},
-		}
-		filter := ServerFilterV1{
-			EnvType: []string{"prod"},
-		}
-		assert.True(t, MatchServerByFilter(filter, server))
-
-		// 增加 name 匹配
-		filter.Name = []string{"!test*"}
-		assert.False(t, MatchServerByFilter(filter, server))
-
-		// 增加 ip 匹配
-		filter.Name = []string{"test-server"}
-		filter.IpAddr = []string{"!127.0.1.*"}
-		assert.True(t, MatchServerByFilter(filter, server))
-
+	filter := ServerFilterV1{
+		EnvType: []string{"prod"},
 	}
+	assert.True(t, MatchServerByFilter(filter, server))
+
+	filter.Name = []string{"!test*"}
+	assert.False(t, MatchServerByFilter(filter, server))
+
+	filter.Name = []string{"test-server"}
+	filter.IpAddr = []string{"!127.0.1.*"}
+	assert.True(t, MatchServerByFilter(filter, server))
+
+	filter.IpAddr = []string{"!127.0.0.*"}
+	assert.False(t, MatchServerByFilter(filter, server))
+
+	filter.IpAddr = []string{"!127.0.1.*"}
+	filter.Team = []string{"ops"}
+	assert.True(t, MatchServerByFilter(filter, server))
+
+	filter.Team = []string{"!ops"}
+	assert.False(t, MatchServerByFilter(filter, server))
+
+	// 过滤条件有一个满足就满足。
+	filter.Team = []string{"!ops", "*"}
+	assert.True(t, MatchServerByFilter(filter, server))
 }
 
 // TEST MatchPolicy

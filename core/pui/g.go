@@ -12,7 +12,6 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/sshd"
 	. "github.com/xops-infra/jms/model"
 )
@@ -230,7 +229,7 @@ loopMenu:
 func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	ui.FlashTimeout()
 	defer ui.SessionWrite("\033c") // clear
-	servers := instance.GetServers()
+	servers := app.GetServers()
 	servers.SortByName()
 	// 发送屏幕清理指令
 	// 发送当前时间

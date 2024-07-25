@@ -21,10 +21,14 @@ func init() {
 func TestCreatePolicy(t *testing.T) {
 	expiredAt := time.Now().Add(time.Hour * 24 * 365 * 100)
 	req := model.PolicyRequest{
-		Name:  tea.String("lingjun-allow-policy-manual"),
-		Users: model.ArrayString{"xupeng", "fangyang"},
+		Name:  tea.String("zhoushoujian-test-!-manual"),
+		Users: model.ArrayString{"zhoushoujian"},
 		ServerFilterV1: &model.ServerFilterV1{
-			IpAddr: model.ArrayString{"10.192.16.10", "10.193.18.15"},
+			IpAddr: []string{"!1.2.3.4"},
+			KV: &model.KV{
+				Key:   "Owner",
+				Value: "zhoushoujian",
+			},
 		},
 		Actions:   model.ConnectOnly,
 		ExpiresAt: &expiredAt,
