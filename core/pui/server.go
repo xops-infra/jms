@@ -182,6 +182,7 @@ func getServerApproveMenu(server Server) func(int, *MenuItem, *ssh.Session, []*M
 			SubMenuTitle: SelectAction,
 			GetSubMenu: getActionMenu(ServerFilterV1{
 				IpAddr: []string{server.Host},
+				Name:   []string{server.Name},
 			}),
 		})
 		// serverTeam := server.Tags.GetTeam()
