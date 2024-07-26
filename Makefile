@@ -7,3 +7,6 @@ help:
 
 swagger:
 	swag init -g main.go --parseDependency --parseDepth 1 --parseInternal
+
+api:
+	go run main.go api

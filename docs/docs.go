@@ -1342,6 +1342,17 @@ const docTemplate = `{
                 }
             }
         },
+        "model.KV": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "model.Key": {
             "type": "object",
             "properties": {
@@ -1451,6 +1462,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "expires_at": {
+                    "description": "time.Time",
                     "type": "string"
                 },
                 "is_enabled": {
@@ -1644,6 +1656,14 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "kv": {
+                    "description": "支持自己指定特定的 KV 来过滤",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.KV"
+                        }
+                    ]
                 },
                 "name": {
                     "description": "名字完全匹配，支持*",

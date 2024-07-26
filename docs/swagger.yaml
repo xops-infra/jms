@@ -156,6 +156,13 @@ definitions:
     - servers
     - shell
     type: object
+  model.KV:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+    type: object
   model.Key:
     properties:
       isDelete:
@@ -229,6 +236,7 @@ definitions:
       approval_id:
         type: string
       expires_at:
+        description: time.Time
         type: string
       is_enabled:
         type: boolean
@@ -364,6 +372,10 @@ definitions:
         items:
           type: string
         type: array
+      kv:
+        allOf:
+        - $ref: '#/definitions/model.KV'
+        description: 支持自己指定特定的 KV 来过滤
       name:
         description: 名字完全匹配，支持*
         items:

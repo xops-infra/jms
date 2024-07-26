@@ -7,16 +7,29 @@ import (
 	"github.com/elfgzp/ssh"
 	"github.com/google/uuid"
 	"github.com/xops-infra/jms/model"
+	"github.com/xops-infra/noop/log"
 )
 
+// 支持单个用户多个公钥认证
 func (d *DBService) AuthKey(username string, pub ssh.PublicKey) bool {
-	var key model.AuthorizedKey
-	err := d.DB.Where("user_name = ? and is_delete = false", username).First(&key).Error
+	keys, err := d.GetKeyByUsername(username)
 	if err != nil {
+		log.Errorf("get %s key error: %s", username, err)
 		return false
 	}
-	allowed, _, _, _, _ := ssh.ParseAuthorizedKey([]byte(key.PublicKey))
-	return ssh.KeysEqual(allowed, pub)
+	for _, key := range keys {
+		allowed, _, _, _, _ := ssh.ParseAuthorizedKey([]byte(key.PublicKey))
+		if ssh.KeysEqual(allowed, pub) {
+			return true
+		}
+	}
+	return false
+}
+
+func (d *DBService) GetKeyByUsername(username string) ([]model.AuthorizedKey, error) {
+	var keys []model.AuthorizedKey
+	err := d.DB.Where("user_name = ? and is_delete = false", username).Find(&keys).Error
+	return keys, err
 }
 
 // addAuthorizedKey
