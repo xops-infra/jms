@@ -57,6 +57,7 @@ var (
 	ConnectAndDownload = ArrayString{string(Connect), string(Download)}
 	ConnectAndUpload   = ArrayString{string(Connect), string(Upload)}
 	DownloadAndUpload  = ArrayString{string(Download), string(Upload)}
+	DenyALL            = ArrayString{string(DenyConnect), string(DenyDownload), string(DenyUpload)}
 	All                = ArrayString{string(Connect), string(Download), string(Upload)}
 
 	DefaultPolicies = map[string]ArrayString{
@@ -325,10 +326,11 @@ func MatchPolicy(user User, inPutAction Action, server Server, dbPolicies []Poli
 			continue
 		}
 
-		if !dbPolicy.Users.Contains(*user.Username) {
-			log.Debugf("policy %s is not for user %s", dbPolicy.Name, *user.Username)
-			continue
-		}
+		// 数据库查 policy的时候已经过滤了非当前用户的情况
+		// if !dbPolicy.Users.Contains(*user.Username) {
+		// 	log.Debugf("policy %s is not for user %s", dbPolicy.Name, *user.Username)
+		// 	continue
+		// }
 		allow := policyCheck(inPutAction, server, dbPolicy)
 
 		if allow == nil {

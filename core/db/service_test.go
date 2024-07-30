@@ -22,15 +22,11 @@ func TestCreatePolicy(t *testing.T) {
 	expiredAt := time.Now().Add(time.Hour * 24 * 365 * 100)
 	req := model.PolicyRequest{
 		Name:  tea.String("zhoushoujian-test-!-manual"),
-		Users: model.ArrayString{"zhoushoujian"},
+		Users: model.ArrayString{"!zhoushoujian"},
 		ServerFilterV1: &model.ServerFilterV1{
-			IpAddr: []string{"!1.2.3.4"},
-			KV: &model.KV{
-				Key:   "Owner",
-				Value: "zhoushoujian",
-			},
+			IpAddr: []string{"1.1.1.1"},
 		},
-		Actions:   model.ConnectOnly,
+		Actions:   model.DenyALL,
 		ExpiresAt: &expiredAt,
 	}
 	result, err := app.App.JmsDBService.CreatePolicy(&req)

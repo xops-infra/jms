@@ -271,11 +271,15 @@ func startScheduler() {
 		c.AddFunc("*/30 * * * * *", func() {
 			app.App.LoadFromDB()
 			app.App.WithMcs()
+		})
+		// 启用定时热加载数据库策略,每 5s 检查一次
+		c.AddFunc("*/5 * * * * *", func() {
 			err := app.SetDBPolicyToCache()
 			if err != nil {
 				log.Error(err.Error())
 			}
 		})
+
 		c.AddFunc("0 * * * * *", func() {
 			instance.ServerShellRun() // 每 1min 检查一次
 		})

@@ -65,10 +65,10 @@ var dbCmd = &cobra.Command{
 			if targetEndpoint == "" {
 				log.Fatalf("need target endpoint, e.g. --target-endpoint=postgresql://username:password@localhost:5432/databasename")
 			}
-			// 校验是否是同一个库，是直接报错退出
 			if !_app.Config.WithDB.Enable {
 				log.Fatalf("check your config! not enable db")
 			}
+			// 校验是否是同一个库，是直接报错退出
 			if strings.Contains(targetEndpoint, fmt.Sprintf("%s:%d/%s", _app.Config.WithDB.PG.Host, _app.Config.WithDB.PG.Port, _app.Config.WithDB.PG.Database)) {
 				log.Fatalf("target endpoint is same with source endpoint, exit")
 			}

@@ -34,9 +34,13 @@ func (a *ArrayString) Scan(value interface{}) error {
 	return json.Unmarshal(bytesValue, a)
 }
 
-func (a ArrayString) Contains(value string) bool {
+// 支持*和! aaa* 写法
+func (a ArrayString) Contains(findStr string) bool {
 	for _, item := range a {
-		if item == value || strings.Contains(item, "*") {
+		if item == findStr ||
+			item == "*" ||
+			(strings.Contains(item, "*") && strings.HasPrefix(findStr, strings.SplitN(item, "*", 2)[0])) ||
+			(strings.HasPrefix(item, "!") && strings.TrimPrefix(item, "!") != findStr) {
 			return true
 		}
 	}
