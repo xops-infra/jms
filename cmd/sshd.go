@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/elfgzp/ssh"
+	"github.com/google/gops/agent"
 	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron"
 	"github.com/spf13/cobra"
@@ -36,6 +37,12 @@ var sshdCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
+		if err := agent.Listen(agent.Options{}); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to start gops agent: %v\n", err)
+			os.Exit(1)
+		}
+		defer agent.Close()
+
 		appConfig.LoadYaml(config)
 
 		err := os.MkdirAll(utils.FilePath(logDir), 0755)

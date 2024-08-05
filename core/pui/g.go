@@ -38,7 +38,7 @@ func (ui *PUI) SessionWrite(msg string) error {
 
 // exit
 func (ui *PUI) Exit() {
-	ui.SessionWrite(fmt.Sprintf(BybLabel, time.Now().Format("2006-01-02 15:04:05")))
+	ui.SessionWrite(fmt.Sprintf(BybLabel, time.Now().Local().Format("2006-01-02 15:04:05")))
 	err := (*ui.sess).Close()
 	if err == nil {
 		log.Infof("User %s form %s exit", (*ui.sess).User(), (*ui.sess).RemoteAddr().String())

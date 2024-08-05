@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xops-infra/noop/log"
 
+	"github.com/google/gops/agent"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/api"
 	appConfig "github.com/xops-infra/jms/model"
@@ -34,6 +35,12 @@ var apiCmd = &cobra.Command{
 	swagger url: http://localhost:8013/swagger/index.html
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if err := agent.Listen(agent.Options{}); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to start gops agent: %v\n", err)
+			os.Exit(1)
+		}
+		defer agent.Close()
+
 		appConfig.LoadYaml(config)
 		log.Default().WithLevel(log.InfoLevel).WithHumanTime(time.Local).WithFilename(strings.TrimSuffix(logDir, "/") + "/api.log").Init()
 		if debug {
