@@ -71,7 +71,8 @@ func fmtServer(instances []model.Instance, keys map[string]AddKeyRequest) Server
 				if _, ok := keys[*key]; ok {
 					keyName = append(keyName, keys[*key].IdentityFile)
 				} else {
-					log.Warnf("instance: %s key: %s not found in jms", *instance.Name, *key)
+					log.Warnf("instance: %s key: %s not found in jms", tea.StringValue(instance.Name), tea.StringValue(key))
+					// 也加入后续的机器列表展示
 					keyName = append(keyName, tea.String(*key))
 				}
 			}
