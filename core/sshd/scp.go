@@ -84,6 +84,12 @@ func (r *response) GetMessage() string {
 
 // ExecuteSCP ExecuteSCP
 func ExecuteSCP(args []string, clientSess *ssh.Session) error {
+	defer func() {
+		// 捕捉 panic
+		if err := recover(); err != nil {
+			log.Errorf("panic: %v", err)
+		}
+	}()
 	for _, arg := range args {
 		if arg == "-t" || arg == "-f" {
 			log.Debugf("arg: %s", arg)
@@ -171,12 +177,12 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 	if err != nil {
 		return err
 	}
-
 	proxyClient, upstream, err := NewSSHClient(*server, *sshUser)
 	if err != nil {
 		return err
 	}
 	if proxyClient != nil {
+		// 带出开做是否否则不释放链接
 		defer proxyClient.Close()
 	}
 

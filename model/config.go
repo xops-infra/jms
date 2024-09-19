@@ -20,9 +20,9 @@ func init() {
 
 // Config config
 type Config struct {
-	Profiles     []CreateProfileRequest `mapstructure:"profiles"`     // 云账号配置，用来自动同步云服务器信息
-	Proxys       []CreateProxyRequest   `mapstructure:"proxies"`      // ssh代理
-	Keys         Keys                   `mapstructure:"keys"`         // ssh key pair 不启用数据库时使用
+	Profiles     []CreateProfileRequest `mapstructure:"profiles"` // 云账号配置，用来自动同步云服务器信息
+	Proxys       []CreateProxyRequest   `mapstructure:"proxies"`  // ssh代理
+	Keys         Keys                   `mapstructure:"keys"`
 	LocalServers []LocalServer          `mapstructure:"localServers"` // 支持人工加入的服务器
 	WithVideo    WithVideo              `mapstructure:"withVideo"`    // 视频存储
 	WithLdap     WithLdap               `mapstructure:"withLdap"`     // 配置ldap
