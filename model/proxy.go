@@ -53,14 +53,14 @@ type Proxy struct {
 	gorm.Model   `json:"-"`
 	IsDelete     bool   `gorm:"column:is_delete;type:boolean;not null;default:false"`
 	UUID         string `gorm:"column:uuid;type:varchar(36);unique_index;not null"`
-	KeyID        string `gorm:"column:key_id;type:varchar(255);not null;default:''"`
-	Name         string `gorm:"column:name;type:varchar(255);not null"`
+	KeyID        string `gorm:"column:key_id;type:varchar(255);default:''"`
+	Name         string `gorm:"column:name;type:varchar(255);"`
 	Host         string `gorm:"column:host;type:varchar(255);not null"`
 	Port         int    `gorm:"column:port;type:integer;not null"`
 	IPPrefix     string `gorm:"column:ip_prefix;type:varchar(255);not null"`
 	LoginUser    string `gorm:"column:login_user;type:varchar(255);not null"`
-	LoginPasswd  string `gorm:"column:login_passwd;type:varchar(255);not null"`
-	IdentityFile string `gorm:"column:identity_file;type:varchar(255);not null"`
+	LoginPasswd  string `gorm:"column:login_passwd;type:varchar(255);"`
+	IdentityFile string `gorm:"column:identity_file;type:varchar(255);"`
 }
 
 func (Proxy) TableName() string {
