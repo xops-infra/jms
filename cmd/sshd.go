@@ -316,7 +316,7 @@ func startScheduler() {
 	// 启动检测机器 ssh可连接性并依据配置发送钉钉告警通知
 	if app.App.Config.WithSSHCheck.Enable {
 		log.Infof("with ssh check,5min check once")
-		c.AddFunc("* */5 * * * *", func() {
+		c.AddFunc("0 */5 * * * *", func() {
 			instance.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
 		})
 	}
