@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -215,9 +216,11 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 	if err != nil {
 		return err
 	}
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer stdin.Close()
-
 		err := replyOk(stdin)
 		if err != nil {
 			errCh <- err
@@ -290,6 +293,7 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 
 	}()
 
+	wg.Wait()
 	upstreamSess.Wait()
 
 	close(errCh)
