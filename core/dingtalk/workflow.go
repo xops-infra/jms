@@ -1,6 +1,7 @@
 package dingtalk
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,6 +14,12 @@ import (
 	"github.com/xops-infra/jms/app"
 	. "github.com/xops-infra/jms/model"
 )
+
+var robot *dt.RobotClient
+
+func init() {
+	robot = dt.NewRobotClient()
+}
 
 func CreateApproval(applicant string, values []dt.FormComponentValue) (string, error) {
 	user, err := app.App.JmsDBService.DescribeUser(applicant)
@@ -179,4 +186,30 @@ func LoadApproval() {
 		}
 	}
 	log.Infof("load dingtalk approval success, %d/%d, cost %v", len(successes), len(policies), time.Since(timeStart))
+}
+
+// 发送钉钉机器人通知
+func SendRobotText(robotToken, content, userID string) error {
+	if robotToken == "" {
+		return fmt.Errorf("robot token is empty, can not send robot message")
+	}
+	// 发送通知
+	err := robot.SendMessage(context.Background(), &dt.SendMessageRequest{
+		AccessToken: robotToken,
+		MessageContent: dt.MessageContent{
+			MsgType: "text",
+			Text: dt.TextBody{
+				Content: content,
+			},
+			At: dt.AtBody{
+				AtUserIDS: []string{userID},
+			},
+		},
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "ok") {
+			return nil
+		}
+	}
+	return err
 }

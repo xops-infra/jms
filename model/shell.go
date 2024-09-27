@@ -32,7 +32,6 @@ type ShellTask struct {
 	Status     Status         `json:"status" gorm:"column:status;not null"`
 	ExecResult string         `json:"exec_result" gorm:"column:exec_result;type:text;not null;default:''"` // 任务执行结果信息
 	Servers    ServerFilterV1 `json:"servers" gorm:"column:servers;type:json;not null"`
-	CostTime   int64          `json:"cost_time" gorm:"column:cost_time;not null"`
 	SubmitUser string         `json:"submit_user" gorm:"column:submit_user;not null"` // 直接在token中获取
 }
 

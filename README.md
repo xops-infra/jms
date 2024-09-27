@@ -135,6 +135,10 @@
 
 ## 4. 开发日志
 
+- 2024-09
+
+  - feat: 支持使用 JMS_DINGTALK_WEB_HOOK_TOKEN 配置 runshell 任务发送钉钉消息；
+
 - 2024-07
 
   - feat: 支持权限数据 Load 在内存，降低数据库 IO；

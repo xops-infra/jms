@@ -2,12 +2,14 @@ package instance
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/robfig/cron"
 	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/sshd"
 	. "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
@@ -32,6 +34,7 @@ func ServerShellRun() {
 			}
 			wg.Add(1)
 			go func(task ShellTask) {
+				startTime := time.Now()
 				state := StatusSuccess
 				result := ""
 				defer func() {
@@ -40,12 +43,15 @@ func ServerShellRun() {
 					if err != nil {
 						log.Errorf("update shell task status error: %s", err)
 					}
+					// 发送任务执行完成通知
+					err = dingtalk.SendRobotText(os.Getenv("JMS_DINGTALK_WEB_HOOK_TOKEN"), fmt.Sprintf("shell task %s(%s) status:%s  %s", task.Name, task.UUID, state, result), "")
+					if err != nil {
+						log.Errorf("send dingtalk error: %s", err)
+					}
 					wg.Done()
 				}()
 
 				// 执行
-				startTime := time.Now()
-
 				log.Infof("shell task start: %s", task.UUID)
 				servers := app.GetServers()
 				status, err := RunShellTask(task, servers)
@@ -71,21 +77,22 @@ func RunShellTask(task ShellTask, servers Servers) (Status, error) {
 
 	faildServers := []string{}
 	totalServer := 0
-
 	for _, server := range servers {
 		if MatchServerByFilter(task.Servers, server) {
 			totalServer++
 			wg.Add(1)
 			log.Debugf("shell task: %s, cmd: %s, run on server: %s", task.UUID, task.Shell, server.Host)
 			go func(server Server) {
-				defer wg.Done()
+				defer func() {
+					wg.Done()
+				}()
 				// 执行
 				if err := runShell(server, task); err != nil {
 					log.Errorf("server %s run shell error: %s", server.Host, err)
 					faildServers = append(faildServers, server.Host)
 					return
 				}
-				log.Infof("server %s run shell %s success", server.Host, task.Shell)
+				log.Infof("server %s run shell success: %s", server.Host, task.Shell)
 			}(server)
 		} else {
 			log.Debugf("server %s not match filter", server.Host)
