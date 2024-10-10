@@ -58,6 +58,6 @@ func SetDBPolicyToCache() error {
 		return err
 	}
 	App.Cache.Set("policies", policies, cache.NoExpiration)
-	log.Infof("set db policy to cache success")
+	log.Debugf("set db policy to cache success")
 	return nil
 }

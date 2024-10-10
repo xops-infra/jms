@@ -39,7 +39,7 @@ var dbCmd = &cobra.Command{
 			log.Fatalf("create log dir failed: %s", err.Error())
 		}
 		// init app
-		_app := app.NewSshdApplication(debug, logDir, rootCmd.Version)
+		_app := app.NewApp(debug, logDir, rootCmd.Version)
 		_app.WithDB(false)
 		switch args[0] {
 		case "upgrade":

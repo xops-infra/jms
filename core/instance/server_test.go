@@ -10,10 +10,12 @@ import (
 
 func init() {
 	model.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(true, "", "---").WithRobot().WithDB(false)
+	app.NewApp(true, "", "---").WithRobot().WithDB(false)
 }
 
 func TestServerLiveness(t *testing.T) {
+	app.App.WithMcs()
+
 	instance.LoadServer(app.App.Config)
 	// instance.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
 }

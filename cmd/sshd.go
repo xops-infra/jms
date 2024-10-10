@@ -51,7 +51,7 @@ var sshdCmd = &cobra.Command{
 		}
 
 		// init app
-		_app := app.NewSshdApplication(debug, logDir, rootCmd.Version)
+		_app := app.NewApp(debug, logDir, rootCmd.Version)
 
 		if app.App.Config.WithLdap.Enable {
 			log.Infof("enable ldap")
@@ -85,7 +85,7 @@ var sshdCmd = &cobra.Command{
 		}
 
 		app.App.WithMcs()
-		instance.LoadServer(app.App.Config)
+		instance.LoadServer(app.App.Config) // 加载服务列表
 
 		ssh.Handle(func(sess ssh.Session) {
 			defer func() {

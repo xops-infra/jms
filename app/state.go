@@ -39,7 +39,7 @@ type Application struct {
 
 // Manager,Agent,Worker need to be initialized
 // logdir 如果为空,默认为/opt/jms/logs
-func NewSshdApplication(debug bool, logDir string, version string) *Application {
+func NewApp(debug bool, logDir string, version string) *Application {
 	if version == "" {
 		version = "unknown"
 	}

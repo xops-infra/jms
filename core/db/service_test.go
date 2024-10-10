@@ -15,7 +15,7 @@ func init() {
 	model.LoadYaml("/opt/jms/config.yaml")
 	// load env
 
-	app.NewSshdApplication(true, "", "---").WithDB(false)
+	app.NewApp(true, "", "---").WithDB(false)
 }
 
 func TestCreatePolicy(t *testing.T) {

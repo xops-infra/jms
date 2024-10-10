@@ -12,7 +12,7 @@ import (
 
 func init() {
 	model.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(true, "", "---").WithDB(false)
+	app.NewApp(true, "", "---").WithDB(false)
 }
 
 // TEST QueryPolicyByUser

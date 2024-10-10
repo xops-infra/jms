@@ -29,7 +29,7 @@ func LoadServer(conf *Config) {
 			continue
 		}
 		for _, region := range profile.Regions {
-			log.Infof("get instances profile: %s region: %s", *profile.Name, region)
+			log.Debugf("get instances profile: %s region: %s", *profile.Name, region)
 			input := model.InstanceFilter{}
 			for {
 				resps, err := app.App.McsServer.DescribeInstances(*profile.Name, region, input)
@@ -44,7 +44,10 @@ func LoadServer(conf *Config) {
 				input.NextMarker = resps.NextMarker
 			}
 		}
+		// print every profile instances count
+		log.Infof("get instances profile: %s len: %d", *profile.Name, len(mcsServers))
 	}
+	log.Debugf("conf.Keys.ToMapWithID(): %s", tea.Prettify(conf.Keys.ToMapWithID()))
 	instanceAll := fmtServer(mcsServers, conf.Keys.ToMapWithID())
 	app.SetServers(instanceAll)
 	log.Infof("%s len: %d", time.Since(startTime), len(instanceAll))
@@ -57,28 +60,23 @@ func fmtServer(instances []model.Instance, keys map[string]AddKeyRequest) Server
 			continue
 		}
 
-		// key
+		// 支持一个机器多个 key
 		var keyName []*string
 		if instance.KeyIDs == nil {
 			log.Warnf("instance:%s key is nil", *instance.Name)
 		} else {
 			for _, key := range instance.KeyIDs {
 				if key == nil {
+					log.Debugf("instance: %s key is nil", *instance.Name)
 					continue
 				}
 				// 解决 key大写不识别问题
-				key = tea.String(strings.ToLower(*key))
-				if _, ok := keys[*key]; ok {
-					keyName = append(keyName, keys[*key].IdentityFile)
-				} else {
-					log.Warnf("instance: %s key: %s not found in jms", tea.StringValue(instance.Name), tea.StringValue(key))
-					// 也加入后续的机器列表展示
-					keyName = append(keyName, tea.String(*key))
-				}
+				keyName = append(keyName, key)
 			}
 		}
 
-		// log.Infof("instance:%s key: %s ips:%s\n", *instance.Name, *keyName, *instance.PrivateIP[0])
+		log.Debugf("instance: %s key: %s", tea.StringValue(instance.Name), tea.Prettify(keyName))
+
 		if len(instance.PrivateIP) < 1 {
 			log.Errorf("instance: %s private ip is empty", *instance.Name)
 			continue
@@ -121,6 +119,7 @@ func fmtServer(instances []model.Instance, keys map[string]AddKeyRequest) Server
 
 // 通过机器的密钥对 KeyIDs 获取对应的密钥Pem的路径
 func getKeyPairByKeyIDS(keyIDS []*string) []AddKeyRequest {
+	log.Debugf("keyIDS: %s", tea.Prettify(keyIDS))
 	keysAll := make([]AddKeyRequest, 0)
 	configKeys := app.App.Config.Keys.ToMapWithID()
 	for _, keyID := range keyIDS {
@@ -137,6 +136,7 @@ func getKeyPairByKeyIDS(keyIDS []*string) []AddKeyRequest {
 // fmtSuperUser 支持多用户选择
 func fmtSuperUser(instance model.Instance) []SSHUser {
 	keys := getKeyPairByKeyIDS(instance.KeyIDs)
+	log.Debugf("keys %s", tea.Prettify(keys))
 	var sshUser []SSHUser
 	for _, key := range keys {
 		u := SSHUser{}
@@ -161,5 +161,6 @@ func fmtSuperUser(instance model.Instance) []SSHUser {
 		}
 		sshUser = append(sshUser, u)
 	}
+	// log.Debugf("ssh user: %v", sshUser)
 	return sshUser
 }
