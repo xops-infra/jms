@@ -39,8 +39,8 @@ func (d *DBService) ListKey() ([]model.Key, error) {
 
 // 支持判断 key_id 是否存在
 func (d *DBService) AddKey(req model.AddKeyRequest) (string, error) {
-	if req.IdentityFile == nil || req.PemBase64 == nil || req.KeyID == nil || req.Profile == nil {
-		return "", fmt.Errorf("invalid request")
+	if req.PemBase64 == nil || req.KeyID == nil || req.Profile == nil {
+		return "", fmt.Errorf("invalid request, must not be nil")
 	}
 	if !strings.HasSuffix(*req.IdentityFile, ".pem") {
 		return "", fmt.Errorf("invalid identity_file(private key file name), must end with .pem, casue you download from cloud auto has .pem")

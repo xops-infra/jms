@@ -147,11 +147,8 @@ func (app *Application) WithDB(migrate bool) *Application {
 	}
 
 	gormConfig := &gorm.Config{}
-	if !app.Debug {
+	if app.Debug {
 		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
-	} else {
-		log.Infof("enable gorm log")
-		gormConfig.Logger = logger.Default.LogMode(logger.Info)
 	}
 
 	rdb, err := gorm.Open(dialector, gormConfig)
