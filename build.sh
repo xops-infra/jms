@@ -13,7 +13,9 @@ echo "build success"
 push() {
     docker build -t zhoushoujian/jms:$RELEASE . --build-arg="RELEASE=$RELEASE"
     if [ $? -eq 0 ]; then
-        docker push zhoushoujian/jms:$RELEASE
+        docker push zhoushoujian/jms:$RELEASE && \
+        docker tag zhoushoujian/jms:$RELEASE zhoushoujian/jms:latest && \
+        docker push zhoushoujian/jms:latest
     else
         echo "build failed"
     fi

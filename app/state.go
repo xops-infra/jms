@@ -1,6 +1,8 @@
 package app
 
 import (
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"strings"
@@ -75,6 +77,8 @@ func NewApp(debug bool, logDir string, version string) *Application {
 		os.Create(hostAuthorizedKeys)
 		os.Chmod(hostAuthorizedKeys, 0600)
 	}
+	go http.ListenAndServe(":6060", nil)
+	log.Infof("start pprof on :6060")
 	return App
 }
 
@@ -147,7 +151,7 @@ func (app *Application) WithDB(migrate bool) *Application {
 	}
 
 	gormConfig := &gorm.Config{}
-	if app.Debug {
+	if !app.Debug {
 		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
 	}
 
