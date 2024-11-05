@@ -66,6 +66,7 @@ func (ui *PUI) FlashTimeout() {
 
 // ShowMenu show menu
 func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, selectedChain []*MenuItem) {
+
 	user := User{
 		Username: tea.String((*ui.sess).User()),
 	}
@@ -85,7 +86,6 @@ func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, 
 			broadcast = _broadcast
 		}
 	}
-
 loopMenu:
 	for {
 		menuLabels := make([]string, 0) // 菜单，用于显示
@@ -108,7 +108,7 @@ loopMenu:
 					log.Errorf("Get need approve policy for admin error: %s", err)
 				}
 				if len(policies) > 0 {
-					sshd.Info(fmt.Sprintf("作为管理员，有新的审批工单（%d）待处理。", len(policies)), ui.sess)
+					sshd.Info(fmt.Sprintf("作为管理员，有新的审批工单(%d)待处理。", len(policies)), ui.sess)
 					menu = append(menu, GetApproveMenu(policies)...)
 				}
 			}
@@ -173,8 +173,9 @@ loopMenu:
 				app.App.Cache.Delete((*ui.sess).User())
 				ui.Exit()
 				break
+			} else {
+				log.Errorf("Select menu error %s\n", err)
 			}
-			log.Errorf("Select menu error %s\n", err)
 		}
 		if index == backIndex {
 			// 返回上一级菜单，如果主菜单了则退无可退。
@@ -229,12 +230,12 @@ loopMenu:
 func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	ui.FlashTimeout()
 	defer ui.SessionWrite("\033c") // clear
-	servers := app.GetServers()
+	servers := *app.Servers
 	servers.SortByName()
 	// 发送屏幕清理指令
 	// 发送当前时间
 	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
-		time.Now().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, len(servers),
+		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, len(servers),
 	))
 	// 发送欢迎信息
 	if broadcast != nil {

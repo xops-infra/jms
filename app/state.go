@@ -11,10 +11,11 @@ import (
 	"github.com/patrickmn/go-cache"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/jms/core/db"
+	model "github.com/xops-infra/jms/model"
 	model1 "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
-	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
+	mcsModel "github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	server "github.com/xops-infra/multi-cloud-sdk/pkg/service"
 	"github.com/xops-infra/noop/log"
 	"gorm.io/driver/postgres"
@@ -24,6 +25,8 @@ import (
 )
 
 var App *Application
+
+var Servers *model.Servers
 
 type Application struct {
 	Debug           bool
@@ -36,7 +39,7 @@ type Application struct {
 	Cache           *cache.Cache
 
 	JmsDBService *db.DBService
-	McsServer    model.CommonContract
+	McsServer    mcsModel.CommonContract
 }
 
 // Manager,Agent,Worker need to be initialized
@@ -202,14 +205,14 @@ func (app *Application) LoadFromDB() {
 
 }
 
-func DBProfilesToMcsProfiles(profiles []model1.CreateProfileRequest) []model.ProfileConfig {
-	var mcsProfiles []model.ProfileConfig
+func DBProfilesToMcsProfiles(profiles []model1.CreateProfileRequest) []mcsModel.ProfileConfig {
+	var mcsProfiles []mcsModel.ProfileConfig
 	for _, profile := range profiles {
-		mcsProfiles = append(mcsProfiles, model.ProfileConfig{
+		mcsProfiles = append(mcsProfiles, mcsModel.ProfileConfig{
 			Name:  *profile.Name,
 			AK:    *profile.AK,
 			SK:    *profile.SK,
-			Cloud: model.Cloud(*profile.Cloud),
+			Cloud: mcsModel.Cloud(*profile.Cloud),
 		})
 	}
 	return mcsProfiles

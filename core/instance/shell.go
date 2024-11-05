@@ -22,6 +22,7 @@ func ServerShellRun() {
 	if err != nil {
 		log.Errorf("list shell task error: %s", err)
 	}
+	// servers := app.GetServers()
 	wg := sync.WaitGroup{}
 	for _, task := range tasks {
 		log.Debugf("shell task: %s", tea.Prettify(task))
@@ -53,8 +54,7 @@ func ServerShellRun() {
 
 				// 执行
 				log.Infof("shell task start: %s", task.UUID)
-				servers := app.GetServers()
-				status, err := RunShellTask(task, servers)
+				status, err := RunShellTask(task, *app.Servers)
 				if err != nil {
 					log.Errorf("run shell task error: %s", err)
 					state = status

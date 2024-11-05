@@ -21,7 +21,7 @@ import (
 
 func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem, error) {
 	menu := make([]*MenuItem, 0)
-	servers := app.GetServers()
+	// servers := app.GetServers()
 	var matchPolicies []Policy
 	if app.App.JmsDBService == nil {
 		// 如果没有使用数据库，则默认都可见
@@ -34,7 +34,7 @@ func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem
 		matchPolicies = app.QueryPolicyByUser(*user.Username)
 	}
 	sshd.Info(fmt.Sprintf("matchPolicies: %d", len(matchPolicies)), sess)
-	for _, server := range servers {
+	for _, server := range *app.Servers {
 		// 默认都可见，连接的时候再判断是否允许
 		info := make(map[string]string, 0)
 		for _, key := range server.KeyPairs {
@@ -44,11 +44,13 @@ func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem
 		for _, sshUser := range server.SSHUsers {
 			info[serverUser] += fmt.Sprintf("%s: %s", sshUser.UserName, sshUser.KeyName)
 		}
+
 		// if server.Proxy != nil {
 		// 	info[serverProxy] = server.Proxy.Host
 		// 	info[serverProxyUser] = server.Proxy.LoginUser
 		// 	info[serverProxyKeyIdentityFile] = server.Proxy.SSHUsers.IdentityFile
 		// }
+
 		subMenu := &MenuItem{
 			Label:        fmt.Sprintf("%s\t[√]\t%s\t%s", server.ID, server.Host, server.Name),
 			Info:         info,

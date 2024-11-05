@@ -48,12 +48,12 @@ func LoadServer(conf *Config) {
 		log.Infof("get instances profile: %s len: %d", *profile.Name, len(mcsServers))
 	}
 	log.Debugf("conf.Keys.ToMapWithID(): %s", tea.Prettify(conf.Keys.ToMapWithID()))
-	instanceAll := fmtServer(mcsServers, conf.Keys.ToMapWithID())
+	instanceAll := fmtServer(mcsServers)
 	app.SetServers(instanceAll)
-	log.Infof("%s len: %d", time.Since(startTime), len(instanceAll))
+	log.Infof("%s len: %d", time.Since(startTime), len(*instanceAll))
 }
 
-func fmtServer(instances []model.Instance, keys map[string]AddKeyRequest) Servers {
+func fmtServer(instances []model.Instance) *Servers {
 	var instanceAll Servers
 	for _, instance := range instances {
 		if instance.Status != model.InstanceStatusRunning {
@@ -114,7 +114,7 @@ func fmtServer(instances []model.Instance, keys map[string]AddKeyRequest) Server
 	}
 
 	instanceAll.SortByName()
-	return instanceAll
+	return &instanceAll
 }
 
 // 通过机器的密钥对 KeyIDs 获取对应的密钥Pem的路径

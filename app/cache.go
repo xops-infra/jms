@@ -6,27 +6,29 @@ import (
 	"github.com/xops-infra/noop/log"
 )
 
-func GetServers() model.Servers {
-	servers, found := App.Cache.Get("servers")
-	if !found {
-		return nil
-	}
-	return servers.(model.Servers)
+// func GetServers() *model.Servers {
+// 	log.Debugf("GetServers called")
+// 	servers, found := App.Cache.Get("servers")
+// 	if !found {
+// 		return nil
+// 	}
+// 	return servers.(*model.Servers)
+// }
+
+func SetServers(servers *model.Servers) {
+	// App.Cache.Set("servers", servers, cache.NoExpiration)
+	Servers = servers
 }
 
-func SetServers(servers model.Servers) {
-	App.Cache.Set("servers", servers, cache.NoExpiration)
-}
-
-func GetServerIDByIP(ip string) string {
-	servers := GetServers()
-	for _, server := range servers {
-		if server.Host == ip {
-			return server.ID
-		}
-	}
-	return ""
-}
+// func GetServerIDByIP(ip string) string {
+// 	servers := GetServers()
+// 	for _, server := range *servers {
+// 		if server.Host == ip {
+// 			return server.ID
+// 		}
+// 	}
+// 	return ""
+// }
 
 func GetDBPolicy() []model.Policy {
 	policies, found := App.Cache.Get("policies")
