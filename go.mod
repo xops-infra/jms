@@ -8,9 +8,9 @@ require (
 	github.com/alibabacloud-go/tea v1.2.1
 	github.com/elfgzp/ssh v0.2.3-0.20191216171309-38f1cb660799
 	github.com/fatih/color v1.15.0
-	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-ldap/ldap v3.0.3+incompatible
+	github.com/google/gops v0.3.28
 	github.com/google/uuid v1.3.0
 	github.com/helloyi/go-sshclient v1.2.0
 	github.com/manifoldco/promptui v0.9.0
@@ -19,13 +19,14 @@ require (
 	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.16.0
+	github.com/stretchr/testify v1.8.4
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.8.12
 	github.com/xops-infra/ginx v0.2.2-0.20240220030752-c15eda8aa86d
 	github.com/xops-infra/go-dingtalk-sdk-wrapper v1.0.1-0.20240120062134-f736b8e8c268
 	github.com/xops-infra/http-headers v0.0.0-20230213021202-2b827f3526a0
-	github.com/xops-infra/multi-cloud-sdk v0.0.0-20240415030650-c9d8699e6941
+	github.com/xops-infra/multi-cloud-sdk v0.0.0-20241022101646-08afeb27d985
 	github.com/xops-infra/noop v0.5.1-0.20231107031456-2b6b1ae7e0bb
 	golang.org/x/crypto v0.18.0
 	gorm.io/driver/postgres v1.5.4
@@ -56,7 +57,9 @@ require (
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/clbanning/mxj v1.8.4 // indirect
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/gzip v0.0.6 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
@@ -97,6 +100,7 @@ require (
 	github.com/mozillazg/go-httpheader v0.2.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/pkg/sftp v1.13.6 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.16.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
@@ -105,7 +109,6 @@ require (
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.872 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm v1.0.748 // indirect

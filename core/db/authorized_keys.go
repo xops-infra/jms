@@ -6,30 +6,30 @@ import (
 
 	"github.com/elfgzp/ssh"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
+	"github.com/xops-infra/jms/model"
+	"github.com/xops-infra/noop/log"
 )
 
-type AuthorizedKey struct {
-	gorm.Model
-	IsDelete  bool   `gorm:"column:is_delete;type:boolean;not null;default:false"`
-	UUID      string `gorm:"column:uuid;type:varchar(36);unique_index;not null"`
-	UserName  string `gorm:"column:user_name;type:varchar(255);not null"` // ad用户名
-	PublicKey string `gorm:"column:public_key;type:text;not null"`
-}
-
-// table name
-func (d *DBService) TableName() string {
-	return "authorized_keys"
-}
-
+// 支持单个用户多个公钥认证
 func (d *DBService) AuthKey(username string, pub ssh.PublicKey) bool {
-	var key AuthorizedKey
-	err := d.DB.Where("user_name = ? and is_delete = false", username).First(&key).Error
+	keys, err := d.GetKeyByUsername(username)
 	if err != nil {
+		log.Errorf("get %s key error: %s", username, err)
 		return false
 	}
-	allowed, _, _, _, _ := ssh.ParseAuthorizedKey([]byte(key.PublicKey))
-	return ssh.KeysEqual(allowed, pub)
+	for _, key := range keys {
+		allowed, _, _, _, _ := ssh.ParseAuthorizedKey([]byte(key.PublicKey))
+		if ssh.KeysEqual(allowed, pub) {
+			return true
+		}
+	}
+	return false
+}
+
+func (d *DBService) GetKeyByUsername(username string) ([]model.AuthorizedKey, error) {
+	var keys []model.AuthorizedKey
+	err := d.DB.Where("user_name = ? and is_delete = false", username).Find(&keys).Error
+	return keys, err
 }
 
 // addAuthorizedKey
@@ -38,11 +38,11 @@ func (d *DBService) AddAuthorizedKey(username string, pub string) error {
 	var count int64
 	// 处理掉换行符
 	pub = strings.ReplaceAll(pub, "\n", "")
-	d.DB.Model(AuthorizedKey{}).Where("public_key = ?", pub).Count(&count)
+	d.DB.Model(model.AuthorizedKey{}).Where("public_key = ?", pub).Count(&count)
 	if count > 0 {
 		return fmt.Errorf("key already exists")
 	}
-	key := &AuthorizedKey{
+	key := &model.AuthorizedKey{
 		IsDelete:  false,
 		UUID:      uuid.NewString(),
 		UserName:  username,

@@ -6,39 +6,18 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
+	"github.com/xops-infra/jms/model"
 )
 
-type AddKeyRequest struct {
-	IdentityFile *string `json:"identity_file" mapstructure:"identity_file"`              // 云上下载下来的名字，比如 jms-key.pem，private key file name
-	PemBase64    *string `json:"pem_base64" binding:"required" mapstructure:"pem_base64"` // base64
-	KeyID        *string `json:"key_id" binding:"required" mapstructure:"key_id"`         // 云上的key id，比如 skey-123456
-	Profile      *string `json:"profile"`                                                 // 云账号的 profile，比如 aws, aliyun
-}
-
-type Key struct {
-	gorm.Model `json:"-"`
-	IsDelete   bool   `gorm:"column:is_delete;type:boolean;not null;default:false"`
-	UUID       string `gorm:"column:uuid;type:varchar(36);unique_index;not null"`
-	KeyID      string `gorm:"column:key_id;type:varchar(36);unique_index;not null"`
-	KeyName    string `gorm:"column:key_name;type:varchar(255);unique_index;not null"`
-	Profile    string `gorm:"column:profile;type:varchar(255);not null"`
-	PemBase64  string `gorm:"column:pem_base64;type:text;not null"`
-}
-
-func (Key) TableName() string {
-	return "key_table"
-}
-
-func (d *DBService) InternalLoad() ([]AddKeyRequest, error) {
-	var keys []Key
+func (d *DBService) InternalLoadKey() ([]model.AddKeyRequest, error) {
+	var keys []model.Key
 	err := d.DB.Where("is_delete is false").Find(&keys).Order("created_at").Error
 	if err != nil {
 		return nil, err
 	}
-	var res []AddKeyRequest
+	var res []model.AddKeyRequest
 	for i := range keys {
-		res = append(res, AddKeyRequest{
+		res = append(res, model.AddKeyRequest{
 			IdentityFile: tea.String(keys[i].KeyName),
 			PemBase64:    tea.String(keys[i].PemBase64),
 			KeyID:        tea.String(keys[i].KeyID),
@@ -48,8 +27,8 @@ func (d *DBService) InternalLoad() ([]AddKeyRequest, error) {
 	return res, nil
 }
 
-func (d *DBService) ListKey() ([]Key, error) {
-	var keys []Key
+func (d *DBService) ListKey() ([]model.Key, error) {
+	var keys []model.Key
 	err := d.DB.Where("is_delete is false").Find(&keys).Order("created_at").Error
 	// 隐藏敏感信息
 	for i := range keys {
@@ -58,24 +37,24 @@ func (d *DBService) ListKey() ([]Key, error) {
 	return keys, err
 }
 
-// 支持判断 keyname 是否存在
-func (d *DBService) AddKey(req AddKeyRequest) (string, error) {
-	if req.IdentityFile == nil || req.PemBase64 == nil || req.KeyID == nil || req.Profile == nil {
-		return "", fmt.Errorf("invalid request")
+// 支持判断 key_id 是否存在
+func (d *DBService) AddKey(req model.AddKeyRequest) (string, error) {
+	if req.PemBase64 == nil || req.KeyID == nil || req.Profile == nil {
+		return "", fmt.Errorf("invalid request, must not be nil")
 	}
 	if !strings.HasSuffix(*req.IdentityFile, ".pem") {
 		return "", fmt.Errorf("invalid identity_file(private key file name), must end with .pem, casue you download from cloud auto has .pem")
 	}
 	// 先查询是否存在
 	var count int64
-	err := d.DB.Model(Key{}).Where("key_name = ?", *req.IdentityFile).Where("is_delete is false").Count(&count).Error
+	err := d.DB.Model(model.Key{}).Where("key_id = ?", *req.KeyID).Where("is_delete is false").Count(&count).Error
 	if err != nil {
 		return "", err
 	}
 	if count > 0 {
-		return "", fmt.Errorf("key_name %s already exists", tea.StringValue(req.IdentityFile))
+		return "", fmt.Errorf("key_id %s already exists", tea.StringValue(req.KeyID))
 	}
-	key := &Key{
+	key := &model.Key{
 		IsDelete:  false,
 		UUID:      uuid.NewString(),
 		KeyID:     tea.StringValue(req.KeyID),
@@ -88,7 +67,7 @@ func (d *DBService) AddKey(req AddKeyRequest) (string, error) {
 
 func (d *DBService) DeleteKey(uuid string) error {
 	// 先查询是否存在
-	var key Key
+	var key model.Key
 	err := d.DB.Where("uuid = ?", uuid).Where("is_delete is false").First(&key).Error
 	if err != nil {
 		return err

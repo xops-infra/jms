@@ -11,7 +11,7 @@ import (
 
 // TEST ListProxy
 func TestListProxy(t *testing.T) {
-	proxies, err := app.App.DBService.ListProxy()
+	proxies, err := app.App.JmsDBService.ListProxy()
 	if err != nil {
 		t.Error(err)
 		return
@@ -23,7 +23,7 @@ func TestListProxy(t *testing.T) {
 func TestAddProxy(t *testing.T) {
 	for _, proxy := range app.App.Config.Proxys {
 		fmt.Println(tea.Prettify(proxy))
-		_, err := app.App.DBService.CreateProxy(proxy)
+		_, err := app.App.JmsDBService.CreateProxy(proxy)
 		if err != nil {
 			t.Error(err)
 			return

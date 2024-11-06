@@ -3,7 +3,8 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/model"
+	"github.com/xops-infra/noop/log"
 )
 
 // @Summary List profile
@@ -12,10 +13,10 @@ import (
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Success 200 {object} []db.Profile
+// @Success 200 {object} []Profile
 // @Router /api/v1/profile [get]
 func listProfile(c *gin.Context) {
-	profiles, err := app.App.DBService.ListProfile()
+	profiles, err := app.App.JmsDBService.ListProfile()
 	if err != nil {
 		c.String(500, err.Error())
 		return
@@ -29,17 +30,18 @@ func listProfile(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Param profile body db.CreateProfileRequest true "profile"
+// @Param profile body CreateProfileRequest true "profile"
 // @Success 200 {string} string
 // @Router /api/v1/profile [post]
 func createProfile(c *gin.Context) {
-	var req db.CreateProfileRequest
+	var req CreateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
 	}
-	id, err := app.App.DBService.CreateProfile(req)
+	id, err := app.App.JmsDBService.CreateProfile(req)
 	if err != nil {
+		log.Errorf("create profile error: %v", err)
 		c.JSON(500, err.Error())
 		return
 	}
@@ -52,11 +54,12 @@ func createProfile(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Param profile body db.CreateProfileRequest true "profile"
+// @Param profile body CreateProfileRequest true "profile"
+// @Param uuid path string true "profile uuid"
 // @Success 200 {string} string
 // @Router /api/v1/profile/:uuid [put]
 func updateProfile(c *gin.Context) {
-	var req db.CreateProfileRequest
+	var req CreateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -66,8 +69,9 @@ func updateProfile(c *gin.Context) {
 		c.JSON(400, "uuid is required")
 		return
 	}
-	err := app.App.DBService.UpdateProfile(uuid, req)
+	err := app.App.JmsDBService.UpdateProfile(uuid, req)
 	if err != nil {
+		log.Errorf("update profile error: %v", err)
 		c.JSON(500, err.Error())
 		return
 	}
@@ -89,8 +93,9 @@ func deleteProfile(c *gin.Context) {
 		c.JSON(400, "uuid is required")
 		return
 	}
-	err := app.App.DBService.DeleteProfile(uuid)
+	err := app.App.JmsDBService.DeleteProfile(uuid)
 	if err != nil {
+		log.Errorf("delete profile error: %v", err)
 		c.JSON(500, err.Error())
 		return
 	}

@@ -13,9 +13,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xops-infra/noop/log"
 
+	"github.com/google/gops/agent"
 	"github.com/xops-infra/jms/app"
-	appConfig "github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/api"
+	appConfig "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
 
@@ -34,6 +35,12 @@ var apiCmd = &cobra.Command{
 	swagger url: http://localhost:8013/swagger/index.html
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if err := agent.Listen(agent.Options{}); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to start gops agent: %v\n", err)
+			os.Exit(1)
+		}
+		defer agent.Close()
+
 		appConfig.LoadYaml(config)
 		log.Default().WithLevel(log.InfoLevel).WithHumanTime(time.Local).WithFilename(strings.TrimSuffix(logDir, "/") + "/api.log").Init()
 		if debug {
@@ -48,7 +55,7 @@ var apiCmd = &cobra.Command{
 		}
 
 		// init app
-		_app := app.NewApiApplication()
+		_app := app.NewApiApplication(debug)
 
 		if !app.App.Config.WithDB.Enable {
 			panic("请配置 withDB")
@@ -58,7 +65,7 @@ var apiCmd = &cobra.Command{
 			log.Infof("enable dingtalk")
 			_app.WithDingTalk()
 		}
-		_app.WithPolicy()
+		_app.WithDB(false)
 
 		log.Infof("api server start on port: %d", apiPort)
 		g := api.NewGin()

@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/model"
 )
 
 // @Summary 获取用户列表
@@ -16,13 +16,13 @@ import (
 // @Param Authorization header string false "token"
 // @Param name query string false "name 支持用户名或者email查询"
 // @Param group query string false "group"
-// @Success 200 {object} []db.User
+// @Success 200 {object} []User
 // @Router /api/v1/user [get]
 func listUser(c *gin.Context) {
 	name := c.Query("name")
 	group := c.Query("group")
 	if name != "" {
-		users, err := app.App.DBService.DescribeUser(name)
+		users, err := app.App.JmsDBService.DescribeUser(name)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -31,7 +31,7 @@ func listUser(c *gin.Context) {
 		return
 	}
 	if group != "" {
-		users, err := app.App.DBService.QueryUserByGroup(group)
+		users, err := app.App.JmsDBService.QueryUserByGroup(group)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -40,7 +40,7 @@ func listUser(c *gin.Context) {
 		return
 	}
 	// 否则查询所有
-	users, err := app.App.DBService.QueryAllUser()
+	users, err := app.App.JmsDBService.QueryAllUser()
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -54,16 +54,16 @@ func listUser(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param Authorization header string false "token"
-// @Param request body db.UserRequest true "request"
+// @Param request body UserRequest true "request"
 // @Success 200 {string} success
 // @Router /api/v1/user [post]
 func addUser(c *gin.Context) {
-	var req db.UserRequest
+	var req UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
 	}
-	_, err := app.App.DBService.CreateUser(&req)
+	_, err := app.App.JmsDBService.CreateUser(&req)
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -78,7 +78,7 @@ func addUser(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "user id"
-// @Param request body db.UserPatchMut true "request"
+// @Param request body UserPatchMut true "request"
 // @Success 200 {string} success
 // @Router /api/v1/user/:id [patch]
 func updateUserGroup(c *gin.Context) {
@@ -87,12 +87,12 @@ func updateUserGroup(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *db.UserPatchMut
+	var req *UserPatchMut
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.DBService.PatchUserGroup(id, req); err != nil {
+	if err := app.App.JmsDBService.PatchUserGroup(id, req); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}
@@ -106,7 +106,7 @@ func updateUserGroup(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "user id"
-// @Param request body db.UserRequest true "request"
+// @Param request body UserRequest true "request"
 // @Success 200 {string} success
 // @Router /api/v1/user/:id [put]
 func updateUser(c *gin.Context) {
@@ -115,12 +115,12 @@ func updateUser(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *db.UserRequest
+	var req *UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.DBService.UpdateUser(id, *req); err != nil {
+	if err := app.App.JmsDBService.UpdateUser(id, *req); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}

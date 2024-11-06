@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -16,8 +17,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
 
@@ -85,6 +85,12 @@ func (r *response) GetMessage() string {
 
 // ExecuteSCP ExecuteSCP
 func ExecuteSCP(args []string, clientSess *ssh.Session) error {
+	defer func() {
+		// 捕捉 panic
+		if err := recover(); err != nil {
+			log.Errorf("panic: %v", err)
+		}
+	}()
 	for _, arg := range args {
 		if arg == "-t" || arg == "-f" {
 			log.Debugf("arg: %s", arg)
@@ -143,7 +149,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 			return err
 		}
 		if app.App.Config.WithDB.Enable {
-			err = app.App.DBService.AddDownloadRecord(&db.AddScpRecordRequest{
+			err = app.App.JmsDBService.AddScpRecord(&AddScpRecordRequest{
 				Action: tea.String("upload"),
 				From:   tea.String(filename),
 				To:     tea.String(args[1]),
@@ -172,12 +178,12 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 	if err != nil {
 		return err
 	}
-
 	proxyClient, upstream, err := NewSSHClient(*server, *sshUser)
 	if err != nil {
 		return err
 	}
 	if proxyClient != nil {
+		// 带出开做是否否则不释放链接
 		defer proxyClient.Close()
 	}
 
@@ -210,9 +216,11 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 	if err != nil {
 		return err
 	}
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer stdin.Close()
-
 		err := replyOk(stdin)
 		if err != nil {
 			errCh <- err
@@ -261,7 +269,7 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 				return
 			}
 			if app.App.Config.WithDB.Enable {
-				err = app.App.DBService.AddDownloadRecord(&db.AddScpRecordRequest{
+				err = app.App.JmsDBService.AddScpRecord(&AddScpRecordRequest{
 					Action: tea.String("download"),
 					To:     tea.String(filename),
 					From:   tea.String(args[1]),
@@ -285,6 +293,7 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 
 	}()
 
+	wg.Wait()
 	upstreamSess.Wait()
 
 	close(errCh)
@@ -342,11 +351,8 @@ func copyToClientSession(tmpReader *bufio.Reader, clientSess *ssh.Session, perm,
 	return nil
 }
 
-func parseServerPath(fullPath, filename, currentUsername string) (*config.SSHUser, *config.Server, string, error) {
-	servers, found := app.App.Cache.Get("servers")
-	if !found {
-		return nil, nil, "", errors.New("Servers not found")
-	}
+func parseServerPath(fullPath, filename, currentUsername string) (*SSHUser, *Server, string, error) {
+	servers := app.Servers
 	args := strings.SplitN(fullPath, ":", 2)
 	invaildPathErr := errors.New(
 		"Please input your server key before your target path, like 'scp -P 2222 /tmp/tmp.file user@jumpserver:user@server1:/tmp/tmp.file'",
@@ -363,7 +369,7 @@ func parseServerPath(fullPath, filename, currentUsername string) (*config.SSHUse
 	}
 
 	sshUsername, host := serverArgs[0], serverArgs[1]
-	if server, ok := config.ServerListToMap(servers.(config.Servers))[host]; ok {
+	if server, ok := ServerListToMap(*servers)[host]; ok {
 		if server.Host == "" {
 			return nil, nil, "", fmt.Errorf("server key '%s' of server not found", host)
 		}
@@ -372,11 +378,11 @@ func parseServerPath(fullPath, filename, currentUsername string) (*config.SSHUse
 			return nil, nil, "", fmt.Errorf("SSHUsers of server '%s' not found", host)
 		}
 
-		var user *config.SSHUser
+		var user *SSHUser
 
 	loop:
 		for _, sshUser := range server.SSHUsers {
-			if (sshUser).SSHUsername == sshUsername {
+			if (sshUser).UserName == sshUsername {
 				user = &sshUser
 				break loop
 			}
@@ -513,6 +519,7 @@ func copyToUpstreamSession(r *bufio.Reader, upstreamSess *gossh.Session, perm, f
 		}
 
 		if err = checkResponse(stdout); err != nil {
+			// TODO: here is a bug. send to closed channel by windows tools pscp.
 			errCh <- err
 			return
 		}

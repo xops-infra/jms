@@ -3,17 +3,14 @@ package sshd_test
 import (
 	"testing"
 
-	"github.com/xops-infra/noop/log"
-
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/config"
 	"github.com/xops-infra/jms/core/sshd"
+	"github.com/xops-infra/jms/model"
 )
 
 func init() {
-	log.Default().Init()
-	config.LoadYaml("/opt/jms/config.yaml")
-	app.NewSshdApplication(true, "---").WithPolicy()
+	model.LoadYaml("/opt/jms/config.yaml")
+	app.NewApp(true, "", "---").WithDB(false)
 }
 
 func TestAuditArch(t *testing.T) {

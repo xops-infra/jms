@@ -1,31 +1,38 @@
 package db
 
-import "gorm.io/gorm"
+import (
+	"time"
 
-type AddSshLoginRequest struct {
-	User         *string `json:"user"`          // 用户
-	Client       *string `json:"client"`        // 客户端
-	TargetServer *string `json:"target_server"` // 目标服务器
-}
-
-type SSHLoginRecord struct {
-	gorm.Model
-	User   string `gorm:"type:varchar(255);not null"` // 用户
-	Client string `gorm:"type:varchar(255);not null"` // 客户端
-	Target string `gorm:"type:varchar(255);not null"` // 目标服务器
-}
-
-// table name
-func (SSHLoginRecord) TableName() string {
-	return "record_ssh_login"
-}
+	"github.com/alibabacloud-go/tea/tea"
+	"github.com/xops-infra/jms/model"
+	"github.com/xops-infra/noop/log"
+)
 
 // 登录记录入库
-func (d *DBService) AddServerLoginRecord(req *AddSshLoginRequest) (err error) {
-	record := &SSHLoginRecord{
-		User:   *req.User,
-		Client: *req.Client,
-		Target: *req.TargetServer,
+func (d *DBService) AddServerLoginRecord(req *model.AddSshLoginRequest) (err error) {
+	record := &model.SSHLoginRecord{
+		User:             *req.User,
+		Client:           *req.Client,
+		Target:           *req.TargetServer,
+		TargetInstanceId: *req.InstanceID,
 	}
 	return d.DB.Create(record).Error
+}
+
+// ListServerLoginRecord
+func (d *DBService) ListServerLoginRecord(req model.QueryLoginRequest) (records []model.SSHLoginRecord, err error) {
+	sql := d.DB.Model(&model.SSHLoginRecord{})
+	log.Debugf(tea.Prettify(req))
+	if req.Duration != nil {
+		sql = sql.Where("created_at >= ?", time.Now().Add(-time.Hour*time.Duration(*req.Duration)))
+	} else {
+		sql = sql.Where("created_at >= ?", time.Now().AddDate(0, 0, -1))
+	}
+	if req.Ip != nil {
+		sql = sql.Where("target = ?", *req.Ip)
+	}
+	if req.User != nil {
+		sql = sql.Where("\"user\" = ?", *req.User)
+	}
+	return records, sql.Find(&records).Error
 }

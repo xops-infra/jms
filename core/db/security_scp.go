@@ -1,32 +1,13 @@
 package db
 
-import "gorm.io/gorm"
+import (
+	"time"
 
-type AddScpRecordRequest struct {
-	Action *string `json:"action"` // download,upload
-	From   *string `json:"from"`   // 来源
-	To     *string `json:"to"`     // 目标
-	User   *string `json:"user"`   // 用户
-	Client *string `json:"client"` // 客户端
-}
+	"github.com/xops-infra/jms/model"
+)
 
-type ScpRecord struct {
-	gorm.Model
-	Action string `gorm:"type:varchar(255);not null"` // download,upload
-	From   string `gorm:"type:varchar(255);not null"` // 来源
-	To     string `gorm:"type:varchar(255);not null"` // 目标
-	User   string `gorm:"type:varchar(255);not null"` // 用户
-	Client string `gorm:"type:varchar(255);not null"` // 客户端
-}
-
-// table name
-func (ScpRecord) TableName() string {
-	return "record_scp"
-}
-
-// 文件下载记录入库
-func (d *DBService) AddDownloadRecord(req *AddScpRecordRequest) (err error) {
-	record := &ScpRecord{
+func (d *DBService) AddScpRecord(req *model.AddScpRecordRequest) (err error) {
+	record := &model.ScpRecord{
 		Action: *req.Action,
 		From:   *req.From,
 		To:     *req.To,
@@ -35,4 +16,24 @@ func (d *DBService) AddDownloadRecord(req *AddScpRecordRequest) (err error) {
 	}
 	err = d.DB.Create(record).Error
 	return
+}
+
+// ListScpRecord
+func (d *DBService) ListScpRecord(req model.QueryScpRequest) (records []model.ScpRecord, err error) {
+	sql := d.DB.Model(&model.ScpRecord{})
+	if req.Duration != nil {
+		sql = sql.Where("created_at >= ?", time.Now().Add(-time.Hour*time.Duration(*req.Duration)))
+	} else {
+		sql = sql.Where("created_at >= ?", time.Now().AddDate(0, 0, -1))
+	}
+	if req.User != nil {
+		sql = sql.Where("\"user\" = ?", *req.User)
+	}
+	if req.Action != nil {
+		sql = sql.Where("action = ?", *req.Action)
+	}
+	if req.KeyWord != nil {
+		sql = sql.Where("to like ?", "%"+*req.KeyWord+"%").Where("from like ?", "%"+*req.KeyWord+"%")
+	}
+	return records, sql.Find(&records).Error
 }

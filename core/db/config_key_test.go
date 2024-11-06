@@ -9,7 +9,7 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
+	"github.com/xops-infra/jms/model"
 )
 
 // AddKey
@@ -32,7 +32,7 @@ func TestAddKey(t *testing.T) {
 		}
 		base64Pem := base64.StdEncoding.EncodeToString(pem)
 		// 添加到数据库
-		_, err = app.App.DBService.AddKey(db.AddKeyRequest{
+		_, err = app.App.JmsDBService.AddKey(model.AddKeyRequest{
 			IdentityFile: tea.String(info.Name()),
 			PemBase64:    tea.String(base64Pem),
 		})
@@ -46,7 +46,7 @@ func TestAddKey(t *testing.T) {
 
 // ListKey
 func TestListKey(t *testing.T) {
-	keys, err := app.App.DBService.ListKey()
+	keys, err := app.App.JmsDBService.ListKey()
 	if err != nil {
 		t.Fatal(err)
 	}

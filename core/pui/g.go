@@ -12,9 +12,8 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
-	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/sshd"
+	. "github.com/xops-infra/jms/model"
 )
 
 // PUI pui
@@ -39,7 +38,7 @@ func (ui *PUI) SessionWrite(msg string) error {
 
 // exit
 func (ui *PUI) Exit() {
-	ui.SessionWrite(fmt.Sprintf(BybLabel, time.Now().Format("2006-01-02 15:04:05")))
+	ui.SessionWrite(fmt.Sprintf(BybLabel, time.Now().Local().Format("2006-01-02 15:04:05")))
 	err := (*ui.sess).Close()
 	if err == nil {
 		log.Infof("User %s form %s exit", (*ui.sess).User(), (*ui.sess).RemoteAddr().String())
@@ -67,26 +66,26 @@ func (ui *PUI) FlashTimeout() {
 
 // ShowMenu show menu
 func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, selectedChain []*MenuItem) {
-	user := db.User{
+
+	user := User{
 		Username: tea.String((*ui.sess).User()),
 	}
-	var broadcast *db.Broadcast
+	var broadcast *Broadcast
 
 	if app.App.Config.WithDB.Enable {
-		_user, err := app.App.DBService.DescribeUser((*ui.sess).User())
+		_user, err := app.App.JmsDBService.DescribeUser((*ui.sess).User())
 		if err != nil {
 			log.Errorf("DescribeUser error: %s", err)
 			sshd.ErrorInfo(err, ui.sess)
 		}
 		user = _user
-		_broadcast, err := app.App.DBService.GetBroadcast()
+		_broadcast, err := app.App.JmsDBService.GetBroadcast()
 		if err != nil {
 			log.Errorf("GetBroadcast error: %s", err)
 		} else {
 			broadcast = _broadcast
 		}
 	}
-
 loopMenu:
 	for {
 		menuLabels := make([]string, 0) // 菜单，用于显示
@@ -104,16 +103,21 @@ loopMenu:
 
 			if app.App.Config.WithDB.Enable && !app.App.Config.WithDingtalk.Enable {
 				// 没有审批策略时候，会在 admin 服务器选择列表里面显示审批菜单
-				policies, err := app.App.DBService.NeedApprove((*ui.sess).User())
+				policies, err := app.App.JmsDBService.NeedApprove((*ui.sess).User())
 				if err != nil {
 					log.Errorf("Get need approve policy for admin error: %s", err)
 				}
 				if len(policies) > 0 {
-					sshd.Info(fmt.Sprintf("作为管理员，有新的审批工单（%d）待处理。", len(policies)), ui.sess)
+					sshd.Info(fmt.Sprintf("作为管理员，有新的审批工单(%d)待处理。", len(policies)), ui.sess)
 					menu = append(menu, GetApproveMenu(policies)...)
 				}
 			}
-			menu = append(menu, GetServersMenuV2(ui.sess, user, ui.GetTimeout())...)
+			_menus, err := GetServersMenuV2(ui.sess, user, ui.GetTimeout())
+			if err != nil {
+				sshd.ErrorInfo(err, ui.sess)
+				break loopMenu
+			}
+			menu = append(menu, _menus...)
 
 			filter, err := ui.inputFilter(broadcast)
 			if err != nil {
@@ -169,8 +173,9 @@ loopMenu:
 				app.App.Cache.Delete((*ui.sess).User())
 				ui.Exit()
 				break
+			} else {
+				log.Errorf("Select menu error %s\n", err)
 			}
-			log.Errorf("Select menu error %s\n", err)
 		}
 		if index == backIndex {
 			// 返回上一级菜单，如果主菜单了则退无可退。
@@ -222,15 +227,15 @@ loopMenu:
 }
 
 // inputFilter input filter
-func (ui *PUI) inputFilter(broadcast *db.Broadcast) (string, error) {
+func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	ui.FlashTimeout()
 	defer ui.SessionWrite("\033c") // clear
-	servers := instance.GetServers()
+	servers := *app.Servers
 	servers.SortByName()
 	// 发送屏幕清理指令
 	// 发送当前时间
 	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
-		time.Now().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, len(servers),
+		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, len(servers),
 	))
 	// 发送欢迎信息
 	if broadcast != nil {

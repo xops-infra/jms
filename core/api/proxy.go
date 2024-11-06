@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/model"
 )
 
 // @Summary ListProxy
@@ -11,10 +11,10 @@ import (
 // @Tags proxy
 // @Accept json
 // @Produce json
-// @Success 200 {object} []db.Proxy
+// @Success 200 {object} []Proxy
 // @Router /api/v1/proxy [get]
 func listProxy(c *gin.Context) {
-	proxies, err := app.App.DBService.ListProxy()
+	proxies, err := app.App.JmsDBService.ListProxy()
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -25,16 +25,16 @@ func listProxy(c *gin.Context) {
 // @Summary AddProxy
 // @Description add proxy server
 // @Tags proxy
-// @Param body body db.CreateProxyRequest true "proxy server info"
-// @Success 200 {object} db.Proxy
+// @Param body body CreateProxyRequest true "proxy server info"
+// @Success 200 {object} Proxy
 // @Router /api/v1/proxy [post]
 func addProxy(c *gin.Context) {
-	var req db.CreateProxyRequest
+	var req CreateProxyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
 	}
-	id, err := app.App.DBService.CreateProxy(req)
+	id, err := app.App.JmsDBService.CreateProxy(req)
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -45,17 +45,18 @@ func addProxy(c *gin.Context) {
 // @Summary UpdateProxy
 // @Summary UpdateProxy
 // @Tags proxy
-// @Param body body db.CreateProxyRequest true "proxy server info"
-// @Success 200 {object} db.Proxy
-// @Router /api/v1/proxy [put]
+// @Param body body CreateProxyRequest true "proxy server info"
+// @Param uuid path string true "proxy server uuid"
+// @Success 200 {object} Proxy
+// @Router /api/v1/proxy/:uuid [put]
 func updateProxy(c *gin.Context) {
 
-	var req db.CreateProxyRequest
+	var req CreateProxyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
 	}
-	id, err := app.App.DBService.UpdateProxy(c.Param("uuid"), req)
+	id, err := app.App.JmsDBService.UpdateProxy(c.Param("uuid"), req)
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -65,12 +66,14 @@ func updateProxy(c *gin.Context) {
 
 // @Summary DeleteProxy
 // @Tags proxy
+// @Accept json
+// @Produce json
 // @Param uuid path string true "proxy server uuid"
 // @Success 200 {string} success
-// @Router /api/v1/proxy [delete]
-func deleteProxy(c *gin.Context) { 
+// @Router /api/v1/proxy/:uuid [delete]
+func deleteProxy(c *gin.Context) {
 
-	err := app.App.DBService.DeleteProxy(c.Param("uuid"))
+	err := app.App.JmsDBService.DeleteProxy(c.Param("uuid"))
 	if err != nil {
 		c.JSON(500, err.Error())
 		return

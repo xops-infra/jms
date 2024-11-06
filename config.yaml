@@ -21,6 +21,7 @@ keys:
     # pem_base64: xxxpem_base64
     key_id: skey-xxxx
     profile: tencent-account
+    password: xxx
 
 # proxies 是用来ssh连接的代理。云上环境基本上和 jms服务不会在一起，
 # 所以需要各个云上启用代理机器，这样每个环境都可以通过代理访问，

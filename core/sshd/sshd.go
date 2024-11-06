@@ -19,8 +19,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/config"
-	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
 
@@ -39,7 +38,7 @@ func GetClientByPasswd(username, host string, port int, passwd string) (*sshclie
 }
 
 // NewTerminal NewTerminal
-func NewTerminal(server config.Server, sshUser config.SSHUser, sess *ssh.Session, timeout string) error {
+func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session, timeout string) error {
 	proxyClient, upstreamClient, err := NewSSHClient(server, sshUser)
 	if err != nil {
 		log.Errorf("NewSSHClient error: %s", err)
@@ -93,10 +92,7 @@ func NewTerminal(server config.Server, sshUser config.SSHUser, sess *ssh.Session
 		}
 	}()
 	fmt.Println((*sess).Environ(), (*sess).RemoteAddr())
-	err = app.App.Cache.Add((*sess).RemoteAddr().String(), true, cache.DefaultExpiration)
-	if err != nil {
-		log.Errorf("add cache error: %s", err)
-	}
+	app.App.Cache.Set((*sess).RemoteAddr().String(), true, cache.DefaultExpiration)
 	defer app.App.Cache.Delete((*sess).RemoteAddr().String())
 
 	if err := upstreamSess.Wait(); err != nil {
@@ -108,20 +104,20 @@ func NewTerminal(server config.Server, sshUser config.SSHUser, sess *ssh.Session
 
 // 判断服务器是否配置了代理，配置获取方式可以是本地，或者数据库
 // 本地配置的优先级高于数据库配置
-func isProxyServer(server config.Server) (*db.CreateProxyRequest, error) {
+func isProxyServer(server Server) (*CreateProxyRequest, error) {
 	for _, proxy := range app.App.Config.Proxys {
-		log.Debugf("host %s proxy: %s\n", server.Host, tea.Prettify(proxy))
 		if strings.HasPrefix(server.Host, *proxy.IPPrefix) {
 			log.Debugf("get proxy from config for %s, %s\n", server.Host, tea.Prettify(proxy))
 			return &proxy, nil
 		}
 	}
-	log.Debugf("no proxy found: %s\n", server.Host)
+	log.Debugf("no proxy found: %s", server.Host)
 	return nil, nil
 }
 
 // NewSSHClient NewSSHClient
-func NewSSHClient(server config.Server, sshUser config.SSHUser) (*gossh.Client, *gossh.Client, error) {
+// proxy client 返回主要是为了外部 close 用。
+func NewSSHClient(server Server, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
 	proxy, err := isProxyServer(server)
 	if err != nil {
 		return nil, nil, err
@@ -129,7 +125,7 @@ func NewSSHClient(server config.Server, sshUser config.SSHUser) (*gossh.Client, 
 	if proxy != nil {
 		return ProxyClient(server, *proxy, sshUser)
 	}
-	log.Debugf("direct connect: %s:%d\n", server.Host, server.Port)
+	log.Debugf("direct connect: %s:%d", server.Host, server.Port)
 	config, err := newSshConfig(sshUser)
 	if err != nil {
 		return nil, nil, err
@@ -138,9 +134,9 @@ func NewSSHClient(server config.Server, sshUser config.SSHUser) (*gossh.Client, 
 	return nil, client, err
 }
 
-func newSshConfig(sshUser config.SSHUser) (*gossh.ClientConfig, error) {
+func newSshConfig(sshUser SSHUser) (*gossh.ClientConfig, error) {
 	config := &gossh.ClientConfig{
-		User:            sshUser.SSHUsername,
+		User:            sshUser.UserName,
 		HostKeyCallback: gossh.HostKeyCallback(func(hostname string, remote net.Addr, key gossh.PublicKey) error { return nil }),
 		Timeout:         8 * time.Second,
 	}
@@ -160,12 +156,12 @@ func newSshConfig(sshUser config.SSHUser) (*gossh.ClientConfig, error) {
 		}
 		config.Auth = append(config.Auth, gossh.PublicKeys(signer))
 	} else {
-		return nil, fmt.Errorf("server login user auth not set, please check password or private key for %s", sshUser.SSHUsername)
+		return nil, fmt.Errorf("server login user auth not set, please check password or private key for %s", sshUser.UserName)
 	}
 	return config, nil
 }
 
-func ProxyClient(instance config.Server, proxy db.CreateProxyRequest, sshUser config.SSHUser) (*gossh.Client, *gossh.Client, error) {
+func ProxyClient(instance Server, proxy CreateProxyRequest, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
 	if proxy.LoginUser == nil || *proxy.LoginUser == "" || tea.StringValue(proxy.Host) == "" || tea.IntValue(proxy.Port) == 0 {
 		return nil, nil, fmt.Errorf("proxy config error, %s", tea.Prettify(proxy))
 	}
@@ -178,13 +174,29 @@ func ProxyClient(instance config.Server, proxy db.CreateProxyRequest, sshUser co
 	if proxy.LoginPasswd != nil && *proxy.LoginPasswd != "" {
 		log.Debugf("proxy login passwd: %s", *proxy.LoginPasswd)
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.Password(*proxy.LoginPasswd))
-	} else if proxy.IdentityFile != nil {
-		log.Debugf("proxy identity file: %s", *proxy.IdentityFile)
-		signerProxy, err := getSigner(*proxy.IdentityFile)
+	} else if proxy.KeyID != nil && *proxy.KeyID != "" {
+		// 走 proxy keyID 去获取认证信息
+		log.Debugf("proxy keyID: %s", *proxy.KeyID)
+		signerProxy, err := getSignerByKeyID(*proxy.KeyID)
 		if err != nil {
 			return nil, nil, err
 		}
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.PublicKeys(signerProxy))
+	} else if proxy.IdentityFile != nil && *proxy.IdentityFile != "" {
+		// 兼容数据库通过 identityFile 认证, 随后走文件认证
+		signerProxy, err := getSignerByIdentityFile(*proxy.IdentityFile)
+		if err != nil {
+			// 走文件认证
+			log.Debugf("proxy identityFile: %s", *proxy.IdentityFile)
+			_signerProxy, err := getSignerFromLocal(app.App.SSHDir + strings.TrimPrefix(*proxy.IdentityFile, "/"))
+			if err != nil {
+				return nil, nil, err
+			}
+			signerProxy = _signerProxy
+		}
+		proxyConfig.Auth = append(proxyConfig.Auth, gossh.PublicKeys(signerProxy))
+	} else {
+		return nil, nil, fmt.Errorf("proxy config error has no auth, %s", tea.Prettify(proxy))
 	}
 	log.Infof("connecting %s with proxy connect: %s:%d", instance.Host, *proxy.Host, *proxy.Port)
 	proxyClient, err := gossh.Dial("tcp", fmt.Sprintf("%s:%d", *proxy.Host, *proxy.Port), proxyConfig)
@@ -211,18 +223,24 @@ func ProxyClient(instance config.Server, proxy db.CreateProxyRequest, sshUser co
 }
 
 // 在 key里面获取签名，支持数据库 base64 或者本地文件
-func getSigner(identityFile string) (gossh.Signer, error) {
+func getSignerByKeyID(keyID string) (gossh.Signer, error) {
+	if key, ok := app.App.Config.Keys.ToMapWithID()[keyID]; ok {
+		if key.PemBase64 != nil {
+			log.Debugf("got pem base64 for %s", keyID)
+			return getSignerFromBase64(*key.PemBase64)
+		}
+	}
+	return nil, fmt.Errorf("key %s not found", keyID)
+}
+
+func getSignerByIdentityFile(identityFile string) (gossh.Signer, error) {
 	if key, ok := app.App.Config.Keys.ToMapWithName()[identityFile]; ok {
 		if key.PemBase64 != nil {
 			log.Debugf("got pem base64 for %s", identityFile)
 			return getSignerFromBase64(*key.PemBase64)
 		}
-		if key.IdentityFile != nil {
-			log.Debugf("got pem file for %s", identityFile)
-			return getSignerFromLocal(*key.IdentityFile)
-		}
 	}
-	return nil, fmt.Errorf("key %s not found", identityFile)
+	return nil, fmt.Errorf("%s identityFile not found", identityFile)
 }
 
 func getSignerFromLocal(identityFile string) (gossh.Signer, error) {

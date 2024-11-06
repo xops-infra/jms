@@ -7,7 +7,7 @@ fi
 
 # 超时时间设置
 if [ -n "$TIMEOUT" ]; then
-    TIMEOUT = "--timeout $TIMEOUT"
+    TIMEOUT="--timeout $TIMEOUT"
 fi
 
 if [ -n "$API" ] && [ "$API" = "true" ]; then

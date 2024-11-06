@@ -10,8 +10,8 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/core/dingtalk"
+	. "github.com/xops-infra/jms/model"
 )
 
 // @Summary 获取策略列表
@@ -23,7 +23,7 @@ import (
 // @Param name query string false "name"
 // @Param id query string false "policy id"
 // @Param user query string false "user"
-// @Success 200 {object} []db.Policy
+// @Success 200 {object} []Policy
 // @Failure 500 {string} string
 // @Router /api/v1/policy [get]
 func listPolicy(c *gin.Context) {
@@ -32,7 +32,7 @@ func listPolicy(c *gin.Context) {
 	name := c.Query("name")
 	id := c.Query("id")
 	if user != "" {
-		policies, err := app.App.DBService.QueryPolicyByUser(user)
+		policies, err := app.App.JmsDBService.QueryPolicyByUser(user)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -41,7 +41,7 @@ func listPolicy(c *gin.Context) {
 		return
 	}
 	if name != "" {
-		policies, err := app.App.DBService.QueryPolicyByName(name)
+		policies, err := app.App.JmsDBService.QueryPolicyByName(name)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -50,7 +50,7 @@ func listPolicy(c *gin.Context) {
 		return
 	}
 	if id != "" {
-		policy, err := app.App.DBService.QueryPolicyById(id)
+		policy, err := app.App.JmsDBService.QueryPolicyById(id)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -59,7 +59,7 @@ func listPolicy(c *gin.Context) {
 		return
 	}
 	// 否则查询所有
-	policies, err := app.App.DBService.QueryAllPolicy()
+	policies, err := app.App.JmsDBService.QueryAllPolicy()
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -74,7 +74,7 @@ func listPolicy(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "policy id"
-// @Param request body db.PolicyMut true "request"
+// @Param request body PolicyRequest true "request"
 // @Success 200 {string} success
 // @Failure 400 {string} error
 // @Failure 500 {string} error
@@ -85,12 +85,12 @@ func updatePolicy(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *db.PolicyMut
+	var req *PolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.DBService.UpdatePolicy(id, req); err != nil {
+	if err := app.App.JmsDBService.UpdatePolicy(id, req); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}
@@ -112,7 +112,7 @@ func deletePolicy(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	if err := app.App.DBService.DeletePolicy(id); err != nil {
+	if err := app.App.JmsDBService.DeletePolicy(id); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}
@@ -125,31 +125,30 @@ func deletePolicy(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param Authorization header string false "token"
-// @Param request body db.ApprovalMut true "request"
+// @Param request body ApprovalMut true "request"
 // @Success 200 {string} id
 // @Router /api/v1/approval [post]
 func createApproval(c *gin.Context) {
-	var req db.ApprovalMut
+	var req ApprovalMut
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
 	}
+	if req.Applicant == nil {
+		c.JSON(400, fmt.Errorf("Applicant is empty"))
+		return
+	}
 	// 如果启用了审批，创建审批
 	if app.App.Config.WithDingtalk.Enable {
-		values := []dt.FormComponentValue{}
-		if req.Groups != nil {
-			var vString []string
-			for _, v := range req.Groups {
-				vString = append(vString, v.(string))
-			}
-			values = append(values, dt.FormComponentValue{
-				Name:  tea.String("Teams"),
-				Value: tea.String(strings.Join(vString, ",")),
-			})
+		values := []dt.FormComponentValue{
+			{
+				Name:  tea.String("EnvType"),
+				Value: tea.String("prod"),
+			},
 		}
 		if req.ServerFilter != nil {
 			values = append(values, dt.FormComponentValue{
-				Name:  tea.String("Assets"),
+				Name:  tea.String("ServerFilter"),
 				Value: tea.String(tea.Prettify(req.ServerFilter)),
 			})
 		}
@@ -159,9 +158,10 @@ func createApproval(c *gin.Context) {
 				Value: tea.String(string(*req.Period)),
 			})
 		}
+
 		values = append(values, dt.FormComponentValue{
 			Name:  tea.String("Comment"),
-			Value: tea.String("来自API接口发起的策略申请"),
+			Value: tea.String(fmt.Sprintf("%s -来自API接口发起的策略申请", *req.Name)),
 		})
 		if req.Actions != nil {
 			var vString []string
@@ -173,20 +173,35 @@ func createApproval(c *gin.Context) {
 				Value: tea.String(strings.Join(vString, ",")),
 			})
 		}
-		processid, err := dingtalk.CreateApproval(*req.Applicant, values)
+
+		policyId, err := app.App.JmsDBService.CreatePolicy(req.ToPolicyMut())
 		if err != nil {
-			log.Errorf("dingtalk.CreateApproval error: %s", err)
+			log.Errorf("JmsDBService.CreatePolicy error: %s", err)
 			c.JSON(500, err.Error())
 			return
 		}
-		policyId, err := app.App.DBService.CreatePolicy(req.ToPolicyMut(), &processid)
+		// 再创建审批
+		processid, err := dingtalk.CreateApproval(*req.Applicant, values)
 		if err != nil {
+			log.Errorf("dingtalk.CreateApproval error: %s", err)
+			// 删除策略
+			if err := app.App.JmsDBService.DeletePolicy(policyId); err != nil {
+				log.Errorf("JmsDBService.DeletePolicy error: %s", err)
+			}
+			c.JSON(500, err.Error())
+			return
+		}
+		err = app.App.JmsDBService.UpdatePolicy(policyId, &PolicyRequest{
+			ApprovalID: &processid,
+		})
+		if err != nil {
+			log.Errorf("JmsDBService.UpdatePolicy error: %s", err)
 			c.JSON(500, err.Error())
 			return
 		}
 		c.JSON(200, policyId)
 	} else {
-		policyId, err := app.App.DBService.CreatePolicy(req.ToPolicyMut(), nil)
+		policyId, err := app.App.JmsDBService.CreatePolicy(req.ToPolicyMut())
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -202,7 +217,7 @@ func createApproval(c *gin.Context) {
 // @Produce  json
 // @Param Authorization header string false "token"
 // @Param id path string true "approval id"
-// @Param request body db.ApprovalResult true "request"
+// @Param request body ApprovalResult true "request"
 // @Success 200 {string} success
 // @Router /api/v1/approval/:id [patch]
 func updateApproval(c *gin.Context) {
@@ -211,12 +226,12 @@ func updateApproval(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *db.ApprovalResult
+	var req *ApprovalResult
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.DBService.UpdatePolicyStatus(id, *req); err != nil {
+	if err := app.App.JmsDBService.UpdatePolicyStatus(id, *req); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}

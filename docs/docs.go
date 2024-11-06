@@ -43,7 +43,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.ApprovalMut"
+                            "$ref": "#/definitions/model.ApprovalMut"
                         }
                     }
                 ],
@@ -90,7 +90,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.ApprovalResult"
+                            "$ref": "#/definitions/model.ApprovalResult"
                         }
                     }
                 ],
@@ -99,6 +99,104 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/audit/login": {
+            "get": {
+                "description": "服务器登录审计查询，支持查询用户、IP、时间范围的日志",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "listLoginAudit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "duration hours 24 = 1 day, 默认查 1 天的记录",
+                        "name": "duration",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ip",
+                        "name": "ip",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "user",
+                        "name": "user",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.SSHLoginRecord"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/audit/scp": {
+            "get": {
+                "description": "服务器文件上传下载审计查询，支持上传upload,下载 download，文件名，服务器IP",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "listScpAudit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "duration hours 24 = 1 day, 默认查 1 天的记录",
+                        "name": "duration",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "action",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "keyword",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "user",
+                        "name": "user",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.ScpRecord"
+                            }
                         }
                     }
                 }
@@ -118,7 +216,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.CreateBroadcastRequest"
+                            "$ref": "#/definitions/model.CreateBroadcastRequest"
                         }
                     }
                 ],
@@ -151,7 +249,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/db.Key"
+                                "$ref": "#/definitions/model.Key"
                             }
                         }
                     }
@@ -182,7 +280,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.AddKeyRequest"
+                            "$ref": "#/definitions/model.AddKeyRequest"
                         }
                     }
                 ],
@@ -310,7 +408,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/db.Policy"
+                                "$ref": "#/definitions/model.Policy"
                             }
                         }
                     },
@@ -356,7 +454,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.PolicyMut"
+                            "$ref": "#/definitions/model.PolicyRequest"
                         }
                     }
                 ],
@@ -442,7 +540,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/db.Profile"
+                                "$ref": "#/definitions/model.Profile"
                             }
                         }
                     }
@@ -472,7 +570,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.CreateProfileRequest"
+                            "$ref": "#/definitions/model.CreateProfileRequest"
                         }
                     }
                 ],
@@ -511,8 +609,15 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.CreateProfileRequest"
+                            "$ref": "#/definitions/model.CreateProfileRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "profile uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -579,33 +684,8 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/db.Proxy"
+                                "$ref": "#/definitions/model.Proxy"
                             }
-                        }
-                    }
-                }
-            },
-            "put": {
-                "tags": [
-                    "proxy"
-                ],
-                "summary": "UpdateProxy",
-                "parameters": [
-                    {
-                        "description": "proxy server info",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/db.CreateProxyRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/db.Proxy"
                         }
                     }
                 }
@@ -623,7 +703,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.CreateProxyRequest"
+                            "$ref": "#/definitions/model.CreateProxyRequest"
                         }
                     }
                 ],
@@ -631,12 +711,52 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/db.Proxy"
+                            "$ref": "#/definitions/model.Proxy"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/proxy/:uuid": {
+            "put": {
+                "tags": [
+                    "proxy"
+                ],
+                "summary": "UpdateProxy",
+                "parameters": [
+                    {
+                        "description": "proxy server info",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateProxyRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "proxy server uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Proxy"
                         }
                     }
                 }
             },
             "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "proxy"
                 ],
@@ -645,6 +765,168 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "proxy server uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shell/record": {
+            "get": {
+                "description": "list shell record",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shell"
+                ],
+                "summary": "ListShellRecord",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "taskid",
+                        "name": "taskid",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "serverip",
+                        "name": "serverip",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.ShellTaskRecord"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shell/task": {
+            "get": {
+                "description": "list shell tasks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shell"
+                ],
+                "summary": "ListShellTask",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.ShellTask"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "add shell task",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shell"
+                ],
+                "summary": "AddShellTask",
+                "parameters": [
+                    {
+                        "description": "shell",
+                        "name": "shell",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateShellTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shell/task/:uuid": {
+            "put": {
+                "description": "update shell task",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shell"
+                ],
+                "summary": "UpdateShellTask",
+                "parameters": [
+                    {
+                        "description": "shell",
+                        "name": "shell",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateShellTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "delete shell task",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shell"
+                ],
+                "summary": "DeleteShellTask",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "shell task uuid",
                         "name": "uuid",
                         "in": "path",
                         "required": true
@@ -699,7 +981,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/db.User"
+                                "$ref": "#/definitions/model.User"
                             }
                         }
                     }
@@ -730,7 +1012,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.UserRequest"
+                            "$ref": "#/definitions/model.UserRequest"
                         }
                     }
                 ],
@@ -777,7 +1059,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.UserRequest"
+                            "$ref": "#/definitions/model.UserRequest"
                         }
                     }
                 ],
@@ -822,7 +1104,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db.UserPatchMut"
+                            "$ref": "#/definitions/model.UserPatchMut"
                         }
                     }
                 ],
@@ -838,7 +1120,19 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "db.Action": {
+        "gorm.DeletedAt": {
+            "type": "object",
+            "properties": {
+                "time": {
+                    "type": "string"
+                },
+                "valid": {
+                    "description": "Valid is true if Time is not NULL",
+                    "type": "boolean"
+                }
+            }
+        },
+        "model.Action": {
             "type": "string",
             "enum": [
                 "connect",
@@ -857,7 +1151,7 @@ const docTemplate = `{
                 "DenyUpload"
             ]
         },
-        "db.AddKeyRequest": {
+        "model.AddKeyRequest": {
             "type": "object",
             "required": [
                 "key_id",
@@ -865,7 +1159,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "identity_file": {
-                    "description": "云上下载下来的名字，比如 jms-key.pem",
+                    "description": "云上下载下来的名字，比如 jms-key.pem，private key file name",
                     "type": "string"
                 },
                 "key_id": {
@@ -882,7 +1176,7 @@ const docTemplate = `{
                 }
             }
         },
-        "db.ApprovalMut": {
+        "model.ApprovalMut": {
             "type": "object",
             "required": [
                 "applicant",
@@ -894,16 +1188,12 @@ const docTemplate = `{
                     "description": "申请动作，默认只有connect",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/db.Action"
+                        "$ref": "#/definitions/model.Action"
                     }
                 },
                 "applicant": {
-                    "description": "申请人AD名,或者email",
+                    "description": "Groups       ArrayString     ` + "`" + `json:\"groups\"` + "`" + `",
                     "type": "string"
-                },
-                "groups": {
-                    "type": "array",
-                    "items": {}
                 },
                 "name": {
                     "type": "string"
@@ -912,20 +1202,22 @@ const docTemplate = `{
                     "description": "审批周期，默认一周",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/db.Period"
+                            "$ref": "#/definitions/model.Period"
                         }
                     ]
                 },
                 "server_filter": {
-                    "$ref": "#/definitions/db.ServerFilter"
+                    "$ref": "#/definitions/model.ServerFilterV1"
                 },
                 "users": {
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
-        "db.ApprovalResult": {
+        "model.ApprovalResult": {
             "type": "object",
             "properties": {
                 "applicant": {
@@ -936,7 +1228,7 @@ const docTemplate = `{
                 }
             }
         },
-        "db.CreateBroadcastRequest": {
+        "model.CreateBroadcastRequest": {
             "type": "object",
             "required": [
                 "messages"
@@ -952,7 +1244,7 @@ const docTemplate = `{
                 }
             }
         },
-        "db.CreateProfileRequest": {
+        "model.CreateProfileRequest": {
             "type": "object",
             "properties": {
                 "ak": {
@@ -982,7 +1274,7 @@ const docTemplate = `{
                 }
             }
         },
-        "db.CreateProxyRequest": {
+        "model.CreateProxyRequest": {
             "type": "object",
             "required": [
                 "name"
@@ -992,11 +1284,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "identity_file": {
-                    "description": "密码或者key必须有一个, 优先使用密码",
+                    "description": "KeyID和IdentityFile都是用pem来验证，KeyID是唯一的，IdentityFile在名称命名时候不同账号可能会同名。当出现IdentityFile不唯一的时候可以用 keyID, 优先使用KeyID",
                     "type": "string"
                 },
                 "ip_prefix": {
                     "description": "适配哪些机器 IP 前缀使用 Proxy, 例如 192.168.1",
+                    "type": "string"
+                },
+                "key_id": {
+                    "description": "KeyID和IdentityFile都是用pem来验证，KeyID是唯一的，IdentityFile在名称命名时候不同账号可能会同名。当出现IdentityFile不唯一的时候可以用 keyID, 优先使用KeyID",
                     "type": "string"
                 },
                 "login_passwd": {
@@ -1016,7 +1312,48 @@ const docTemplate = `{
                 }
             }
         },
-        "db.Key": {
+        "model.CreateShellTaskRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "servers",
+                "shell"
+            ],
+            "properties": {
+                "corn": {
+                    "description": "corn表达式，支持定时执行任务，执行一次可以不传",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "任务名称，唯一",
+                    "type": "string"
+                },
+                "servers": {
+                    "description": "执行的机器",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.ServerFilterV1"
+                        }
+                    ]
+                },
+                "shell": {
+                    "description": "脚本内容",
+                    "type": "string"
+                }
+            }
+        },
+        "model.KV": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Key": {
             "type": "object",
             "properties": {
                 "isDelete": {
@@ -1039,7 +1376,7 @@ const docTemplate = `{
                 }
             }
         },
-        "db.Period": {
+        "model.Period": {
             "type": "string",
             "enum": [
                 "1d",
@@ -1056,12 +1393,14 @@ const docTemplate = `{
                 "Forever"
             ]
         },
-        "db.Policy": {
+        "model.Policy": {
             "type": "object",
             "properties": {
                 "actions": {
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "approval_id": {
                     "description": "审批ID",
@@ -1090,30 +1429,41 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "server_filter": {
-                    "$ref": "#/definitions/db.ServerFilter"
+                    "$ref": "#/definitions/model.ServerFilter"
+                },
+                "server_filter_v1": {
+                    "$ref": "#/definitions/model.ServerFilterV1"
                 },
                 "updated_at": {
                     "type": "string"
                 },
                 "users": {
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
-        "db.PolicyMut": {
+        "model.PolicyRequest": {
             "type": "object",
+            "required": [
+                "name",
+                "server_filter"
+            ],
             "properties": {
                 "actions": {
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "string"
+                    }
                 },
-                "expires_at": {
+                "approval_id": {
                     "type": "string"
                 },
-                "groups": {
-                    "type": "array",
-                    "items": {}
+                "expires_at": {
+                    "description": "time.Time",
+                    "type": "string"
                 },
                 "is_enabled": {
                     "type": "boolean"
@@ -1122,15 +1472,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "server_filter": {
-                    "$ref": "#/definitions/db.ServerFilter"
+                    "$ref": "#/definitions/model.ServerFilterV1"
                 },
                 "users": {
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
-        "db.Profile": {
+        "model.Profile": {
             "type": "object",
             "properties": {
                 "ak": {
@@ -1163,7 +1515,7 @@ const docTemplate = `{
                 }
             }
         },
-        "db.Proxy": {
+        "model.Proxy": {
             "type": "object",
             "properties": {
                 "host": {
@@ -1177,6 +1529,9 @@ const docTemplate = `{
                 },
                 "isDelete": {
                     "type": "boolean"
+                },
+                "keyID": {
+                    "type": "string"
                 },
                 "loginPasswd": {
                     "type": "string"
@@ -1195,24 +1550,233 @@ const docTemplate = `{
                 }
             }
         },
-        "db.ServerFilter": {
+        "model.SSHLoginRecord": {
             "type": "object",
             "properties": {
-                "env_type": {
+                "client": {
+                    "description": "客户端",
                     "type": "string"
                 },
-                "ip_addr": {
+                "createdAt": {
                     "type": "string"
                 },
-                "name": {
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "target": {
+                    "description": "目标服务器",
                     "type": "string"
                 },
-                "team": {
+                "target_instance_id": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "user": {
+                    "description": "用户",
                     "type": "string"
                 }
             }
         },
-        "db.User": {
+        "model.ScpRecord": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "description": "download,upload",
+                    "type": "string"
+                },
+                "client": {
+                    "description": "客户端",
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "from": {
+                    "description": "来源",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "to": {
+                    "description": "目标",
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "user": {
+                    "description": "用户",
+                    "type": "string"
+                }
+            }
+        },
+        "model.ServerFilter": {
+            "type": "object",
+            "properties": {
+                "env_type": {
+                    "description": "机器 Tags 中的 EnvType，支持* 匹配所有",
+                    "type": "string"
+                },
+                "ip_addr": {
+                    "description": "IP 地址完全匹配，支持* 匹配所有",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "名字完全匹配，支持*",
+                    "type": "string"
+                },
+                "team": {
+                    "description": "机器 Tags 中的 Team，支持* 匹配所有",
+                    "type": "string"
+                }
+            }
+        },
+        "model.ServerFilterV1": {
+            "type": "object",
+            "properties": {
+                "env_type": {
+                    "description": "机器 Tags 中的 EnvType，支持* 匹配所有",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ip_addr": {
+                    "description": "IP 地址完全匹配，支持* 匹配所有",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "kv": {
+                    "description": "支持自己指定特定的 KV 来过滤",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.KV"
+                        }
+                    ]
+                },
+                "name": {
+                    "description": "名字完全匹配，支持*",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "team": {
+                    "description": "机器 Tags 中的 Team，支持* 匹配所有",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "model.ShellTask": {
+            "type": "object",
+            "properties": {
+                "corn": {
+                    "type": "string"
+                },
+                "cost_time": {
+                    "type": "integer"
+                },
+                "exec_result": {
+                    "description": "任务执行结果信息",
+                    "type": "string"
+                },
+                "exec_times": {
+                    "description": "任务执行次数",
+                    "type": "integer"
+                },
+                "is_deleted": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "servers": {
+                    "$ref": "#/definitions/model.ServerFilterV1"
+                },
+                "shell": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.Status"
+                },
+                "submit_user": {
+                    "description": "直接在token中获取",
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ShellTaskRecord": {
+            "type": "object",
+            "properties": {
+                "cost_time": {
+                    "type": "string"
+                },
+                "exec_times": {
+                    "type": "integer"
+                },
+                "is_success": {
+                    "type": "boolean"
+                },
+                "output": {
+                    "type": "string"
+                },
+                "server_ip": {
+                    "type": "string"
+                },
+                "server_name": {
+                    "type": "string"
+                },
+                "shell": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "task_name": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Status": {
+            "type": "string",
+            "enum": [
+                "Pending",
+                "Running",
+                "Success",
+                "Failed",
+                "NotAllSuccess",
+                "Cancelled"
+            ],
+            "x-enum-varnames": [
+                "StatusPending",
+                "StatusRunning",
+                "StatusSuccess",
+                "StatusFailed",
+                "StatusNotAllSuccess",
+                "StatusCancelled"
+            ]
+        },
+        "model.User": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -1230,7 +1794,9 @@ const docTemplate = `{
                 "groups": {
                     "description": "组不在 jms维护这里只需要和机器 tag:Team 匹配即可。",
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "id": {
                     "type": "string"
@@ -1253,16 +1819,18 @@ const docTemplate = `{
                 }
             }
         },
-        "db.UserPatchMut": {
+        "model.UserPatchMut": {
             "type": "object",
             "properties": {
                 "groups": {
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
-        "db.UserRequest": {
+        "model.UserRequest": {
             "type": "object",
             "required": [
                 "username"
@@ -1279,7 +1847,9 @@ const docTemplate = `{
                 },
                 "groups": {
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "passwd": {
                     "type": "string"

@@ -1,6 +1,7 @@
 package dingtalk
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,11 +12,17 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/model"
 )
 
+var robot *dt.RobotClient
+
+func init() {
+	robot = dt.NewRobotClient()
+}
+
 func CreateApproval(applicant string, values []dt.FormComponentValue) (string, error) {
-	user, err := app.App.DBService.DescribeUser(applicant)
+	user, err := app.App.JmsDBService.DescribeUser(applicant)
 	if err != nil {
 		return "", err
 	}
@@ -93,11 +100,11 @@ func getDepart(c chan int64) {
 
 func saveDingtalkUsers(users []*dt.UserInfo) error {
 	for _, user := range users {
-		u, err := app.App.DBService.DescribeUser(strings.Split(user.Email, "@")[0])
+		u, err := app.App.JmsDBService.DescribeUser(strings.Split(user.Email, "@")[0])
 		if err != nil {
 			if strings.Contains(err.Error(), "record not found") {
 				// create
-				_, err = app.App.DBService.CreateUser(&UserRequest{
+				_, err = app.App.JmsDBService.CreateUser(&UserRequest{
 					Username:       tea.String(strings.Split(user.Email, "@")[0]),
 					Email:          tea.String(user.Email),
 					Passwd:         tea.String(user.Email),
@@ -112,7 +119,7 @@ func saveDingtalkUsers(users []*dt.UserInfo) error {
 			return err
 		}
 		// update
-		err = app.App.DBService.UpdateUser(u.ID, UserRequest{
+		err = app.App.JmsDBService.UpdateUser(u.ID, UserRequest{
 			Username:       tea.String(strings.Split(user.Email, "@")[0]),
 			Email:          tea.String(user.Email),
 			DingtalkDeptID: tea.String(strconv.FormatInt(user.DeptIDList[0], 10)),
@@ -132,20 +139,20 @@ func LoadApproval() {
 	var successes []string
 	app.App.DingTalkClient.SetAccessToken() // 更新 token
 	// 获取审批列表
-	policies, err := app.App.DBService.QueryAllPolicy()
+	policies, err := app.App.JmsDBService.QueryAllPolicy()
 	if err != nil {
 		log.Errorf("QueryAllPolicy failed! %s", err)
 		return
 	}
 	for _, policy := range policies {
-		if policy.ApprovalID == nil && *policy.ApprovalID == "" {
+		if policy.ApprovalID == "" {
 			continue
 		}
-		if policy.Approver != nil && strings.Contains(*policy.Approver, "BusinessId") {
+		if strings.Contains(policy.Approver, "BusinessId") {
 			// 已经更新过的审批不再更新
 			continue
 		}
-		resp, err := app.App.DingTalkClient.Workflow.GetProcessInstance(*policy.ApprovalID, app.App.DingTalkClient.AccessToken.Token)
+		resp, err := app.App.DingTalkClient.Workflow.GetProcessInstance(policy.ApprovalID, app.App.DingTalkClient.AccessToken.Token)
 		if err != nil {
 			log.Errorf("GetProcessInstance failed! %s", err)
 		}
@@ -169,7 +176,7 @@ func LoadApproval() {
 			default:
 				continue
 			}
-			err = app.App.DBService.UpdatePolicyStatus(policy.ID, update)
+			err = app.App.JmsDBService.UpdatePolicyStatus(policy.ID, update)
 			if err != nil {
 				log.Errorf("UpdatePolicyStatus failed! %s", err)
 				continue
@@ -179,4 +186,30 @@ func LoadApproval() {
 		}
 	}
 	log.Infof("load dingtalk approval success, %d/%d, cost %v", len(successes), len(policies), time.Since(timeStart))
+}
+
+// 发送钉钉机器人通知
+func SendRobotText(robotToken, content, userID string) error {
+	if robotToken == "" {
+		return fmt.Errorf("robot token is empty, can not send robot message")
+	}
+	// 发送通知
+	err := robot.SendMessage(context.Background(), &dt.SendMessageRequest{
+		AccessToken: robotToken,
+		MessageContent: dt.MessageContent{
+			MsgType: "text",
+			Text: dt.TextBody{
+				Content: content,
+			},
+			At: dt.AtBody{
+				AtUserIDS: []string{userID},
+			},
+		},
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "ok") {
+			return nil
+		}
+	}
+	return err
 }
