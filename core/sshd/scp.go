@@ -352,10 +352,7 @@ func copyToClientSession(tmpReader *bufio.Reader, clientSess *ssh.Session, perm,
 }
 
 func parseServerPath(fullPath, filename, currentUsername string) (*SSHUser, *Server, string, error) {
-	servers, found := app.App.Cache.Get("servers")
-	if !found {
-		return nil, nil, "", errors.New("Servers not found")
-	}
+	servers := app.Servers
 	args := strings.SplitN(fullPath, ":", 2)
 	invaildPathErr := errors.New(
 		"Please input your server key before your target path, like 'scp -P 2222 /tmp/tmp.file user@jumpserver:user@server1:/tmp/tmp.file'",
@@ -372,7 +369,7 @@ func parseServerPath(fullPath, filename, currentUsername string) (*SSHUser, *Ser
 	}
 
 	sshUsername, host := serverArgs[0], serverArgs[1]
-	if server, ok := ServerListToMap(servers.(Servers))[host]; ok {
+	if server, ok := ServerListToMap(*servers)[host]; ok {
 		if server.Host == "" {
 			return nil, nil, "", fmt.Errorf("server key '%s' of server not found", host)
 		}
