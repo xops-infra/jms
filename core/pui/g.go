@@ -230,8 +230,7 @@ loopMenu:
 func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	ui.FlashTimeout()
 	defer ui.SessionWrite("\033c") // clear
-	servers := *app.Servers
-	servers.SortByName()
+	servers := app.GetServers()
 	// 发送屏幕清理指令
 	// 发送当前时间
 	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",

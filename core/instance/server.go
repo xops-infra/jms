@@ -39,21 +39,22 @@ func LoadServer(conf *Config) {
 				}
 				mcsServers = append(mcsServers, resps.Instances...)
 				if resps.NextMarker == nil {
+					log.Warnf("break get instances profile: %s region: %s len: %d", *profile.Name, region, len(mcsServers))
 					break
 				}
 				input.NextMarker = resps.NextMarker
+				resps.Instances = nil
 			}
 		}
 		// print every profile instances count
 		log.Infof("get instances profile: %s len: %d", *profile.Name, len(mcsServers))
 	}
 	log.Debugf("conf.Keys.ToMapWithID(): %s", tea.Prettify(conf.Keys.ToMapWithID()))
-	instanceAll := fmtServer(mcsServers)
-	app.SetServers(instanceAll)
-	log.Infof("%s len: %d", time.Since(startTime), len(*instanceAll))
+	app.SetServers(fmtServer(mcsServers))
+	log.Infof("load server finished cost: %s ", time.Since(startTime))
 }
 
-func fmtServer(instances []model.Instance) *Servers {
+func fmtServer(instances []model.Instance) Servers {
 	var instanceAll Servers
 	for _, instance := range instances {
 		if instance.Status != model.InstanceStatusRunning {
@@ -114,7 +115,7 @@ func fmtServer(instances []model.Instance) *Servers {
 	}
 
 	instanceAll.SortByName()
-	return &instanceAll
+	return instanceAll
 }
 
 // 通过机器的密钥对 KeyIDs 获取对应的密钥Pem的路径

@@ -54,7 +54,7 @@ func ServerShellRun() {
 
 				// 执行
 				log.Infof("shell task start: %s", task.UUID)
-				status, err := RunShellTask(task, *app.Servers)
+				status, err := RunShellTask(task, app.GetServers())
 				if err != nil {
 					log.Errorf("run shell task error: %s", err)
 					state = status

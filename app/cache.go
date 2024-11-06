@@ -1,23 +1,24 @@
 package app
 
 import (
+	"time"
+
 	"github.com/patrickmn/go-cache"
 	model "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
 )
 
-// func GetServers() *model.Servers {
-// 	log.Debugf("GetServers called")
-// 	servers, found := App.Cache.Get("servers")
-// 	if !found {
-// 		return nil
-// 	}
-// 	return servers.(*model.Servers)
-// }
+func GetServers() model.Servers {
+	log.Debugf("GetServers called")
+	servers, found := App.Cache.Get("servers")
+	if !found {
+		return nil
+	}
+	return servers.(model.Servers)
+}
 
-func SetServers(servers *model.Servers) {
-	// App.Cache.Set("servers", servers, cache.NoExpiration)
-	Servers = servers
+func SetServers(servers model.Servers) {
+	App.Cache.Set("servers", servers, time.Second*120)
 }
 
 // func GetServerIDByIP(ip string) string {

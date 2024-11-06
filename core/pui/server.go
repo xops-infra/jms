@@ -34,7 +34,7 @@ func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem
 		matchPolicies = app.QueryPolicyByUser(*user.Username)
 	}
 	sshd.Info(fmt.Sprintf("matchPolicies: %d", len(matchPolicies)), sess)
-	for _, server := range *app.Servers {
+	for _, server := range app.GetServers() {
 		// 默认都可见，连接的时候再判断是否允许
 		info := make(map[string]string, 0)
 		for _, key := range server.KeyPairs {

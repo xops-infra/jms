@@ -85,7 +85,12 @@ var sshdCmd = &cobra.Command{
 		}
 
 		app.App.WithMcs()
-		instance.LoadServer(app.App.Config) // 加载服务列表
+		go func() {
+			for {
+				instance.LoadServer(app.App.Config) // 加载服务列表
+				time.Sleep(60 * time.Second)        // 每 60s 更新一次
+			}
+		}()
 
 		ssh.Handle(func(sess ssh.Session) {
 			defer func() {
@@ -268,9 +273,9 @@ func startScheduler() {
 	c := cron.New()
 	time.Sleep(10 * time.Second) // 等待app初始化完成
 
-	c.AddFunc("0 */2 * * * *", func() {
-		instance.LoadServer(app.App.Config)
-	})
+	// c.AddFunc("0 */2 * * * *", func() {
+	// 	instance.LoadServer(app.App.Config)
+	// })
 
 	if app.App.Config.WithDB.Enable {
 		log.Infof("enabled db config hot update, 2 min check once")
