@@ -43,7 +43,6 @@ func LoadServer(conf *Config) {
 					break
 				}
 				input.NextMarker = resps.NextMarker
-				resps.Instances = nil
 			}
 		}
 		// print every profile instances count

@@ -1,8 +1,6 @@
 package app
 
 import (
-	"time"
-
 	"github.com/patrickmn/go-cache"
 	model "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
@@ -18,7 +16,7 @@ func GetServers() model.Servers {
 }
 
 func SetServers(servers model.Servers) {
-	App.Cache.Set("servers", servers, time.Second*120)
+	App.Cache.Set("servers", servers, cache.NoExpiration)
 }
 
 // func GetServerIDByIP(ip string) string {
