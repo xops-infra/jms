@@ -88,7 +88,7 @@ var sshdCmd = &cobra.Command{
 		go func() {
 			for {
 				instance.LoadServer(app.App.Config) // 加载服务列表
-				time.Sleep(60 * time.Second)        // 每 60s 更新一次
+				time.Sleep(1 * time.Minute)         // 休眠 1 分钟
 			}
 		}()
 

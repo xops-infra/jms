@@ -8,10 +8,10 @@ import (
 type MenuItem struct {
 	Label             string
 	Info              map[string]string
-	IsShow            func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) bool
+	IsShow            func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) bool
 	SubMenuTitle      string
-	GetSubMenu        func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem
-	SelectedFunc      func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) (bool, error)
+	GetSubMenu        func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) []MenuItem
+	SelectedFunc      func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) (bool, error)
 	NoSubMenuInfo     string
 	BackAfterSelected bool
 	BackOptionLabel   string
@@ -19,7 +19,7 @@ type MenuItem struct {
 
 // MainMenu main menu
 var (
-	ServerMenu    *MenuItem
+	// ServerMenu    MenuItem
 	serverInfoKey = "serverKey"
 	serverHost    = "serverHost"
 	serverUser    = "serverUser"
