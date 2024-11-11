@@ -20,7 +20,8 @@ import (
 type PUI struct {
 	sess       *ssh.Session
 	timeOut    time.Duration
-	lastActive time.Time
+	lastActive time.Time // 最后活跃时间
+	isLogout   bool      // 主动退出的标记
 }
 
 func NewPui(s *ssh.Session, timeout time.Duration) *PUI {
@@ -28,6 +29,7 @@ func NewPui(s *ssh.Session, timeout time.Duration) *PUI {
 		sess:       s,
 		timeOut:    timeout,
 		lastActive: time.Now(),
+		isLogout:   false,
 	}
 }
 
@@ -39,19 +41,28 @@ func (ui *PUI) SessionWrite(msg string) error {
 // exit
 func (ui *PUI) Exit() {
 	ui.SessionWrite(fmt.Sprintf(BybLabel, time.Now().Local().Format("2006-01-02 15:04:05")))
+	ui.isLogout = true
 	err := (*ui.sess).Close()
 	if err == nil {
 		log.Infof("User %s form %s exit", (*ui.sess).User(), (*ui.sess).RemoteAddr().String())
 	}
+	ui = nil
 }
 
+// 判断是否超时
 func (ui *PUI) IsTimeout() bool {
 	_, found := app.App.Cache.Get((*ui.sess).RemoteAddr().String())
+	log.Debugf("remote addr: %s, found: %v", (*ui.sess).RemoteAddr().String(), found)
 	if found {
 		ui.FlashTimeout()
 		return false
 	}
 	return time.Since(ui.lastActive) > ui.timeOut
+}
+
+// 判断是否主动退出，依据是否超时
+func (ui *PUI) IsLogout() bool {
+	return ui.isLogout
 }
 
 // getTimeout
@@ -112,7 +123,7 @@ loopMenu:
 					menu = append(menu, GetApproveMenu(policies)...)
 				}
 			}
-			_menus, err := GetServersMenuV2(ui.sess, user, ui.GetTimeout())
+			_menus, err := GetServersMenuV2(ui.sess, user)
 			if err != nil {
 				sshd.ErrorInfo(err, ui.sess)
 				break loopMenu

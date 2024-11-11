@@ -19,7 +19,7 @@ import (
 	. "github.com/xops-infra/jms/model"
 )
 
-func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem, error) {
+func GetServersMenuV2(sess *ssh.Session, user User) ([]*MenuItem, error) {
 	menu := make([]*MenuItem, 0)
 	// servers := app.GetServers()
 	var matchPolicies []Policy
@@ -55,7 +55,7 @@ func GetServersMenuV2(sess *ssh.Session, user User, timeout string) ([]*MenuItem
 			Label:        fmt.Sprintf("%s\t[√]\t%s\t%s", server.ID, server.Host, server.Name),
 			Info:         info,
 			SubMenuTitle: fmt.Sprintf("%s '%s'", UserLoginLabel, server.Name),
-			GetSubMenu:   GetServerSSHUsersMenu(server, timeout, matchPolicies),
+			GetSubMenu:   GetServerSSHUsersMenu(server, matchPolicies),
 		}
 
 		// 判断机器权限进入不同菜单
@@ -127,7 +127,7 @@ func sortMenu(menu []*MenuItem) []*MenuItem {
 }
 
 // 判断权限在这里实现
-func GetServerSSHUsersMenu(server Server, timeout string, matchPolicies []Policy) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
+func GetServerSSHUsersMenu(server Server, matchPolicies []Policy) func(int, *MenuItem, *ssh.Session, []*MenuItem) []*MenuItem {
 	return func(index int, menuItem *MenuItem, sess *ssh.Session, selectedChain []*MenuItem) []*MenuItem {
 		var menu []*MenuItem
 
@@ -151,7 +151,7 @@ func GetServerSSHUsersMenu(server Server, timeout string, matchPolicies []Policy
 						log.Errorf("create ssh login record error: %s", err)
 					}
 				}
-				err := sshd.NewTerminal(server, sshUser, sess, timeout)
+				err := sshd.NewTerminal(server, sshUser, sess)
 				if err != nil {
 					return false, err
 				}

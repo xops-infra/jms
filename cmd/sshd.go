@@ -95,7 +95,7 @@ var sshdCmd = &cobra.Command{
 		ssh.Handle(func(sess ssh.Session) {
 			defer func() {
 				if e, ok := recover().(error); ok {
-					log.Error(e.Error())
+					log.Errorf("sessionHandler panic: %s", e.Error())
 				}
 			}()
 			sessionHandler(&sess)
