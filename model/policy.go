@@ -309,8 +309,9 @@ func MatchPolicy(user User, inPutAction Action, server Server, dbPolicies []Poli
 		log.Debugf("db is not enable, allow all")
 		return true
 	}
-
+	log.Debugf("systemPolicyCheck for user: %s", tea.Prettify(user))
 	if systemPolicyCheck(user, server) {
+		log.Debugf("system policy allow for user: %s", *user.Username)
 		return true
 	}
 

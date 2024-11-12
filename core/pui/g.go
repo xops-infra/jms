@@ -79,25 +79,6 @@ func (ui *PUI) FlashTimeout() {
 // ShowMenu show menu
 func (ui *PUI) ShowMenu(label string, menu []MenuItem, BackOptionLabel string, selectedChain []MenuItem) {
 
-	user := User{
-		Username: tea.String((*ui.sess).User()),
-	}
-	var broadcast *Broadcast
-
-	if app.App.Config.WithDB.Enable {
-		_user, err := app.App.JmsDBService.DescribeUser((*ui.sess).User())
-		if err != nil {
-			log.Errorf("DescribeUser error: %s", err)
-			sshd.ErrorInfo(err, ui.sess)
-		}
-		user = _user
-		_broadcast, err := app.App.JmsDBService.GetBroadcast()
-		if err != nil {
-			log.Errorf("GetBroadcast error: %s", err)
-		} else {
-			broadcast = _broadcast
-		}
-	}
 loopMenu:
 	for {
 		menuLabels := make([]string, 0) // 菜单，用于显示
@@ -125,22 +106,30 @@ loopMenu:
 					ui.menuItem = append(ui.menuItem, GetApproveMenu(policies)...)
 				}
 			}
-
+			user, err := app.GetUser((*ui.sess).User())
+			if err != nil {
+				sshd.ErrorInfo(err, ui.sess)
+				break loopMenu
+			}
 			_menus, err := GetServersMenuV2(ui.sess, user)
 			if err != nil {
 				sshd.ErrorInfo(err, ui.sess)
 				break loopMenu
 			}
-			// log.Debugf("GetServersMenuV2: %v", _menus)
-			ui.menuItem = append(ui.menuItem, _menus...)
-
-			filter, err := ui.inputFilter(broadcast)
+			{
+				// 实现新旧菜单内容的合并
+				newMenus := make([]MenuItem, 0)
+				for _, _menu := range _menus {
+					newMenus = append(newMenus, _menu)
+				}
+				ui.menuItem = newMenus
+			}
+			filter, err := ui.inputFilter(app.GetBroadcast())
 			if err != nil {
 				sshd.ErrorInfo(err, ui.sess)
 				break loopMenu
 			}
 			if filter == "^C" {
-
 				continue
 			}
 			for index, menuItem := range ui.menuItem {

@@ -197,7 +197,6 @@ func sessionHandler(sess *ssh.Session) {
 		app.App.Cache.Add(user, 1, cache.DefaultExpiration)
 	}
 
-	log.Infof("user: %s, remote addr: %s login success", user, remote)
 	rawCmd := (*sess).RawCommand()
 	log.Debugf("rawCmd: %s\n", rawCmd)
 	cmd, args, err := sshd.ParseRawCommand(rawCmd)
@@ -214,8 +213,10 @@ func sessionHandler(sess *ssh.Session) {
 	case "exit":
 		(*sess).Exit(0)
 	case "ssh":
+		log.Infof("user: %s, remote addr: %s login success", user, remote)
 		sshHandler(sess)
 	default:
+		log.Infof("[default] user: %s, remote addr: %s login success", user, remote)
 		if strings.Contains(cmd, "umask") {
 			// 版本问题导致的 cmd不一致问题
 			execHandler(sess)

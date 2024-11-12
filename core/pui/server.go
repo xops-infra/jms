@@ -19,24 +19,18 @@ import (
 	. "github.com/xops-infra/jms/model"
 )
 
-func GetServersMenuV2(sess *ssh.Session, user User) ([]MenuItem, error) {
-	menu := make([]MenuItem, 0)
+func GetServersMenuV2(sess *ssh.Session, user User) (map[string]MenuItem, error) {
+	menu := make(map[string]MenuItem, 0)
 	// servers := app.GetServers()
-	var matchPolicies []Policy
-	if app.App.JmsDBService == nil {
-		// 如果没有使用数据库，则默认都可见
-		matchPolicies = append(matchPolicies, Policy{
-			Actions:   All,
-			IsEnabled: true,
-			Users:     ArrayString{*user.Username},
-		})
-	} else {
-		matchPolicies = app.QueryPolicyByUser(*user.Username)
-	}
+	matchPolicies := app.GetUserPolicys(user)
 	sshd.Info(fmt.Sprintf("matchPolicies: %d", len(matchPolicies)), sess)
+	existServer := map[string]Server{}
 	for _, server := range app.GetServers() {
-
 		log.Debugf("server: %s", tea.Prettify(server))
+		if _, ok := existServer[server.ID]; ok {
+			log.Warnf("server %s already exist", tea.Prettify(server))
+			continue
+		}
 		info := make(map[string]string, 0)
 		for _, key := range server.KeyPairs {
 			info[serverInfoKey] += " " + *key
@@ -65,11 +59,13 @@ func GetServersMenuV2(sess *ssh.Session, user User) ([]MenuItem, error) {
 			subMenu.SubMenuTitle = SelectServer
 			subMenu.GetSubMenu = getServerApproveMenu(server)
 		}
+		if _, ok := menu[server.ID]; ok {
+			log.Warnf("server %s already exist", tea.Prettify(server))
+			continue
+		}
+		menu[server.ID] = subMenu
 		log.Debugf("subMenu : %v", subMenu)
-		menu = append(menu, subMenu)
 	}
-	// sort menu
-	// menu = sortMenu(menu)
 	return menu, nil
 }
 

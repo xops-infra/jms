@@ -6,9 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/xops-infra/noop/log"
-
 	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/noop/log"
 )
 
 // new audit log

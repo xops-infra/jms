@@ -29,6 +29,7 @@ type Config struct {
 	WithSSHCheck WithSSHCheck           `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
 	WithDB       WithPolicy             `mapstructure:"withDB"`       // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
 	WithDingtalk WithDingtalk           `mapstructure:"withDingtalk"` // 配置钉钉审批流程
+	Broadcast    string                 `mapstructure:"broadcast"`    // 配置广播消息
 }
 
 type Keys []AddKeyRequest

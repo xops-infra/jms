@@ -26,7 +26,7 @@ require (
 	github.com/xops-infra/ginx v0.2.2-0.20240220030752-c15eda8aa86d
 	github.com/xops-infra/go-dingtalk-sdk-wrapper v1.0.1-0.20240120062134-f736b8e8c268
 	github.com/xops-infra/http-headers v0.0.0-20230213021202-2b827f3526a0
-	github.com/xops-infra/multi-cloud-sdk v0.0.0-20241107152413-f9b87eab7114
+	github.com/xops-infra/multi-cloud-sdk v0.0.0-20241112032115-e66b86c88312
 	github.com/xops-infra/noop v0.5.1-0.20231107031456-2b6b1ae7e0bb
 	golang.org/x/crypto v0.18.0
 	gorm.io/driver/postgres v1.5.4

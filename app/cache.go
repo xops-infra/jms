@@ -1,6 +1,9 @@
 package app
 
 import (
+	"time"
+
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/patrickmn/go-cache"
 	model "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
@@ -29,6 +32,31 @@ func SetServers(servers model.Servers) {
 // 	return ""
 // }
 
+func SetDBPolicyToCache() error {
+	policies, err := App.JmsDBService.QueryAllPolicy()
+	if err != nil {
+		return err
+	}
+	App.Cache.Set("policies", policies, cache.NoExpiration)
+	log.Debugf("set db policy to cache success")
+	return nil
+}
+
+func GetUserPolicys(user model.User) []model.Policy {
+	var matchPolicies []model.Policy
+	if App.JmsDBService == nil {
+		// 如果没有使用数据库，则默认都可见
+		matchPolicies = append(matchPolicies, model.Policy{
+			Actions:   model.All,
+			IsEnabled: true,
+			Users:     model.ArrayString{*user.Username},
+		})
+	} else {
+		matchPolicies = QueryPolicyByUser(*user.Username)
+	}
+	return matchPolicies
+}
+
 func GetDBPolicy() []model.Policy {
 	policies, found := App.Cache.Get("policies")
 	if !found {
@@ -53,12 +81,33 @@ func QueryPolicyByUser(username string) []model.Policy {
 	return matchPolicies
 }
 
-func SetDBPolicyToCache() error {
-	policies, err := App.JmsDBService.QueryAllPolicy()
-	if err != nil {
-		return err
+func GetUser(username string) (model.User, error) {
+	if App.Config.WithDB.Enable {
+		// 兼容数据库方式获取更多用户信息
+		user, err := App.JmsDBService.DescribeUser(username)
+		if err != nil {
+			return user, err
+		}
+		return user, nil
 	}
-	App.Cache.Set("policies", policies, cache.NoExpiration)
-	log.Debugf("set db policy to cache success")
-	return nil
+	return model.User{
+		Username: tea.String(username),
+	}, nil
+}
+
+func GetBroadcast() *model.Broadcast {
+	if App.Config.WithDB.Enable {
+		broadcast, err := App.JmsDBService.GetBroadcast()
+		if err != nil {
+			log.Errorf("GetBroadcast error: %s", err)
+		}
+		return broadcast
+	}
+	if App.Config.Broadcast == "" {
+		return nil
+	}
+	return &model.Broadcast{
+		Message: App.Config.Broadcast,
+		Expires: time.Now().Add(24 * time.Hour), // 一直有效
+	}
 }
