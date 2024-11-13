@@ -20,7 +20,9 @@ import (
 type PUI struct {
 	sess       *ssh.Session
 	timeOut    time.Duration
-	lastActive time.Time
+	lastActive time.Time // 最后活跃时间
+	isLogout   bool      // 主动退出的标记
+	menuItem   []MenuItem
 }
 
 func NewPui(s *ssh.Session, timeout time.Duration) *PUI {
@@ -28,6 +30,7 @@ func NewPui(s *ssh.Session, timeout time.Duration) *PUI {
 		sess:       s,
 		timeOut:    timeout,
 		lastActive: time.Now(),
+		isLogout:   false,
 	}
 }
 
@@ -39,19 +42,28 @@ func (ui *PUI) SessionWrite(msg string) error {
 // exit
 func (ui *PUI) Exit() {
 	ui.SessionWrite(fmt.Sprintf(BybLabel, time.Now().Local().Format("2006-01-02 15:04:05")))
+	ui.isLogout = true
 	err := (*ui.sess).Close()
 	if err == nil {
 		log.Infof("User %s form %s exit", (*ui.sess).User(), (*ui.sess).RemoteAddr().String())
 	}
+	ui = nil
 }
 
+// 判断是否超时
 func (ui *PUI) IsTimeout() bool {
 	_, found := app.App.Cache.Get((*ui.sess).RemoteAddr().String())
+	// log.Debugf("remote addr: %s, found: %v", (*ui.sess).RemoteAddr().String(), found)
 	if found {
 		ui.FlashTimeout()
 		return false
 	}
 	return time.Since(ui.lastActive) > ui.timeOut
+}
+
+// 判断是否主动退出，依据是否超时
+func (ui *PUI) IsLogout() bool {
+	return ui.isLogout
 }
 
 // getTimeout
@@ -65,41 +77,23 @@ func (ui *PUI) FlashTimeout() {
 }
 
 // ShowMenu show menu
-func (ui *PUI) ShowMenu(label string, menu []*MenuItem, BackOptionLabel string, selectedChain []*MenuItem) {
+func (ui *PUI) ShowMenu(label string, menu []MenuItem, BackOptionLabel string, selectedChain []MenuItem) {
 
-	user := User{
-		Username: tea.String((*ui.sess).User()),
-	}
-	var broadcast *Broadcast
-
-	if app.App.Config.WithDB.Enable {
-		_user, err := app.App.JmsDBService.DescribeUser((*ui.sess).User())
-		if err != nil {
-			log.Errorf("DescribeUser error: %s", err)
-			sshd.ErrorInfo(err, ui.sess)
-		}
-		user = _user
-		_broadcast, err := app.App.JmsDBService.GetBroadcast()
-		if err != nil {
-			log.Errorf("GetBroadcast error: %s", err)
-		} else {
-			broadcast = _broadcast
-		}
-	}
 loopMenu:
 	for {
 		menuLabels := make([]string, 0) // 菜单，用于显示
-		menuItems := make([]*MenuItem, 0)
-		if menu == nil {
+		menuItems := make([]MenuItem, 0)
+		if ui.menuItem == nil {
 			log.Debugf("menu is nil, label: %s", label)
 			// break
 		}
+
 		// 返回顶级菜单
 		log.Debugf("label: %s MainLabel:%s", label, MainLabel)
 		switch label {
 		case MainLabel:
 			// 顶级菜单，如果有审批则主页支持选择审批或者服务器
-			menu = make([]*MenuItem, 0)
+			// menu = make([]MenuItem, 0)
 
 			if app.App.Config.WithDB.Enable && !app.App.Config.WithDingtalk.Enable {
 				// 没有审批策略时候，会在 admin 服务器选择列表里面显示审批菜单
@@ -109,25 +103,37 @@ loopMenu:
 				}
 				if len(policies) > 0 {
 					sshd.Info(fmt.Sprintf("作为管理员，有新的审批工单(%d)待处理。", len(policies)), ui.sess)
-					menu = append(menu, GetApproveMenu(policies)...)
+					ui.menuItem = append(ui.menuItem, GetApproveMenu(policies)...)
 				}
 			}
-			_menus, err := GetServersMenuV2(ui.sess, user, ui.GetTimeout())
+			user, err := app.GetUser((*ui.sess).User())
 			if err != nil {
 				sshd.ErrorInfo(err, ui.sess)
 				break loopMenu
 			}
-			menu = append(menu, _menus...)
-
-			filter, err := ui.inputFilter(broadcast)
+			_menus, err := GetServersMenuV2(ui.sess, user)
 			if err != nil {
+				sshd.ErrorInfo(err, ui.sess)
+				break loopMenu
+			}
+			{
+				// 实现新旧菜单内容的合并
+				newMenus := make([]MenuItem, 0)
+				for _, _menu := range _menus {
+					newMenus = append(newMenus, _menu)
+				}
+				ui.menuItem = newMenus
+			}
+			filter, err := ui.inputFilter(app.GetBroadcast())
+			if err != nil {
+				sshd.ErrorInfo(err, ui.sess)
 				break loopMenu
 			}
 			if filter == "^C" {
-
 				continue
 			}
-			for index, menuItem := range menu {
+			for index, menuItem := range ui.menuItem {
+				log.Debugf("menu: %s", tea.Prettify(menuItem))
 				if menuItem.IsShow == nil || menuItem.IsShow(index, menuItem, ui.sess, selectedChain) {
 					if !strings.Contains(menuItem.Label, filter) {
 						continue
@@ -139,7 +145,6 @@ loopMenu:
 		default:
 			for index, menuItem := range menu {
 				if menuItem.IsShow == nil || menuItem.IsShow(index, menuItem, ui.sess, selectedChain) {
-					log.Debugf("index: %d label: %s", index, menuItem.Label)
 					menuLabels = append(menuLabels, menuItem.Label)
 					menuItems = append(menuItems, menuItem)
 				}
@@ -167,7 +172,7 @@ loopMenu:
 			if strings.Contains(err.Error(), "^C") {
 				log.Debugf(label, MainLabel)
 				// 返回主菜单
-				ui.ShowMenu(MainLabel, menu, BackOptionLabel, selectedChain)
+				ui.ShowMenu(MainLabel, ui.menuItem, BackOptionLabel, selectedChain)
 
 			} else if strings.Contains(err.Error(), "^D") {
 				app.App.Cache.Delete((*ui.sess).User())
@@ -230,8 +235,7 @@ loopMenu:
 func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	ui.FlashTimeout()
 	defer ui.SessionWrite("\033c") // clear
-	servers := *app.Servers
-	servers.SortByName()
+	servers := app.GetServers()
 	// 发送屏幕清理指令
 	// 发送当前时间
 	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
@@ -266,7 +270,7 @@ func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 
 // ShowMainMenu show main menu
 func (ui *PUI) ShowMainMenu() {
-	MainMenu := make([]*MenuItem, 0)
-	selectedChain := make([]*MenuItem, 0)
+	MainMenu := make([]MenuItem, 0)
+	selectedChain := make([]MenuItem, 0)
 	ui.ShowMenu(MainLabel, MainMenu, "Quit", selectedChain)
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/patrickmn/go-cache"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/jms/core/db"
-	model "github.com/xops-infra/jms/model"
 	model1 "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
@@ -25,8 +24,6 @@ import (
 )
 
 var App *Application
-
-var Servers *model.Servers
 
 type Application struct {
 	Debug           bool

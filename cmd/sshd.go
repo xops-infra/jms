@@ -85,12 +85,17 @@ var sshdCmd = &cobra.Command{
 		}
 
 		app.App.WithMcs()
-		instance.LoadServer(app.App.Config) // 加载服务列表
+		go func() {
+			for {
+				instance.LoadServer(app.App.Config) // 加载服务列表
+				time.Sleep(1 * time.Minute)         // 休眠 1 分钟
+			}
+		}()
 
 		ssh.Handle(func(sess ssh.Session) {
 			defer func() {
 				if e, ok := recover().(error); ok {
-					log.Error(e.Error())
+					log.Errorf("sessionHandler panic: %s", e.Error())
 				}
 			}()
 			sessionHandler(&sess)
@@ -192,7 +197,6 @@ func sessionHandler(sess *ssh.Session) {
 		app.App.Cache.Add(user, 1, cache.DefaultExpiration)
 	}
 
-	log.Infof("user: %s, remote addr: %s login success", user, remote)
 	rawCmd := (*sess).RawCommand()
 	log.Debugf("rawCmd: %s\n", rawCmd)
 	cmd, args, err := sshd.ParseRawCommand(rawCmd)
@@ -209,8 +213,10 @@ func sessionHandler(sess *ssh.Session) {
 	case "exit":
 		(*sess).Exit(0)
 	case "ssh":
+		log.Infof("user: %s, remote addr: %s login success", user, remote)
 		sshHandler(sess)
 	default:
+		log.Infof("[default] user: %s, remote addr: %s login success", user, remote)
 		if strings.Contains(cmd, "umask") {
 			// 版本问题导致的 cmd不一致问题
 			execHandler(sess)
@@ -268,9 +274,9 @@ func startScheduler() {
 	c := cron.New()
 	time.Sleep(10 * time.Second) // 等待app初始化完成
 
-	c.AddFunc("0 */2 * * * *", func() {
-		instance.LoadServer(app.App.Config)
-	})
+	// c.AddFunc("0 */2 * * * *", func() {
+	// 	instance.LoadServer(app.App.Config)
+	// })
 
 	if app.App.Config.WithDB.Enable {
 		log.Infof("enabled db config hot update, 2 min check once")

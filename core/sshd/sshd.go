@@ -38,7 +38,7 @@ func GetClientByPasswd(username, host string, port int, passwd string) (*sshclie
 }
 
 // NewTerminal NewTerminal
-func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session, timeout string) error {
+func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
 	proxyClient, upstreamClient, err := NewSSHClient(server, sshUser)
 	if err != nil {
 		log.Errorf("NewSSHClient error: %s", err)

@@ -449,6 +449,10 @@ github.com/xops-infra/multi-cloud-sdk v0.0.0-20240415030650-c9d8699e6941 h1:O6RA
 github.com/xops-infra/multi-cloud-sdk v0.0.0-20240415030650-c9d8699e6941/go.mod h1:uRM+DtKcxrMfVmOQ7+CysgE1D2G4YCownRbaODkW0Fk=
 github.com/xops-infra/multi-cloud-sdk v0.0.0-20241022101646-08afeb27d985 h1:0KYDjaeVF3995JLlye6Q3U1Ve2pxNo6SFoRsoukzN80=
 github.com/xops-infra/multi-cloud-sdk v0.0.0-20241022101646-08afeb27d985/go.mod h1:uRM+DtKcxrMfVmOQ7+CysgE1D2G4YCownRbaODkW0Fk=
+github.com/xops-infra/multi-cloud-sdk v0.0.0-20241107152413-f9b87eab7114 h1:+GNGMEcc/mWR6IPbapvwJyLp+x21anICgAV/6QgLSVk=
+github.com/xops-infra/multi-cloud-sdk v0.0.0-20241107152413-f9b87eab7114/go.mod h1:uRM+DtKcxrMfVmOQ7+CysgE1D2G4YCownRbaODkW0Fk=
+github.com/xops-infra/multi-cloud-sdk v0.0.0-20241112032115-e66b86c88312 h1:dchjTIr3XVYTFm59z8i8u9ldcDHP5ezSpCnQCPxyvnk=
+github.com/xops-infra/multi-cloud-sdk v0.0.0-20241112032115-e66b86c88312/go.mod h1:uRM+DtKcxrMfVmOQ7+CysgE1D2G4YCownRbaODkW0Fk=
 github.com/xops-infra/noop v0.5.1-0.20231107031456-2b6b1ae7e0bb h1:nVS7avZ5PJjp+3CSEqlW3gAXgIWE8geLLgRQObDx14g=
 github.com/xops-infra/noop v0.5.1-0.20231107031456-2b6b1ae7e0bb/go.mod h1:GKKMXuuOVPxrRvKz7qbHCwZ2C/nBNBfabF832Zi/u9A=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

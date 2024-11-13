@@ -135,6 +135,10 @@
 
 ## 4. 开发日志
 
+- 2024-11
+
+  - feat:支持上传下载权限判断。
+
 - 2024-09
 
   - feat: 支持使用 JMS_DINGTALK_WEB_HOOK_TOKEN 配置 runshell 任务发送钉钉消息；

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -91,12 +92,24 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 			log.Errorf("panic: %v", err)
 		}
 	}()
+	matchPolicies := app.GetUserPolicys(User{
+		Username: tea.String((*clientSess).User()),
+	})
+	_user, err := app.GetUser((*clientSess).User())
+	if err != nil {
+		return err
+	}
 	for _, arg := range args {
 		if arg == "-t" || arg == "-f" {
 			log.Debugf("arg: %s", arg)
 			switch arg {
 			case "-t":
-				err := copyToServer(args, clientSess)
+				err := CheckPermission(args[1], _user, Upload, matchPolicies)
+				if err != nil {
+					replyErr(*clientSess, err)
+					return err
+				}
+				err = copyToServer(args, clientSess)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -104,7 +117,12 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 				(*clientSess).Close()
 				return nil
 			case "-f":
-				err := copyFromServer(args, clientSess)
+				err := CheckPermission(args[1], _user, Download, matchPolicies)
+				if err != nil {
+					replyErr(*clientSess, err)
+					return err
+				}
+				err = copyFromServer(args, clientSess)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -115,6 +133,33 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 		}
 	}
 	return errors.New("this feature is not currently supported")
+}
+
+func extractIP(input string) (string, error) {
+	// 定义正则表达式模式
+	re := regexp.MustCompile(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`)
+	// 查找匹配的字符串
+	match := re.FindString(input)
+	if match == "" {
+		return "", fmt.Errorf("no IP address found in input")
+	}
+	return match, nil
+}
+
+// argsWithServer 是 root@10.9.x.x:/data/xx.zip 这一串组合字符，方法内会解析
+func CheckPermission(argsWithServer string, user User, inputAction Action, matchPolicies []Policy) error {
+	serverIP, err := extractIP(argsWithServer)
+	if err != nil {
+		return err
+	}
+
+	// 判断是否有权限
+	if !MatchPolicy(user, inputAction, Server{
+		Host: serverIP,
+	}, matchPolicies) {
+		return fmt.Errorf("user: %s has no permission to %s server: %s", *user.Username, inputAction, serverIP)
+	}
+	return nil
 }
 
 func copyToServer(args []string, clientSess *ssh.Session) error {
@@ -152,7 +197,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 			err = app.App.JmsDBService.AddScpRecord(&AddScpRecordRequest{
 				Action: tea.String("upload"),
 				From:   tea.String(filename),
-				To:     tea.String(args[1]),
+				To:     tea.String(args[1]), // root@10.9.x.x:/data/xx.zip
 				User:   tea.String((*clientSess).User()),
 				Client: tea.String((*clientSess).RemoteAddr().String()),
 			})
@@ -272,7 +317,7 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 				err = app.App.JmsDBService.AddScpRecord(&AddScpRecordRequest{
 					Action: tea.String("download"),
 					To:     tea.String(filename),
-					From:   tea.String(args[1]),
+					From:   tea.String(args[1]), // root@10.9.x.x:/data/xxx.json
 					User:   tea.String((*clientSess).User()),
 					Client: tea.String((*clientSess).RemoteAddr().String()),
 				})
@@ -352,7 +397,7 @@ func copyToClientSession(tmpReader *bufio.Reader, clientSess *ssh.Session, perm,
 }
 
 func parseServerPath(fullPath, filename, currentUsername string) (*SSHUser, *Server, string, error) {
-	servers := app.Servers
+	servers := app.GetServers()
 	args := strings.SplitN(fullPath, ":", 2)
 	invaildPathErr := errors.New(
 		"Please input your server key before your target path, like 'scp -P 2222 /tmp/tmp.file user@jumpserver:user@server1:/tmp/tmp.file'",
@@ -369,7 +414,7 @@ func parseServerPath(fullPath, filename, currentUsername string) (*SSHUser, *Ser
 	}
 
 	sshUsername, host := serverArgs[0], serverArgs[1]
-	if server, ok := ServerListToMap(*servers)[host]; ok {
+	if server, ok := ServerListToMap(servers)[host]; ok {
 		if server.Host == "" {
 			return nil, nil, "", fmt.Errorf("server key '%s' of server not found", host)
 		}

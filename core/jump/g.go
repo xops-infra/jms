@@ -7,6 +7,7 @@ import (
 	"github.com/elfgzp/ssh"
 
 	"github.com/xops-infra/jms/core/pui"
+	"github.com/xops-infra/noop/log"
 )
 
 // Service Service
@@ -25,6 +26,11 @@ func (jps *Service) Run() {
 	// 设置超时退出
 	go func() {
 		for {
+			// 用户主动 退出的也要自己终端
+			if jps.persionUI.IsLogout() {
+				log.Debugf("exit by user logout")
+				break
+			}
 			time.Sleep(1 * time.Second)
 			if jps.persionUI.IsTimeout() {
 				isExit := false
@@ -39,6 +45,7 @@ func (jps *Service) Run() {
 				}
 				if !isExit {
 					jps.persionUI.Exit()
+					log.Debugf("exit by timeout")
 					break
 				}
 			}

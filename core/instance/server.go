@@ -2,6 +2,7 @@ package instance
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -20,40 +21,54 @@ func LoadServer(conf *Config) {
 		}
 	}()
 
-	var mcsServers []model.Instance
+	mcsServers := make(map[string]model.Instance, 2000)
 	startTime := time.Now()
+	wg := sync.WaitGroup{}
 	for _, profile := range conf.Profiles {
 		log.Debugf(tea.Prettify(profile))
 		log.Debugf("profile: %s is enabled: %t", *profile.Name, profile.Enabled)
 		if !profile.Enabled {
 			continue
 		}
-		for _, region := range profile.Regions {
-			log.Debugf("get instances profile: %s region: %s", *profile.Name, region)
-			input := model.InstanceFilter{}
-			for {
-				resps, err := app.App.McsServer.DescribeInstances(*profile.Name, region, input)
-				if err != nil {
-					log.Errorf("%s %s DescribeInstances error: %v", *profile.Name, region, err)
-					break
+		wg.Add(1)
+		go func(profile CreateProfileRequest) {
+			for _, region := range profile.Regions {
+				log.Debugf("get instances profile: %s region: %s", *profile.Name, region)
+				input := model.InstanceFilter{}
+				for {
+					resps, err := app.App.McsServer.DescribeInstances(*profile.Name, region, input)
+					if err != nil {
+						log.Errorf("%s %s DescribeInstances error: %v", *profile.Name, region, err)
+						break
+					}
+					for _, instance := range resps.Instances {
+						if instance.InstanceID == nil {
+							log.Errorf("instance id is nil, %s", tea.Prettify(instance))
+							continue
+						}
+						if _, ok := mcsServers[*instance.InstanceID]; ok {
+							log.Warnf("instance %s already exist", *instance.InstanceID)
+							continue
+						}
+						mcsServers[*instance.InstanceID] = instance
+					}
+					if resps.NextMarker == nil {
+						// log.Warnf("break get instances profile: %s region: %s len: %d", *profile.Name, region, len(mcsServers))
+						break
+					}
+					input.NextMarker = resps.NextMarker
 				}
-				mcsServers = append(mcsServers, resps.Instances...)
-				if resps.NextMarker == nil {
-					break
-				}
-				input.NextMarker = resps.NextMarker
 			}
-		}
-		// print every profile instances count
-		log.Infof("get instances profile: %s len: %d", *profile.Name, len(mcsServers))
+			wg.Done()
+			log.Infof("get instances profile: %s len: %d", *profile.Name, len(mcsServers))
+		}(profile)
 	}
-	log.Debugf("conf.Keys.ToMapWithID(): %s", tea.Prettify(conf.Keys.ToMapWithID()))
-	instanceAll := fmtServer(mcsServers)
-	app.SetServers(instanceAll)
-	log.Infof("%s len: %d", time.Since(startTime), len(*instanceAll))
+	wg.Wait()
+	app.SetServers(fmtServer(mcsServers))
+	log.Infof("load server finished cost: %s ", time.Since(startTime))
 }
 
-func fmtServer(instances []model.Instance) *Servers {
+func fmtServer(instances map[string]model.Instance) Servers {
 	var instanceAll Servers
 	for _, instance := range instances {
 		if instance.Status != model.InstanceStatusRunning {
@@ -67,15 +82,12 @@ func fmtServer(instances []model.Instance) *Servers {
 		} else {
 			for _, key := range instance.KeyIDs {
 				if key == nil {
-					log.Debugf("instance: %s key is nil", *instance.Name)
 					continue
 				}
 				// 解决 key大写不识别问题
 				keyName = append(keyName, key)
 			}
 		}
-
-		log.Debugf("instance: %s key: %s", tea.StringValue(instance.Name), tea.Prettify(keyName))
 
 		if len(instance.PrivateIP) < 1 {
 			log.Errorf("instance: %s private ip is empty", *instance.Name)
@@ -114,12 +126,11 @@ func fmtServer(instances []model.Instance) *Servers {
 	}
 
 	instanceAll.SortByName()
-	return &instanceAll
+	return instanceAll
 }
 
 // 通过机器的密钥对 KeyIDs 获取对应的密钥Pem的路径
 func getKeyPairByKeyIDS(keyIDS []*string) []AddKeyRequest {
-	log.Debugf("keyIDS: %s", tea.Prettify(keyIDS))
 	keysAll := make([]AddKeyRequest, 0)
 	configKeys := app.App.Config.Keys.ToMapWithID()
 	for _, keyID := range keyIDS {
@@ -136,7 +147,6 @@ func getKeyPairByKeyIDS(keyIDS []*string) []AddKeyRequest {
 // fmtSuperUser 支持多用户选择
 func fmtSuperUser(instance model.Instance) []SSHUser {
 	keys := getKeyPairByKeyIDS(instance.KeyIDs)
-	log.Debugf("keys %s", tea.Prettify(keys))
 	var sshUser []SSHUser
 	for _, key := range keys {
 		u := SSHUser{}
