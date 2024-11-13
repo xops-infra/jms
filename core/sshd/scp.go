@@ -156,7 +156,7 @@ func CheckPermission(argsWithServer string, user User, inputAction Action, match
 	// 判断是否有权限
 	if !MatchPolicy(user, inputAction, Server{
 		Host: serverIP,
-	}, matchPolicies) {
+	}, matchPolicies, true) {
 		return fmt.Errorf("user: %s has no permission to %s server: %s", *user.Username, inputAction, serverIP)
 	}
 	return nil

@@ -54,7 +54,7 @@ func GetServersMenuV2(sess *ssh.Session, user User) (map[string]MenuItem, error)
 			GetSubMenu:   GetServerSSHUsersMenu(server, matchPolicies),
 		}
 		// 判断机器权限进入不同菜单
-		if !MatchPolicy(user, Connect, server, matchPolicies) {
+		if !MatchPolicy(user, Connect, server, matchPolicies, false) {
 			subMenu.Label = fmt.Sprintf("%s\t[x]\t%s\t%s", server.ID, server.Host, server.Name)
 			subMenu.SubMenuTitle = SelectServer
 			subMenu.GetSubMenu = getServerApproveMenu(server)

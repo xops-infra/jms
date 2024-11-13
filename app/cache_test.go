@@ -49,5 +49,5 @@ func TestPolicy(t *testing.T) {
 	}
 	policies := app.QueryPolicyByUser("zhoushoujian")
 	// log.Debugf("policies: %s", tea.Prettify(policies))
-	fmt.Println(model.MatchPolicy(user, model.Connect, server, policies))
+	fmt.Println(model.MatchPolicy(user, model.Connect, server, policies, false))
 }

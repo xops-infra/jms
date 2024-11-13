@@ -34,28 +34,28 @@ func TestMatchServer(t *testing.T) {
 	filter := ServerFilterV1{
 		EnvType: []string{"prod"},
 	}
-	assert.True(t, MatchServerByFilter(filter, server))
+	assert.True(t, MatchServerByFilter(filter, server, false))
 
 	filter.Name = []string{"!test*"}
-	assert.False(t, MatchServerByFilter(filter, server))
+	assert.False(t, MatchServerByFilter(filter, server, false))
 
 	filter.Name = []string{"test-server"}
 	filter.IpAddr = []string{"!127.0.1.*"}
-	assert.True(t, MatchServerByFilter(filter, server))
+	assert.True(t, MatchServerByFilter(filter, server, false))
 
 	filter.IpAddr = []string{"!127.0.0.*"}
-	assert.False(t, MatchServerByFilter(filter, server))
+	assert.False(t, MatchServerByFilter(filter, server, false))
 
 	filter.IpAddr = []string{"!127.0.1.*"}
 	filter.Team = []string{"ops"}
-	assert.True(t, MatchServerByFilter(filter, server))
+	assert.True(t, MatchServerByFilter(filter, server, false))
 
 	filter.Team = []string{"!ops"}
-	assert.False(t, MatchServerByFilter(filter, server))
+	assert.False(t, MatchServerByFilter(filter, server, false))
 
 	// 过滤条件有一个满足就满足。
 	filter.Team = []string{"!ops", "*"}
-	assert.True(t, MatchServerByFilter(filter, server))
+	assert.True(t, MatchServerByFilter(filter, server, false))
 }
 
 // TEST MatchPolicy
@@ -81,7 +81,7 @@ func TestMatchPolicy(t *testing.T) {
 		// 测试 admin 组
 		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
-		}))
+		}, false))
 	}
 
 	user.Groups = ArrayString{}
@@ -94,11 +94,11 @@ func TestMatchPolicy(t *testing.T) {
 		server.Host = "127.0.0.1"
 		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
-		}))
+		}, false))
 		server.Host = "89.0.142.86"
 		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
-		}))
+		}, false))
 	}
 	{
 		// 普通用户，Name匹配
@@ -109,11 +109,11 @@ func TestMatchPolicy(t *testing.T) {
 		server.Name = "test"
 		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
-		}))
+		}, false))
 		server.Name = "test2"
 		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
-		}))
+		}, false))
 	}
 	{
 		// 普通用户，EnvType匹配
@@ -129,7 +129,7 @@ func TestMatchPolicy(t *testing.T) {
 		}
 		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
-		}))
+		}, false))
 		server.Tags = model.Tags{
 			{
 				Key:   "EnvType",
@@ -138,7 +138,7 @@ func TestMatchPolicy(t *testing.T) {
 		}
 		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
-		}))
+		}, false))
 	}
 	{
 		// 普通用户，Team匹配
@@ -155,7 +155,7 @@ func TestMatchPolicy(t *testing.T) {
 		}
 		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
-		}))
+		}, false))
 		server.Tags = model.Tags{
 			{
 				Key:   "Team",
@@ -164,7 +164,7 @@ func TestMatchPolicy(t *testing.T) {
 		}
 		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
-		}))
+		}, false))
 	}
 	{
 		// 普通用户，Owner匹配
@@ -181,7 +181,7 @@ func TestMatchPolicy(t *testing.T) {
 		}
 		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
-		}))
+		}, false))
 		server.Tags = model.Tags{
 			{
 				Key:   "Owner",
@@ -190,7 +190,7 @@ func TestMatchPolicy(t *testing.T) {
 		}
 		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
-		}))
+		}, false))
 	}
 
 }
@@ -220,7 +220,7 @@ func TestMultipolicy(t *testing.T) {
 		// 测试 deny 匹配
 		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
 			defaultPolicy,
-		}))
+		}, false))
 		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
 			defaultPolicy,
 			{
@@ -232,7 +232,7 @@ func TestMultipolicy(t *testing.T) {
 					Name: []string{"*"},
 				},
 			},
-		}))
+		}, false))
 
 		// 测试 ! 匹配
 		server.Tags = model.Tags{
@@ -251,7 +251,7 @@ func TestMultipolicy(t *testing.T) {
 					EnvType: []string{"!prod"},
 				},
 			},
-		}))
+		}, false))
 		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
 			{
 				IsEnabled: true,
@@ -262,7 +262,7 @@ func TestMultipolicy(t *testing.T) {
 					EnvType: []string{"!dev"},
 				},
 			},
-		}))
+		}, false))
 
 		// 测试 * 匹配
 		server.Tags = model.Tags{
@@ -281,7 +281,7 @@ func TestMultipolicy(t *testing.T) {
 					Team: []string{"*"},
 				},
 			},
-		}))
+		}, false))
 		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
 			{
 				IsEnabled: true,
@@ -292,6 +292,6 @@ func TestMultipolicy(t *testing.T) {
 					Team: []string{"data"},
 				},
 			},
-		}))
+		}, false))
 	}
 }

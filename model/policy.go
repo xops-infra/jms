@@ -190,7 +190,7 @@ func stringMatch(std, judge string) bool {
 
 // 匹配服务器和过滤条件是否符合
 // 支持多维度的并联匹配，ServerFilterV1如果属性没有为nil，则要进行联合匹配
-func MatchServerByFilter(filter ServerFilterV1, server Server) bool {
+func MatchServerByFilter(filter ServerFilterV1, server Server, onlyIp bool) bool {
 	log.Debugf("filter:%s", tea.Prettify(filter))
 	log.Debugf("server:%s", tea.Prettify(server))
 
@@ -265,11 +265,20 @@ func MatchServerByFilter(filter ServerFilterV1, server Server) bool {
 		IsMatchKV = true
 	}
 
-	if IsMatchName && IsMatchIP && IsMatchEnvType && IsMatchTeam && IsMatchKV {
-		return true
+	if onlyIp {
+		if IsMatchIP {
+			return true
+		} else {
+			return false
+		}
+	} else {
+		if IsMatchName && IsMatchIP && IsMatchEnvType && IsMatchTeam && IsMatchKV {
+			return true
+		}
+
+		return false
 	}
 
-	return false
 }
 
 // Owner和用户一样则有权限
@@ -302,7 +311,8 @@ func MatchUserGroup(user User, server Server) bool {
 }
 
 // 对用户，策略，服务器，动作做权限判断
-func MatchPolicy(user User, inPutAction Action, server Server, dbPolicies []Policy) bool {
+// onlyIp 用来兼容策略对上传下载的判断，因为上传下载信息只会有 IP 信息。
+func MatchPolicy(user User, inPutAction Action, server Server, dbPolicies []Policy, onlyIp bool) bool {
 
 	if !Conf.WithDB.Enable {
 		// 没有启用数据库策略的直接通过
@@ -332,7 +342,7 @@ func MatchPolicy(user User, inPutAction Action, server Server, dbPolicies []Poli
 		// 	log.Debugf("policy %s is not for user %s", dbPolicy.Name, *user.Username)
 		// 	continue
 		// }
-		allow := policyCheck(inPutAction, server, dbPolicy)
+		allow := policyCheck(inPutAction, server, dbPolicy, onlyIp)
 
 		if allow == nil {
 			continue
@@ -368,12 +378,12 @@ func systemPolicyCheck(user User, server Server) bool {
 }
 
 // Admin level check, only find ok, default deny
-func policyCheck(inPutAction Action, server Server, policy Policy) *bool {
+func policyCheck(inPutAction Action, server Server, policy Policy, onlyIp bool) *bool {
 	if policy.ServerFilterV1 == nil {
 		log.Debugf("ServerFilterV1 is nil")
 		return nil
 	}
-	if !MatchServerByFilter(*policy.ServerFilterV1, server) {
+	if !MatchServerByFilter(*policy.ServerFilterV1, server, onlyIp) {
 		// 不符合的机器直接跳过
 		log.Debugf("server not match policy ignore %s", tea.Prettify(policy.ServerFilter))
 		return nil

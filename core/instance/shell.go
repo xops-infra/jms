@@ -78,7 +78,7 @@ func RunShellTask(task ShellTask, servers Servers) (Status, error) {
 	faildServers := []string{}
 	totalServer := 0
 	for _, server := range servers {
-		if MatchServerByFilter(task.Servers, server) {
+		if MatchServerByFilter(task.Servers, server, false) {
 			totalServer++
 			wg.Add(1)
 			log.Debugf("shell task: %s, cmd: %s, run on server: %s", task.UUID, task.Shell, server.Host)
