@@ -1,4 +1,4 @@
-package instance
+package sshd
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/sshd"
 )
 
 // dingtalkToken 为钉钉机器人的token
@@ -29,7 +28,7 @@ func ServerLiveness(dingtalkToken string) {
 		}
 
 		for _, sshUser := range server.SSHUsers {
-			proxyClient, client, err := sshd.NewSSHClient(server, sshUser)
+			proxyClient, client, err := NewSSHClient(server, sshUser)
 			if err != nil {
 				_, found := app.App.Cache.Get(server.Host)
 				if found {

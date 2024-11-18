@@ -516,6 +516,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/policy/permission": {
+            "get": {
+                "description": "权限校验，提供用户名可以查询该用户拥有的权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Policy"
+                ],
+                "summary": "权限校验",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "token",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "user",
+                        "name": "user",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Policy"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/profile": {
             "get": {
                 "security": [
@@ -1686,9 +1733,6 @@ const docTemplate = `{
             "properties": {
                 "corn": {
                     "type": "string"
-                },
-                "cost_time": {
-                    "type": "integer"
                 },
                 "exec_result": {
                     "description": "任务执行结果信息",

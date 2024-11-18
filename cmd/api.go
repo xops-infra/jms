@@ -67,6 +67,10 @@ var apiCmd = &cobra.Command{
 		}
 		_app.WithDB(false)
 
+		if !debug {
+
+		}
+
 		log.Infof("api server start on port: %d", apiPort)
 		g := api.NewGin()
 		log.Errorf(g.Run(fmt.Sprintf(":%d", apiPort)).Error())

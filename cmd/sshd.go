@@ -18,9 +18,9 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/dingtalk"
-	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/jump"
 	"github.com/xops-infra/jms/core/sshd"
+	"github.com/xops-infra/jms/io"
 	appConfig "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
@@ -30,6 +30,9 @@ var (
 	timeOut  int // s
 	sshdPort int
 )
+
+var p *io.PolicyIO
+var i *io.InstanceIO
 
 var sshdCmd = &cobra.Command{
 	Use:   "sshd",
@@ -85,10 +88,15 @@ var sshdCmd = &cobra.Command{
 		}
 
 		app.App.WithMcs()
+
+		// new IO
+		p = io.NewPolicy(app.App.Config.WithDingtalk.Enable)
+		i = io.NewInstance(app.App.McsServer)
+
 		go func() {
 			for {
-				instance.LoadServer(app.App.Config) // 加载服务列表
-				time.Sleep(1 * time.Minute)         // 休眠 1 分钟
+				i.LoadServer(app.App.Config) // 加载服务列表
+				time.Sleep(1 * time.Minute)  // 休眠 1 分钟
 			}
 		}()
 
@@ -257,12 +265,12 @@ func execHandler(sess *ssh.Session) {
 }
 
 func sshHandler(sess *ssh.Session) {
-	jps := jump.NewSession(sess, time.Duration(timeOut)*time.Second)
+	jps := jump.NewSession(p, sess, time.Duration(timeOut)*time.Second)
 	jps.Run()
 }
 
 func scpHandler(args []string, sess *ssh.Session) {
-	err := sshd.ExecuteSCP(args, sess)
+	err := sshd.ExecuteSCP(p, args, sess)
 	if err != nil {
 		sshd.ErrorInfo(err, sess)
 		return
@@ -294,7 +302,7 @@ func startScheduler() {
 		})
 
 		c.AddFunc("0 * * * * *", func() {
-			instance.ServerShellRun() // 每 1min 检查一次
+			sshd.ServerShellRun() // 每 1min 检查一次
 		})
 	}
 
@@ -323,7 +331,7 @@ func startScheduler() {
 	if app.App.Config.WithSSHCheck.Enable {
 		log.Infof("with ssh check,5min check once")
 		c.AddFunc("0 */5 * * * *", func() {
-			instance.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
+			sshd.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
 		})
 	}
 

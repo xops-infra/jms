@@ -1,4 +1,4 @@
-package model_test
+package io_test
 
 import (
 	"testing"
@@ -7,21 +7,25 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/stretchr/testify/assert"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
+	mcsModel "github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	"github.com/xops-infra/noop/log"
 
+	"github.com/xops-infra/jms/io"
 	. "github.com/xops-infra/jms/model"
 )
 
+var p *io.PolicyIO
+
 func init() {
-	// config.LoadYaml("/opt/jms/config.yaml")
 	log.Default().WithLevel(log.DebugLevel).WithFilename("/tmp/test.log").Init()
+	p = io.NewPolicy(true)
 }
 
 func TestMatchServer(t *testing.T) {
 	server := Server{
 		Name: "test-server",
 		Host: "127.0.0.1",
-		Tags: model.Tags{
+		Tags: mcsModel.Tags{
 			{
 				Key:   "EnvType",
 				Value: "prod",
@@ -58,7 +62,7 @@ func TestMatchServer(t *testing.T) {
 	assert.True(t, MatchServerByFilter(filter, server, false))
 }
 
-// TEST MatchPolicy
+// TEST p.MatchPolicy
 func TestMatchPolicy(t *testing.T) {
 	Conf.WithDB.Enable = true
 
@@ -79,7 +83,7 @@ func TestMatchPolicy(t *testing.T) {
 	user.Groups = ArrayString{"admin"}
 	{
 		// 测试 admin 组
-		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.True(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
 		}, false))
 	}
@@ -92,11 +96,11 @@ func TestMatchPolicy(t *testing.T) {
 		policy.ServerFilterV1.EnvType = nil
 		policy.ServerFilterV1.Team = nil
 		server.Host = "127.0.0.1"
-		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.True(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
 		}, false))
 		server.Host = "89.0.142.86"
-		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.False(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
 		}, false))
 	}
@@ -107,11 +111,11 @@ func TestMatchPolicy(t *testing.T) {
 		policy.ServerFilterV1.Team = nil
 		policy.ServerFilterV1.IpAddr = nil
 		server.Name = "test"
-		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.True(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
 		}, false))
 		server.Name = "test2"
-		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.False(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
 		}, false))
 	}
@@ -127,7 +131,7 @@ func TestMatchPolicy(t *testing.T) {
 				Value: "prod",
 			},
 		}
-		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.True(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
 		}, false))
 		server.Tags = model.Tags{
@@ -136,7 +140,7 @@ func TestMatchPolicy(t *testing.T) {
 				Value: "dev",
 			},
 		}
-		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.False(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
 		}, false))
 	}
@@ -153,7 +157,7 @@ func TestMatchPolicy(t *testing.T) {
 				Value: "ops",
 			},
 		}
-		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.True(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
 		}, false))
 		server.Tags = model.Tags{
@@ -162,7 +166,7 @@ func TestMatchPolicy(t *testing.T) {
 				Value: "others",
 			},
 		}
-		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.False(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
 		}, false))
 	}
@@ -179,7 +183,7 @@ func TestMatchPolicy(t *testing.T) {
 				Value: "zhoushoujian",
 			},
 		}
-		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.True(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
 		}, false))
 		server.Tags = model.Tags{
@@ -188,7 +192,7 @@ func TestMatchPolicy(t *testing.T) {
 				Value: "xxx",
 			},
 		}
-		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.False(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			policy,
 		}, false))
 	}
@@ -218,10 +222,10 @@ func TestMultipolicy(t *testing.T) {
 			Host: "127.0.0.1",
 		}
 		// 测试 deny 匹配
-		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.True(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			defaultPolicy,
 		}, false))
-		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.False(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			defaultPolicy,
 			{
 				IsEnabled: true,
@@ -241,7 +245,7 @@ func TestMultipolicy(t *testing.T) {
 				Value: "prod",
 			},
 		}
-		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.False(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			{
 				IsEnabled: true,
 				Users:     ArrayString{"zhoushoujian"},
@@ -252,7 +256,7 @@ func TestMultipolicy(t *testing.T) {
 				},
 			},
 		}, false))
-		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.True(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			{
 				IsEnabled: true,
 				Users:     ArrayString{"zhoushoujian"},
@@ -271,7 +275,7 @@ func TestMultipolicy(t *testing.T) {
 				Value: "ops",
 			},
 		}
-		assert.True(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.True(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			{
 				IsEnabled: true,
 				Users:     ArrayString{"zhoushoujian"},
@@ -282,7 +286,7 @@ func TestMultipolicy(t *testing.T) {
 				},
 			},
 		}, false))
-		assert.False(t, MatchPolicy(user, inPutAction, server, []Policy{
+		assert.False(t, p.MatchPolicy(user, inPutAction, server, []Policy{
 			{
 				IsEnabled: true,
 				Users:     ArrayString{"zhoushoujian"},
@@ -294,4 +298,51 @@ func TestMultipolicy(t *testing.T) {
 			},
 		}, false))
 	}
+}
+
+// test CheckPermission
+func TestCheckPermission(t *testing.T) {
+	policy := Policy{
+		IsEnabled: true,
+		ServerFilterV1: &ServerFilterV1{
+			IpAddr: []string{"10.9.0.1"},
+		},
+		Users:     []string{"zhoushoujian"},
+		Actions:   ConnectOnly,
+		ExpiresAt: time.Now().AddDate(0, 0, 1),
+	}
+
+	user := User{Username: tea.String("zhoushoujian")}
+
+	err := p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Upload, []Policy{policy})
+
+	if err != nil {
+		t.Log("ok", err)
+	} else {
+		t.Error("shoud be error")
+	}
+
+	policy.Actions = DownloadOnly
+	err = p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Upload, []Policy{policy})
+	if err != nil {
+		t.Log("ok", err)
+	} else {
+		t.Error("shoud be error")
+	}
+
+	err = p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Download, []Policy{policy})
+	if err == nil {
+		t.Log("ok", err)
+	} else {
+		t.Error("shoud be ok")
+	}
+
+	policy.Actions = UploadOnly
+	err = p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Download, []Policy{policy})
+	if err != nil {
+		t.Log("ok", err)
+	} else {
+		t.Error("shoud be error")
+	}
+
 }

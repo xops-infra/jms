@@ -2,9 +2,7 @@ package sshd_test
 
 import (
 	"testing"
-	"time"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/jms/model"
@@ -19,49 +17,44 @@ func TestAuditArch(t *testing.T) {
 	sshd.AuditLogArchiver()
 }
 
-// test CheckPermission
-func TestCheckPermission(t *testing.T) {
-	policy := model.Policy{
-		IsEnabled: true,
-		ServerFilterV1: &model.ServerFilterV1{
-			IpAddr: []string{"10.9.0.1"},
+// runShellTask
+func TestRunShellTask(t *testing.T) {
+	server := model.Server{
+		Host: "192.168.3.233",
+		Name: "test-server",
+		SSHUsers: []model.SSHUser{
+			{
+				UserName: "root",
+				Password: "111111",
+			},
 		},
-		Users:     []string{"zhoushoujian"},
-		Actions:   model.ConnectOnly,
-		ExpiresAt: time.Now().AddDate(0, 0, 1),
+		Port: 22,
 	}
-
-	user := model.User{Username: tea.String("zhoushoujian")}
-
-	err := sshd.CheckPermission("root@10.9.0.1:/data/xx.zip", user, model.Upload, []model.Policy{policy})
-
+	servers := []model.Server{
+		server,
+		{
+			Host: "192.168.16.239",
+			Name: "test1-server",
+			SSHUsers: []model.SSHUser{
+				{
+					UserName: "root",
+					Password: "xxx",
+				},
+			},
+			Port: 22,
+		},
+	}
+	status, err := sshd.RunShellTask(model.ShellTask{
+		UUID:  "xxxxxx",
+		Shell: "pwd",
+		Name:  "测试脚本",
+		Servers: model.ServerFilterV1{
+			IpAddr: []string{"*"},
+		},
+		Status: model.StatusPending,
+	}, servers)
 	if err != nil {
-		t.Log("ok", err)
-	} else {
-		t.Error("shoud be error")
+		t.Error(err)
 	}
-
-	policy.Actions = model.DownloadOnly
-	err = sshd.CheckPermission("root@10.9.0.1:/data/xx.zip", user, model.Upload, []model.Policy{policy})
-	if err != nil {
-		t.Log("ok", err)
-	} else {
-		t.Error("shoud be error")
-	}
-
-	err = sshd.CheckPermission("root@10.9.0.1:/data/xx.zip", user, model.Download, []model.Policy{policy})
-	if err == nil {
-		t.Log("ok", err)
-	} else {
-		t.Error("shoud be ok")
-	}
-
-	policy.Actions = model.UploadOnly
-	err = sshd.CheckPermission("root@10.9.0.1:/data/xx.zip", user, model.Download, []model.Policy{policy})
-	if err != nil {
-		t.Log("ok", err)
-	} else {
-		t.Error("shoud be error")
-	}
-
+	t.Log(status)
 }

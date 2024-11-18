@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -310,56 +311,8 @@ func MatchUserGroup(user User, server Server) bool {
 	return false
 }
 
-// 对用户，策略，服务器，动作做权限判断
-// onlyIp 用来兼容策略对上传下载的判断，因为上传下载信息只会有 IP 信息。
-func MatchPolicy(user User, inPutAction Action, server Server, dbPolicies []Policy, onlyIp bool) bool {
-
-	if !Conf.WithDB.Enable {
-		// 没有启用数据库策略的直接通过
-		log.Debugf("db is not enable, allow all")
-		return true
-	}
-	log.Debugf("systemPolicyCheck for user: %s", tea.Prettify(user))
-	if systemPolicyCheck(user, server) {
-		log.Debugf("system policy allow for user: %s", *user.Username)
-		return true
-	}
-
-	isOK := false
-	for _, dbPolicy := range dbPolicies {
-		if !dbPolicy.IsEnabled {
-			log.Debugf("policy %s is disabled", dbPolicy.Name)
-			continue
-		}
-		// 策略失效也直接 pass
-		if dbPolicy.ExpiresAt.Before(time.Now()) {
-			log.Debugf("policy %s is expired", dbPolicy.Name)
-			continue
-		}
-
-		// 数据库查 policy的时候已经过滤了非当前用户的情况
-		// if !dbPolicy.Users.Contains(*user.Username) {
-		// 	log.Debugf("policy %s is not for user %s", dbPolicy.Name, *user.Username)
-		// 	continue
-		// }
-		allow := policyCheck(inPutAction, server, dbPolicy, onlyIp)
-
-		if allow == nil {
-			continue
-		}
-		if !*allow {
-			// 找到拒绝的策略直接拒绝
-			log.Infof("deny policy got! %s '%s', stop check other policy", dbPolicy.ID, dbPolicy.Name)
-			return false
-		}
-		// 找到允许的策略继续多策略校验
-		isOK = true
-	}
-	return isOK
-}
-
 // System level
-func systemPolicyCheck(user User, server Server) bool {
+func SystemPolicyCheck(user User, server Server) bool {
 	if user.Groups.Contains("admin") {
 		log.Debugf("admin allow")
 		return true
@@ -378,7 +331,7 @@ func systemPolicyCheck(user User, server Server) bool {
 }
 
 // Admin level check, only find ok, default deny
-func policyCheck(inPutAction Action, server Server, policy Policy, onlyIp bool) *bool {
+func PolicyCheck(inPutAction Action, server Server, policy Policy, onlyIp bool) *bool {
 	if policy.ServerFilterV1 == nil {
 		log.Debugf("ServerFilterV1 is nil")
 		return nil
@@ -407,4 +360,15 @@ func policyCheck(inPutAction Action, server Server, policy Policy, onlyIp bool) 
 // todo:判断策略属于审批的那个单子
 func FmtDingtalkApproveFile(envType []string) string {
 	return "prod"
+}
+
+func ExtractIP(input string) (string, error) {
+	// 定义正则表达式模式
+	re := regexp.MustCompile(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`)
+	// 查找匹配的字符串
+	match := re.FindString(input)
+	if match == "" {
+		return "", fmt.Errorf("no IP address found in input")
+	}
+	return match, nil
 }

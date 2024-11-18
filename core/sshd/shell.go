@@ -1,4 +1,4 @@
-package instance
+package sshd
 
 import (
 	"fmt"
@@ -10,7 +10,6 @@ import (
 	"github.com/robfig/cron"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/dingtalk"
-	"github.com/xops-infra/jms/core/sshd"
 	. "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
 )
@@ -140,7 +139,7 @@ func runShell(server Server, task ShellTask) error {
 	}
 
 	sshUser := server.SSHUsers[0]
-	proxyClient, client, err := sshd.NewSSHClient(server, sshUser)
+	proxyClient, client, err := NewSSHClient(server, sshUser)
 	if err != nil {
 		req.IsSuccess = tea.Bool(false)
 		req.Output = tea.String(err.Error())

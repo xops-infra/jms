@@ -1,4 +1,4 @@
-package instance
+package io
 
 import (
 	"strings"
@@ -6,15 +6,23 @@ import (
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
-	"github.com/xops-infra/noop/log"
-
 	"github.com/xops-infra/jms/app"
 	. "github.com/xops-infra/jms/model"
+	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
+	"github.com/xops-infra/noop/log"
 )
 
-// 支持数据库和配置文件两种方式获取 KEY以及 Profile.
-func LoadServer(conf *Config) {
+type InstanceIO struct {
+	mcsS model.CommonContract
+}
+
+func NewInstance(m model.CommonContract) *InstanceIO {
+	return &InstanceIO{
+		mcsS: m,
+	}
+}
+
+func (i *InstanceIO) LoadServer(conf *Config) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorf("LoadServer panic: %v", err)
@@ -36,7 +44,7 @@ func LoadServer(conf *Config) {
 				log.Debugf("get instances profile: %s region: %s", *profile.Name, region)
 				input := model.InstanceFilter{}
 				for {
-					resps, err := app.App.McsServer.DescribeInstances(*profile.Name, region, input)
+					resps, err := i.mcsS.DescribeInstances(*profile.Name, region, input)
 					if err != nil {
 						log.Errorf("%s %s DescribeInstances error: %v", *profile.Name, region, err)
 						break

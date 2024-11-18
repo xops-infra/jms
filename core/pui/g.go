@@ -13,24 +13,27 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/sshd"
+	"github.com/xops-infra/jms/io"
 	. "github.com/xops-infra/jms/model"
 )
 
 // PUI pui
 type PUI struct {
 	sess       *ssh.Session
+	p          *io.PolicyIO
 	timeOut    time.Duration
 	lastActive time.Time // 最后活跃时间
 	isLogout   bool      // 主动退出的标记
 	menuItem   []MenuItem
 }
 
-func NewPui(s *ssh.Session, timeout time.Duration) *PUI {
+func NewPui(p *io.PolicyIO, s *ssh.Session, timeout time.Duration) *PUI {
 	return &PUI{
 		sess:       s,
 		timeOut:    timeout,
 		lastActive: time.Now(),
 		isLogout:   false,
+		p:          p,
 	}
 }
 
@@ -111,7 +114,7 @@ loopMenu:
 				sshd.ErrorInfo(err, ui.sess)
 				break loopMenu
 			}
-			_menus, err := GetServersMenuV2(ui.sess, user)
+			_menus, err := GetServersMenuV2(ui.p, ui.sess, user)
 			if err != nil {
 				sshd.ErrorInfo(err, ui.sess)
 				break loopMenu

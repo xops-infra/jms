@@ -14,12 +14,12 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/dingtalk"
-	"github.com/xops-infra/jms/core/instance"
 	"github.com/xops-infra/jms/core/sshd"
+	"github.com/xops-infra/jms/io"
 	. "github.com/xops-infra/jms/model"
 )
 
-func GetServersMenuV2(sess *ssh.Session, user User) (map[string]MenuItem, error) {
+func GetServersMenuV2(p *io.PolicyIO, sess *ssh.Session, user User) (map[string]MenuItem, error) {
 	menu := make(map[string]MenuItem, 0)
 	// servers := app.GetServers()
 	matchPolicies := app.GetUserPolicys(user)
@@ -54,7 +54,7 @@ func GetServersMenuV2(sess *ssh.Session, user User) (map[string]MenuItem, error)
 			GetSubMenu:   GetServerSSHUsersMenu(server, matchPolicies),
 		}
 		// 判断机器权限进入不同菜单
-		if !MatchPolicy(user, Connect, server, matchPolicies, false) {
+		if !p.MatchPolicy(user, Connect, server, matchPolicies, false) {
 			subMenu.Label = fmt.Sprintf("%s\t[x]\t%s\t%s", server.ID, server.Host, server.Name)
 			subMenu.SubMenuTitle = SelectServer
 			subMenu.GetSubMenu = getServerApproveMenu(server)
@@ -303,7 +303,7 @@ func getSureApplyMenu(serverFilter ServerFilterV1, actions ArrayString, expiredD
 				sshd.Info(fmt.Sprintf("审批ID:%s，创建成功！等待管理员审核。", policyId), sess)
 				if adminMessage != "" {
 					// TODO: 发送钉钉消息
-					instance.SendMessage(app.App.Config.WithSSHCheck.Alert.RobotToken,
+					sshd.SendMessage(app.App.Config.WithSSHCheck.Alert.RobotToken,
 						adminMessage)
 				}
 				return true, nil

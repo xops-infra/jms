@@ -7,6 +7,7 @@ import (
 	"github.com/elfgzp/ssh"
 
 	"github.com/xops-infra/jms/core/pui"
+	"github.com/xops-infra/jms/io"
 	"github.com/xops-infra/noop/log"
 )
 
@@ -15,9 +16,9 @@ type Service struct {
 	persionUI *pui.PUI
 }
 
-func NewSession(sess *ssh.Session, timeout time.Duration) *Service {
+func NewSession(p *io.PolicyIO, sess *ssh.Session, timeout time.Duration) *Service {
 	return &Service{
-		persionUI: pui.NewPui(sess, timeout),
+		persionUI: pui.NewPui(p, sess, timeout),
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,6 +17,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/xops-infra/jms/app"
+	. "github.com/xops-infra/jms/io"
 	. "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
@@ -85,7 +85,7 @@ func (r *response) GetMessage() string {
 }
 
 // ExecuteSCP ExecuteSCP
-func ExecuteSCP(args []string, clientSess *ssh.Session) error {
+func ExecuteSCP(p *PolicyIO, args []string, clientSess *ssh.Session) error {
 	defer func() {
 		// 捕捉 panic
 		if err := recover(); err != nil {
@@ -104,7 +104,7 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 			log.Debugf("arg: %s", arg)
 			switch arg {
 			case "-t":
-				err := CheckPermission(args[1], _user, Upload, matchPolicies)
+				err := p.CheckPermission(args[1], _user, Upload, matchPolicies)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -117,7 +117,7 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 				(*clientSess).Close()
 				return nil
 			case "-f":
-				err := CheckPermission(args[1], _user, Download, matchPolicies)
+				err := p.CheckPermission(args[1], _user, Download, matchPolicies)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -133,33 +133,6 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 		}
 	}
 	return errors.New("this feature is not currently supported")
-}
-
-func extractIP(input string) (string, error) {
-	// 定义正则表达式模式
-	re := regexp.MustCompile(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`)
-	// 查找匹配的字符串
-	match := re.FindString(input)
-	if match == "" {
-		return "", fmt.Errorf("no IP address found in input")
-	}
-	return match, nil
-}
-
-// argsWithServer 是 root@10.9.x.x:/data/xx.zip 这一串组合字符，方法内会解析
-func CheckPermission(argsWithServer string, user User, inputAction Action, matchPolicies []Policy) error {
-	serverIP, err := extractIP(argsWithServer)
-	if err != nil {
-		return err
-	}
-
-	// 判断是否有权限
-	if !MatchPolicy(user, inputAction, Server{
-		Host: serverIP,
-	}, matchPolicies, true) {
-		return fmt.Errorf("user: %s has no permission to %s server: %s", *user.Username, inputAction, serverIP)
-	}
-	return nil
 }
 
 func copyToServer(args []string, clientSess *ssh.Session) error {
