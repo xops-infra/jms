@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/robfig/cron"
 	"github.com/spf13/cobra"
 	"github.com/xops-infra/noop/log"
 
 	"github.com/google/gops/agent"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/api"
+	"github.com/xops-infra/jms/core/dingtalk"
 	appConfig "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
@@ -57,15 +59,40 @@ var apiCmd = &cobra.Command{
 		// init app
 		_app := app.NewApiApplication(debug)
 
-		if !app.App.Config.WithDB.Enable {
-			panic("请配置 withDB")
+		if app.App.Config.WithSSHCheck.Enable {
+			log.Infof("enable dingtalk")
+			_app.WithRobot()
+		}
+
+		if app.App.Config.WithDB.Enable {
+			_app.WithDB(true)
+			log.Infof("enable db")
 		}
 
 		if app.App.Config.WithDingtalk.Enable {
 			log.Infof("enable dingtalk")
 			_app.WithDingTalk()
+			if !app.App.Config.WithDB.Enable {
+				app.App.Config.WithDingtalk.Enable = false
+				log.Warnf("dingtalk enable but db not enable, disable dingtalk")
+			} else {
+				log.Infof("enable api dingtalk Approve")
+			}
 		}
-		_app.WithDB(false)
+
+		app.App.WithMcs()
+
+		go func() {
+			for {
+				app.App.Core.InstanceIO.LoadServer() // 加载服务列表
+				time.Sleep(1 * time.Minute)          // 休眠 1 分钟
+			}
+		}()
+
+		if !debug {
+			// 服务启动后再启动定时任务
+			go startApiScheduler()
+		}
 
 		log.Infof("api server start on port: %d", apiPort)
 		g := api.NewGin()
@@ -87,4 +114,34 @@ func init() {
 	// apiCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	apiCmd.Flags().IntVar(&apiPort, "port", 8013, "api port")
 	apiCmd.Flags().StringVar(&logDir, "log-dir", "/opt/jms/logs/", "log dir")
+}
+
+// debug will not run
+func startApiScheduler() {
+	c := cron.New()
+	time.Sleep(10 * time.Second) // 等待app初始化完成
+
+	if app.App.Config.WithDB.Enable {
+		log.Infof("enabled db config hot update, 2 min check once")
+		// 启用定时热加载数据库配置,每 30s 检查一次
+		c.AddFunc("*/30 * * * * *", func() {
+			app.App.WithMcs()
+		})
+	}
+
+	if app.App.Config.WithDingtalk.Enable {
+		c.AddFunc("0 0 2 * * *", func() {
+			err := dingtalk.LoadUsers()
+			if err != nil {
+				log.Error(err.Error())
+			}
+		})
+		// 定时获取审批列表状态
+		c.AddFunc("0 * * * * *", func() {
+			dingtalk.LoadApproval()
+		})
+	}
+
+	c.Start()
+	select {}
 }

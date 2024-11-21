@@ -235,7 +235,7 @@ func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	// 发送屏幕清理指令
 	// 发送当前时间
 	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
-		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, app.App.InstanceIO.GetServerCount(),
+		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, app.App.JmsDBService.GetServerCount(),
 	))
 	// 发送欢迎信息
 	if broadcast != nil {

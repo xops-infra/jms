@@ -17,9 +17,9 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/jump"
 	"github.com/xops-infra/jms/core/sshd"
+	"github.com/xops-infra/jms/io"
 	appConfig "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
@@ -57,38 +57,18 @@ var sshdCmd = &cobra.Command{
 			_app.WithLdap()
 		}
 
-		if app.App.Config.WithSSHCheck.Enable {
-			log.Infof("enable dingtalk")
-			_app.WithRobot()
-		}
-
-		if app.App.Config.WithDingtalk.Enable {
-			log.Infof("enable dingtalk")
-			_app.WithDingTalk()
-		}
-
 		if app.App.Config.WithDB.Enable {
-			_app.WithDB(true)
+			_app.WithDB(false) // 直管连接
 			log.Infof("enable db")
 		}
 
-		if app.App.Config.WithDingtalk.Enable {
-			if !app.App.Config.WithDB.Enable {
-				app.App.Config.WithDingtalk.Enable = false
-				log.Warnf("dingtalk enable but db not enable, disable dingtalk")
-			} else {
-				log.Infof("enable api dingtalk Approve")
-			}
+		app.App.Sshd.PolicyIO = io.NewPolicy(app.App.JmsDBService)
+		app.App.Sshd.SshdIO = io.NewSshd(app.App.JmsDBService, app.App.Config.LocalServers.ToMapWithHost())
+		app.App.Sshd.KeyIO = io.NewKey(app.App.JmsDBService)
+
+		if !debug {
+			go startSshdScheduler()
 		}
-
-		app.App.WithMcs()
-
-		go func() {
-			for {
-				app.App.InstanceIO.LoadServer() // 加载服务列表
-				time.Sleep(1 * time.Minute)     // 休眠 1 分钟
-			}
-		}()
 
 		ssh.Handle(func(sess ssh.Session) {
 			defer func() {
@@ -108,10 +88,6 @@ var sshdCmd = &cobra.Command{
 
 		log.Infof("starting ssh server on port %d timeout %d...", sshdPort, timeOut)
 
-		if !debug {
-			// 服务启动后再启动定时任务
-			go startScheduler()
-		}
 		err = ssh.ListenAndServe(
 			fmt.Sprintf(":%d", sshdPort),
 			nil,
@@ -151,7 +127,7 @@ func init() {
 
 func passwordAuth(ctx ssh.Context, pass string) bool {
 	if app.App.Config.WithLdap.Enable {
-		err := app.App.Ldap.Login(ctx.User(), pass)
+		err := app.App.Sshd.Ldap.Login(ctx.User(), pass)
 		return err == nil
 	}
 	// 如果启用 policy策略，登录时需要验证用户密码
@@ -267,37 +243,25 @@ func scpHandler(args []string, sess *ssh.Session) {
 	}
 }
 
-// debug will not run
-func startScheduler() {
-	c := cron.New()
-	time.Sleep(10 * time.Second) // 等待app初始化完成
+// 注意任务要做好分布式兼容
+func startSshdScheduler() {
 
-	// c.AddFunc("0 */2 * * * *", func() {
-	// 	instance.LoadServer(app.App.Config)
-	// })
+	c := cron.New()
 
 	if app.App.Config.WithDB.Enable {
-		log.Infof("enabled db config hot update, 2 min check once")
-		// 启用定时热加载数据库配置,每 30s 检查一次
-		c.AddFunc("*/30 * * * * *", func() {
-			app.App.WithMcs()
-		})
-
 		c.AddFunc("0 * * * * *", func() {
-			sshd.ServerShellRun() // 每 1min 检查一次
+			err := sshd.ServerShellRun() // 每 1min 检查一次
+			if err != nil {
+				log.Errorf("server shell run error: %s", err)
+			}
 		})
 	}
 
-	if app.App.Config.WithDingtalk.Enable {
-		c.AddFunc("0 0 2 * * *", func() {
-			err := dingtalk.LoadUsers()
-			if err != nil {
-				log.Error(err.Error())
-			}
-		})
-		// 定时获取审批列表状态
-		c.AddFunc("0 * * * * *", func() {
-			dingtalk.LoadApproval()
+	// 启动检测机器 ssh可连接性并依据配置发送钉钉告警通知
+	if app.App.Config.WithSSHCheck.Enable {
+		log.Infof("with ssh check,5min check once")
+		c.AddFunc("0 */5 * * * *", func() {
+			sshd.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
 		})
 	}
 
@@ -308,14 +272,6 @@ func startScheduler() {
 	c.AddFunc(cron, func() {
 		sshd.AuditLogArchiver()
 	})
-
-	// 启动检测机器 ssh可连接性并依据配置发送钉钉告警通知
-	if app.App.Config.WithSSHCheck.Enable {
-		log.Infof("with ssh check,5min check once")
-		c.AddFunc("0 */5 * * * *", func() {
-			sshd.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
-		})
-	}
 
 	c.Start()
 	select {}

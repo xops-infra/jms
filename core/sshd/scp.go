@@ -101,7 +101,7 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 			log.Debugf("arg: %s", arg)
 			switch arg {
 			case "-t":
-				err := app.App.PolicyIO.CheckPermission(args[1], user, Upload)
+				err := app.App.Sshd.PolicyIO.CheckPermission(args[1], user, Upload)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -114,7 +114,7 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 				(*clientSess).Close()
 				return nil
 			case "-f":
-				err := app.App.PolicyIO.CheckPermission(args[1], user, Download)
+				err := app.App.Sshd.PolicyIO.CheckPermission(args[1], user, Download)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -189,7 +189,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 }
 
 func copyFromServer(args []string, clientSess *ssh.Session) error {
-	sshUser, server, filePath, err := app.App.SshdIO.GetSSHUserAndServerByScpPath(args[1])
+	sshUser, server, filePath, err := app.App.Sshd.SshdIO.GetSSHUserAndServerByScpPath(args[1])
 	if err != nil {
 		return err
 	}
@@ -381,7 +381,7 @@ func checkResponse(r io.Reader) error {
 }
 
 func copyFileToServer(bfReader *bufio.Reader, size int64, filename, filePath string, perm string, clientSess *ssh.Session) error {
-	sshUser, server, filePath, err := app.App.SshdIO.GetSSHUserAndServerByScpPath(filePath)
+	sshUser, server, filePath, err := app.App.Sshd.SshdIO.GetSSHUserAndServerByScpPath(filePath)
 	if err != nil {
 		return err
 	}

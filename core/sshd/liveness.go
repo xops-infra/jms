@@ -39,7 +39,7 @@ func ServerLiveness(dingtalkToken string) {
 		if isIgnore {
 			continue
 		}
-		sshUsers, err := app.App.SshdIO.GetSSHUsersByHost(server.Host, serversMap, keys)
+		sshUsers, err := app.App.Sshd.SshdIO.GetSSHUsersByHost(server.Host, serversMap, keys)
 		if err != nil {
 			log.Errorf("server liveness check error: %s", err)
 			continue
@@ -87,7 +87,7 @@ func ServerLiveness(dingtalkToken string) {
 
 // 发送到群里
 func SendMessage(token, msg string) {
-	err := app.App.RobotClient.SendMessage(context.Background(), &dt.SendMessageRequest{
+	err := app.App.Sshd.RobotClient.SendMessage(context.Background(), &dt.SendMessageRequest{
 		AccessToken: token,
 		MessageContent: dt.MessageContent{
 			MsgType: "text",

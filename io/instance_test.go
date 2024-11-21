@@ -13,5 +13,5 @@ func init() {
 }
 
 func TestServerLiveness(t *testing.T) {
-	app.App.InstanceIO.LoadServer()
+	app.App.Core.InstanceIO.LoadServer()
 }

@@ -10,36 +10,43 @@ import (
 	"github.com/robfig/cron"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/dingtalk"
-	. "github.com/xops-infra/jms/model"
+	"github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
 )
 
 // 查询数据库的批量脚本任务，符合条件后开始执行
-func ServerShellRun() {
+// 具有分布式执行特性
+func ServerShellRun() error {
 	// 查库
 	tasks, err := app.App.JmsDBService.ListShellTask()
 	if err != nil {
-		log.Errorf("list shell task error: %s", err)
+		return err
 	}
+
+	// 初始化准备好要用的服务器列表，认证信息 key列表
 	servers, err := app.App.JmsDBService.LoadServer()
 	if err != nil {
-		log.Errorf("list server error: %s", err)
-		return
+		return err
 	}
+	keys, err := app.App.JmsDBService.InternalLoadKey()
+	if err != nil {
+		return err
+	}
+
 	wg := sync.WaitGroup{}
 	for _, task := range tasks {
 		log.Debugf("shell task: %s", tea.Prettify(task))
-		if task.Status == StatusPending {
+		if task.Status == model.StatusPending {
 			// 状态更新
-			err = app.App.JmsDBService.UpdateShellTaskStatus(task.UUID, StatusRunning, "")
+			err = app.App.JmsDBService.UpdateShellTaskStatus(task.UUID, model.StatusRunning, "")
 			if err != nil {
 				log.Errorf("update shell task status error: %s", err)
 				continue
 			}
 			wg.Add(1)
-			go func(task ShellTask) {
+			go func(task model.ShellTask) {
 				startTime := time.Now()
-				state := StatusSuccess
+				state := model.StatusSuccess
 				result := ""
 				defer func() {
 					log.Debugf("shell task done: %s, state: %s, result: %s", task.UUID, state, result)
@@ -58,7 +65,7 @@ func ServerShellRun() {
 				// 执行
 				log.Infof("shell task start: %s", task.UUID)
 
-				status, err := RunShellTask(task, servers)
+				status, err := RunShellTask(task, servers, keys)
 				if err != nil {
 					log.Errorf("run shell task error: %s", err)
 					state = status
@@ -73,9 +80,10 @@ func ServerShellRun() {
 	}
 	wg.Wait()
 	log.Infof("shell task finished")
+	return nil
 }
 
-func RunShellTask(task ShellTask, servers Servers) (Status, error) {
+func RunShellTask(task model.ShellTask, servers model.Servers, keys []model.AddKeyRequest) (model.Status, error) {
 
 	wg := sync.WaitGroup{}
 
@@ -83,22 +91,26 @@ func RunShellTask(task ShellTask, servers Servers) (Status, error) {
 	totalServer := 0
 
 	for _, server := range servers {
-		if MatchServerByFilter(task.Servers, server, false) {
+		if model.MatchServerByFilter(task.ServerFilter, server, false) {
+			sshUsers, err := app.App.Sshd.SshdIO.GetSSHUsersByHost(server.Host, servers.ToMap(), keys)
+			if err != nil {
+				return model.StatusFailed, fmt.Errorf("get sshuser error: %s", err)
+			}
 			totalServer++
 			wg.Add(1)
 			log.Debugf("shell task: %s, cmd: %s, run on server: %s", task.UUID, task.Shell, server.Host)
-			go func(server Server) {
+			go func(server model.Server, sshUsers []model.SSHUser) {
 				defer func() {
 					wg.Done()
 				}()
 				// 执行
-				if err := runShell(server, task, servers.ToMap()); err != nil {
+				if err := runShell(server, task, sshUsers); err != nil {
 					log.Errorf("server %s run shell error: %s", server.Host, err)
 					faildServers = append(faildServers, server.Host)
 					return
 				}
 				log.Infof("server %s run shell success: %s", server.Host, task.Shell)
-			}(server)
+			}(server, sshUsers)
 		} else {
 			log.Debugf("server %s not match filter", server.Host)
 		}
@@ -107,34 +119,26 @@ func RunShellTask(task ShellTask, servers Servers) (Status, error) {
 
 	if len(faildServers) > 0 {
 		if len(faildServers) == totalServer {
-			return StatusFailed, fmt.Errorf("all servers failed")
+			return model.StatusFailed, fmt.Errorf("all servers failed")
 		}
-		return StatusNotAllSuccess, fmt.Errorf("some servers failed: %s", faildServers)
+		return model.StatusNotAllSuccess, fmt.Errorf("some servers failed: %s", faildServers)
 	}
 
 	if totalServer == 0 {
-		return StatusFailed, fmt.Errorf("not found servers")
+		return model.StatusFailed, fmt.Errorf("not found servers")
 	}
 
-	return StatusSuccess, nil
+	return model.StatusSuccess, nil
 }
 
-func runShell(server Server, task ShellTask, servers map[string]Server) error {
-	req := &CreateShellTaskRecordRequest{
+func runShell(server model.Server, task model.ShellTask, sshUsers []model.SSHUser) error {
+	req := &model.CreateShellTaskRecordRequest{
 		TaskID:     tea.String(task.UUID),
 		TaskName:   tea.String(task.Name),
 		ExecTimes:  tea.Int(task.ExecTimes + 1),
 		ServerName: tea.String(server.Name),
 		ServerIP:   tea.String(server.Host),
 		Shell:      tea.String(task.Shell),
-	}
-
-	// 获取实时 keys
-	keys, err := app.App.JmsDBService.InternalLoadKey()
-	if err != nil {
-		req.IsSuccess = tea.Bool(false)
-		req.Output = tea.String(fmt.Sprintf("get keys error: %s", err.Error()))
-		return err
 	}
 
 	execStartTime := time.Now()
@@ -148,12 +152,6 @@ func runShell(server Server, task ShellTask, servers map[string]Server) error {
 		}
 	}()
 
-	sshUsers, err := app.App.SshdIO.GetSSHUsersByHost(server.Host, servers, keys)
-	if err != nil {
-		req.IsSuccess = tea.Bool(false)
-		req.Output = tea.String(fmt.Sprintf("get ssh user error: %s", err.Error()))
-		return err
-	}
 	for _, sshUser := range sshUsers {
 		// TODO: 支持指定用户执行命令，目前随机选择一个
 		proxyClient, client, err := NewSSHClient(server, sshUser)
@@ -185,13 +183,13 @@ func runShell(server Server, task ShellTask, servers map[string]Server) error {
 }
 
 // corn任务的处理，实现对 corn 的支持，主要就是判断时间对了就修改一下任务状态
-func ServerCronRun() {
+func serverCronRun() {
 	tasks, err := app.App.JmsDBService.ListShellTask()
 	if err != nil {
 		log.Errorf("list shell task error: %s", err)
 	}
 	for _, task := range tasks {
-		if task.Corn == "" || task.Status == StatusRunning {
+		if task.Corn == "" || task.Status == model.StatusRunning {
 			continue
 		}
 		// 校验时间
@@ -199,7 +197,7 @@ func ServerCronRun() {
 			continue
 		}
 		// 更新任务状态
-		err = app.App.JmsDBService.UpdateShellTaskStatus(task.UUID, StatusPending, "system reset pengding cause cron time match")
+		err = app.App.JmsDBService.UpdateShellTaskStatus(task.UUID, model.StatusPending, "system reset pengding cause cron time match")
 		if err != nil {
 			log.Errorf("update shell task status error: %s", err)
 		}

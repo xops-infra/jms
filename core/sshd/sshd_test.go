@@ -32,15 +32,19 @@ func TestRunShellTask(t *testing.T) {
 			Port: 22,
 		},
 	}
+	keys, err := app.App.JmsDBService.InternalLoadKey()
+	if err != nil {
+		t.Error(err)
+	}
 	status, err := sshd.RunShellTask(model.ShellTask{
 		UUID:  "xxxxxx",
 		Shell: "pwd",
 		Name:  "测试脚本",
-		Servers: model.ServerFilterV1{
+		ServerFilter: model.ServerFilterV1{
 			IpAddr: []string{"*"},
 		},
 		Status: model.StatusPending,
-	}, servers)
+	}, servers, keys)
 	if err != nil {
 		t.Error(err)
 	}

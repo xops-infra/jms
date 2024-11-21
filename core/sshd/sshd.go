@@ -186,14 +186,14 @@ func ProxyClient(instance Server, proxy CreateProxyRequest, sshUser SSHUser) (*g
 	} else if proxy.KeyID != nil && *proxy.KeyID != "" {
 		// 走 proxy keyID 去获取认证信息
 		log.Debugf("proxy keyID: %s", *proxy.KeyID)
-		signerProxy, err := app.App.KeyIO.GetSignerByKeyID(*proxy.KeyID)
+		signerProxy, err := app.App.Sshd.KeyIO.GetSignerByKeyID(*proxy.KeyID)
 		if err != nil {
 			return nil, nil, err
 		}
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.PublicKeys(signerProxy))
 	} else if proxy.IdentityFile != nil && *proxy.IdentityFile != "" {
 		// 兼容数据库通过 identityFile 认证, 随后走文件认证
-		signerProxy, err := app.App.KeyIO.GetSignerByIdentityFile(*proxy.IdentityFile)
+		signerProxy, err := app.App.Sshd.KeyIO.GetSignerByIdentityFile(*proxy.IdentityFile)
 		if err != nil {
 			// 走文件认证
 			log.Debugf("proxy identityFile: %s", *proxy.IdentityFile)

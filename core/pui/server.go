@@ -24,7 +24,7 @@ func GetServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
 		sshd.Info(fmt.Sprintf("GetServersMenuV2 cost: %s", time.Since(timeStart)), sess)
 	}()
 	menu := make([]MenuItem, 0)
-	matchPolicies := app.App.PolicyIO.GetUserPolicys((*sess).User())
+	matchPolicies := app.App.Sshd.PolicyIO.GetUserPolicys((*sess).User())
 	sshd.Info(fmt.Sprintf("matchPolicies: %d", len(matchPolicies)), sess)
 	servers, err := app.App.JmsDBService.LoadServer()
 	if err != nil {
@@ -63,7 +63,7 @@ func GetServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
 			GetSubMenu:   GetServerSSHUsersMenu(server, serversMap),
 		}
 		// 判断机器权限进入不同菜单
-		if !app.App.PolicyIO.MatchPolicy(user, Connect, server, matchPolicies, false) {
+		if !app.App.Sshd.PolicyIO.MatchPolicy(user, Connect, server, matchPolicies, false) {
 			subMenu.Label = fmt.Sprintf("%s\t[x]\t%s\t%s", server.ID, server.Host, server.Name)
 			subMenu.SubMenuTitle = SelectServer
 			subMenu.GetSubMenu = getServerApproveMenu(server)
@@ -143,7 +143,7 @@ func GetServerSSHUsersMenu(server Server, serversMap map[string]Server) func(int
 		}
 		// sshd.Info(fmt.Sprintf("all server keys: %d", len(keys)), sess)
 
-		users, err := app.App.SshdIO.GetSSHUsersByHost(server.Host, serversMap, keys)
+		users, err := app.App.Sshd.SshdIO.GetSSHUsersByHost(server.Host, serversMap, keys)
 		if err != nil {
 			log.Errorf("get ssh users error: %s", err)
 			sshd.ErrorInfo(err, sess)

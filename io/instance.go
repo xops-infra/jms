@@ -92,14 +92,6 @@ func (i *InstanceIO) LoadServer() {
 	log.Infof("load server finished cost: %s ", time.Since(startTime))
 }
 
-func (i *InstanceIO) GetServerCount() int {
-	servers, err := i.db.LoadServer()
-	if err != nil {
-		return 0
-	}
-	return len(servers)
-}
-
 func fmtServer(localServers []LocalServer, instances map[string]model.Instance) Servers {
 	var instanceAll Servers
 	for _, instance := range instances {

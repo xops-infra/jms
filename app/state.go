@@ -25,21 +25,28 @@ import (
 
 var App *Application
 
+type Core struct {
+	DingTalkClient *dt.DingTalkClient // 钉钉APP使用审批流
+	InstanceIO     *io.InstanceIO
+}
+
+type Sshd struct {
+	PolicyIO    *io.PolicyIO
+	KeyIO       *io.KeyIO
+	SshdIO      *io.SshdIO
+	RobotClient *dt.RobotClient // 钉钉机器人
+	Ldap        *utils.Ldap
+}
+
 type Application struct {
 	Debug           bool
 	HomeDir, SSHDir string // /opt/jms/
 	Version         string
-	RobotClient     *dt.RobotClient    // 钉钉机器人
-	DingTalkClient  *dt.DingTalkClient // 钉钉APP使用审批流
-	Ldap            *utils.Ldap
 	Config          *model1.Config // 支持数据库和配置文件两种方式载入配置
 	Cache           *cache.Cache
-
-	PolicyIO     *io.PolicyIO
-	KeyIO        *io.KeyIO
-	InstanceIO   *io.InstanceIO
-	SshdIO       *io.SshdIO
-	JmsDBService *db.DBService
+	JmsDBService    *db.DBService
+	Core            Core
+	Sshd            Sshd
 }
 
 // Manager,Agent,Worker need to be initialized
@@ -104,16 +111,12 @@ func (app *Application) WithLdap() *Application {
 	if err != nil {
 		panic(err)
 	}
-	app.Ldap = ldap
+	app.Sshd.Ldap = ldap
 	return app
 }
 
-// withMcs
+// withMcs sdk 查询云服务器
 func (app *Application) WithMcs() *Application {
-
-	App.PolicyIO = io.NewPolicy(App.JmsDBService)
-	App.SshdIO = io.NewSshd(App.JmsDBService, App.Config.LocalServers.ToMapWithHost())
-	App.KeyIO = io.NewKey(App.JmsDBService)
 
 	profiles, err := app.JmsDBService.LoadProfile()
 	if err != nil {
@@ -126,13 +129,13 @@ func (app *Application) WithMcs() *Application {
 	serverAws := mcsIo.NewAwsClient(cloudIo)
 
 	mcsServer := server.NewCommonService(_profiles, serverAws, serverTencent)
-	App.InstanceIO = io.NewInstance(mcsServer, app.JmsDBService, app.Config.LocalServers)
+	App.Core.InstanceIO = io.NewInstance(mcsServer, app.JmsDBService, app.Config.LocalServers)
 	log.Infof("success load mcs")
 	return app
 }
 
 func (app *Application) WithRobot() *Application {
-	app.RobotClient = dt.NewRobotClient()
+	app.Sshd.RobotClient = dt.NewRobotClient()
 	return app
 }
 
@@ -142,7 +145,7 @@ func (app *Application) WithDingTalk() *Application {
 		AppSecret: app.Config.WithDingtalk.AppSecret,
 	})
 	client.WithWorkflowClientV2().WithDepartClient().WithUserClient()
-	app.DingTalkClient = client
+	app.Core.DingTalkClient = client
 	return app
 }
 
