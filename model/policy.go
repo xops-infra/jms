@@ -282,54 +282,6 @@ func MatchServerByFilter(filter ServerFilterV1, server Server, onlyIp bool) bool
 
 }
 
-// Owner和用户一样则有权限
-func MatchPolicyOwner(user User, server Server) bool {
-	if server.Tags.GetOwner() != nil && *server.Tags.GetOwner() == *user.Username {
-		return true
-	}
-	return false
-}
-
-// 用户组一致则有权限
-// admin有所有权限
-func MatchUserGroup(user User, server Server) bool {
-	if user.Groups != nil {
-		if user.Groups.Contains("admin") {
-			return true
-		}
-		if server.Tags.GetTeam() != nil {
-			for _, group := range user.Groups {
-				if *server.Tags.GetTeam() == group {
-					return true
-				}
-			}
-		} else {
-			return false
-		}
-
-	}
-	return false
-}
-
-// System level
-func SystemPolicyCheck(user User, server Server) bool {
-	if user.Groups.Contains("admin") {
-		log.Debugf("admin allow")
-		return true
-	}
-	// 用户组一致则有权限
-	if MatchUserGroup(user, server) {
-		log.Debugf("team allow")
-		return true
-	}
-	// Owner和用户一样则有权限
-	if MatchPolicyOwner(user, server) {
-		log.Debugf("owner allow")
-		return true
-	}
-	return false
-}
-
 // Admin level check, only find ok, default deny
 func PolicyCheck(inPutAction Action, server Server, policy Policy, onlyIp bool) *bool {
 	if policy.ServerFilterV1 == nil {
@@ -371,4 +323,23 @@ func ExtractIP(input string) (string, error) {
 		return "", fmt.Errorf("no IP address found in input")
 	}
 	return match, nil
+}
+
+type PolicyOld struct {
+	ID           string       `json:"id" gorm:"column:id;primary_key;not null"`
+	CreatedAt    time.Time    `json:"created_at" gorm:"column:created_at"`
+	UpdatedAt    time.Time    `json:"updated_at" gorm:"column:updated_at"`
+	IsDeleted    bool         `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
+	Name         string       `json:"name" gorm:"column:name;not null"`
+	Users        ArrayString  `json:"users" gorm:"column:users;type:json;not null"`
+	ServerFilter ServerFilter `json:"server_filter" gorm:"column:server_filter;type:json;not null"`
+	Actions      ArrayString  `json:"actions" gorm:"column:actions;type:json;not null"`
+	ExpiresAt    time.Time    `json:"expires_at" gorm:"column:expires_at;not null"`
+	Approver     string       `json:"approver" gorm:"column:approver"`       // 审批人
+	ApprovalID   string       `json:"approval_id" gorm:"column:approval_id"` // 审批ID
+	IsEnabled    bool         `json:"is_enabled" gorm:"column:is_enabled;default:false;not null"`
+}
+
+func (PolicyOld) TableName() string {
+	return "jms_go_policy"
 }

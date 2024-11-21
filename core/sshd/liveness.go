@@ -14,7 +14,20 @@ import (
 // dingtalkToken 为钉钉机器人的token
 func ServerLiveness(dingtalkToken string) {
 	timeStart := time.Now()
-	for _, server := range app.GetServers() {
+	servers, err := app.App.JmsDBService.LoadServer()
+	if err != nil {
+		log.Errorf("server liveness check error: %s", err)
+		return
+	}
+	serversMap := servers.ToMap()
+	// 获取实时 keys
+	keys, err := app.App.JmsDBService.InternalLoadKey()
+	if err != nil {
+		log.Errorf("server liveness check error: %s", err)
+		return
+	}
+
+	for _, server := range servers {
 		isIgnore := true
 		for _, checkIp := range app.App.Config.WithSSHCheck.IPS {
 			if checkIp == server.Host {
@@ -26,8 +39,13 @@ func ServerLiveness(dingtalkToken string) {
 		if isIgnore {
 			continue
 		}
+		sshUsers, err := app.App.SshdIO.GetSSHUsersByHost(server.Host, serversMap, keys)
+		if err != nil {
+			log.Errorf("server liveness check error: %s", err)
+			continue
+		}
 
-		for _, sshUser := range server.SSHUsers {
+		for _, sshUser := range sshUsers {
 			proxyClient, client, err := NewSSHClient(server, sshUser)
 			if err != nil {
 				_, found := app.App.Cache.Get(server.Host)
@@ -61,6 +79,7 @@ func ServerLiveness(dingtalkToken string) {
 				SendMessage(dingtalkToken, fmt.Sprintf("机器ssh连接已经恢复！\n机器名称：%s\n机器IP：%s\n告警时间：%s\n登录用户：%s", server.Name, server.Host, time.Now().Format(time.RFC3339), sshUser.UserName))
 				app.App.Cache.Delete(server.Host)
 			}
+			break // 只检查一个
 		}
 	}
 	log.Infof("server liveness check done cost: %s", time.Since(timeStart))

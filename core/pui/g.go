@@ -13,27 +13,24 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/sshd"
-	"github.com/xops-infra/jms/io"
 	. "github.com/xops-infra/jms/model"
 )
 
 // PUI pui
 type PUI struct {
 	sess       *ssh.Session
-	p          *io.PolicyIO
 	timeOut    time.Duration
 	lastActive time.Time // 最后活跃时间
 	isLogout   bool      // 主动退出的标记
 	menuItem   []MenuItem
 }
 
-func NewPui(p *io.PolicyIO, s *ssh.Session, timeout time.Duration) *PUI {
+func NewPui(s *ssh.Session, timeout time.Duration) *PUI {
 	return &PUI{
 		sess:       s,
 		timeOut:    timeout,
 		lastActive: time.Now(),
 		isLogout:   false,
-		p:          p,
 	}
 }
 
@@ -109,12 +106,8 @@ loopMenu:
 					ui.menuItem = append(ui.menuItem, GetApproveMenu(policies)...)
 				}
 			}
-			user, err := app.GetUser((*ui.sess).User())
-			if err != nil {
-				sshd.ErrorInfo(err, ui.sess)
-				break loopMenu
-			}
-			_menus, err := GetServersMenuV2(ui.p, ui.sess, user)
+
+			_menus, err := GetServersMenuV2(ui.sess)
 			if err != nil {
 				sshd.ErrorInfo(err, ui.sess)
 				break loopMenu
@@ -132,6 +125,7 @@ loopMenu:
 				sshd.ErrorInfo(err, ui.sess)
 				break loopMenu
 			}
+			// sshd.Info(fmt.Sprintf("过滤: %s", filter), ui.sess)
 			if filter == "^C" {
 				continue
 			}
@@ -238,11 +232,10 @@ loopMenu:
 func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	ui.FlashTimeout()
 	defer ui.SessionWrite("\033c") // clear
-	servers := app.GetServers()
 	// 发送屏幕清理指令
 	// 发送当前时间
 	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
-		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, len(servers),
+		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, app.App.InstanceIO.GetServerCount(),
 	))
 	// 发送欢迎信息
 	if broadcast != nil {

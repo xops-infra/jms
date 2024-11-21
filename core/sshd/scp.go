@@ -17,7 +17,6 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/io"
 	. "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
@@ -85,17 +84,15 @@ func (r *response) GetMessage() string {
 }
 
 // ExecuteSCP ExecuteSCP
-func ExecuteSCP(p *PolicyIO, args []string, clientSess *ssh.Session) error {
+func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 	defer func() {
 		// 捕捉 panic
 		if err := recover(); err != nil {
 			log.Errorf("panic: %v", err)
 		}
 	}()
-	matchPolicies := app.GetUserPolicys(User{
-		Username: tea.String((*clientSess).User()),
-	})
-	_user, err := app.GetUser((*clientSess).User())
+
+	user, err := app.App.JmsDBService.DescribeUser((*clientSess).User())
 	if err != nil {
 		return err
 	}
@@ -104,7 +101,7 @@ func ExecuteSCP(p *PolicyIO, args []string, clientSess *ssh.Session) error {
 			log.Debugf("arg: %s", arg)
 			switch arg {
 			case "-t":
-				err := p.CheckPermission(args[1], _user, Upload, matchPolicies)
+				err := app.App.PolicyIO.CheckPermission(args[1], user, Upload)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -117,7 +114,7 @@ func ExecuteSCP(p *PolicyIO, args []string, clientSess *ssh.Session) error {
 				(*clientSess).Close()
 				return nil
 			case "-f":
-				err := p.CheckPermission(args[1], _user, Download, matchPolicies)
+				err := app.App.PolicyIO.CheckPermission(args[1], user, Download)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -192,7 +189,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 }
 
 func copyFromServer(args []string, clientSess *ssh.Session) error {
-	sshUser, server, filePath, err := parseServerPath(args[1], "", (*clientSess).User())
+	sshUser, server, filePath, err := app.App.SshdIO.GetSSHUserAndServerByScpPath(args[1])
 	if err != nil {
 		return err
 	}
@@ -369,53 +366,6 @@ func copyToClientSession(tmpReader *bufio.Reader, clientSess *ssh.Session, perm,
 	return nil
 }
 
-func parseServerPath(fullPath, filename, currentUsername string) (*SSHUser, *Server, string, error) {
-	servers := app.GetServers()
-	args := strings.SplitN(fullPath, ":", 2)
-	invaildPathErr := errors.New(
-		"Please input your server key before your target path, like 'scp -P 2222 /tmp/tmp.file user@jumpserver:user@server1:/tmp/tmp.file'",
-	)
-
-	if len(args) < 2 {
-		return nil, nil, "", invaildPathErr
-	}
-
-	inputServer, remotePath := args[0], args[1]
-	serverArgs := strings.SplitN(inputServer, "@", 2)
-	if len(serverArgs) < 2 {
-		return nil, nil, "", invaildPathErr
-	}
-
-	sshUsername, host := serverArgs[0], serverArgs[1]
-	if server, ok := ServerListToMap(servers)[host]; ok {
-		if server.Host == "" {
-			return nil, nil, "", fmt.Errorf("server key '%s' of server not found", host)
-		}
-
-		if server.SSHUsers == nil {
-			return nil, nil, "", fmt.Errorf("SSHUsers of server '%s' not found", host)
-		}
-
-		var user *SSHUser
-
-	loop:
-		for _, sshUser := range server.SSHUsers {
-			if (sshUser).UserName == sshUsername {
-				user = &sshUser
-				break loop
-			}
-		}
-
-		if user == nil {
-			return nil, nil, "", fmt.Errorf("SSHUser '%s' of server '%s' not found", sshUsername, host)
-		}
-
-		return user, &server, remotePath, nil
-	} else {
-		return nil, nil, "", fmt.Errorf("server host '%s' not found", host)
-	}
-}
-
 func checkResponse(r io.Reader) error {
 	response, err := parseResponse(r)
 	if err != nil {
@@ -431,7 +381,7 @@ func checkResponse(r io.Reader) error {
 }
 
 func copyFileToServer(bfReader *bufio.Reader, size int64, filename, filePath string, perm string, clientSess *ssh.Session) error {
-	sshUser, server, filePath, err := parseServerPath(filePath, filename, (*clientSess).User())
+	sshUser, server, filePath, err := app.App.SshdIO.GetSSHUserAndServerByScpPath(filePath)
 	if err != nil {
 		return err
 	}

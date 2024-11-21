@@ -18,7 +18,7 @@ var p *io.PolicyIO
 
 func init() {
 	log.Default().WithLevel(log.DebugLevel).WithFilename("/tmp/test.log").Init()
-	p = io.NewPolicy(true)
+	p = io.NewPolicy(nil)
 }
 
 func TestMatchServer(t *testing.T) {
@@ -68,7 +68,6 @@ func TestMatchPolicy(t *testing.T) {
 
 	user := User{
 		Username: tea.String("zhoushoujian"),
-		Groups:   ArrayString{},
 	}
 	inPutAction := Connect
 	server := Server{}
@@ -80,7 +79,6 @@ func TestMatchPolicy(t *testing.T) {
 		ExpiresAt: time.Now().Add(ExpireTimes[OneWeek]),
 	}
 
-	user.Groups = ArrayString{"admin"}
 	{
 		// 测试 admin 组
 		assert.True(t, p.MatchPolicy(user, inPutAction, server, []Policy{
@@ -88,7 +86,6 @@ func TestMatchPolicy(t *testing.T) {
 		}, false))
 	}
 
-	user.Groups = ArrayString{}
 	{
 		// 测试普通用户,IP 匹配
 		policy.ServerFilterV1.IpAddr = []string{"127.0.0.1"}
@@ -204,7 +201,6 @@ func TestMultipolicy(t *testing.T) {
 
 	user := User{
 		Username: tea.String("zhoushoujian"),
-		Groups:   ArrayString{},
 	}
 	inPutAction := Connect
 
@@ -312,9 +308,10 @@ func TestCheckPermission(t *testing.T) {
 		ExpiresAt: time.Now().AddDate(0, 0, 1),
 	}
 
-	user := User{Username: tea.String("zhoushoujian")}
-
-	err := p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Upload, []Policy{policy})
+	user := User{
+		Username: tea.String("zhoushoujian"),
+	}
+	err := p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Upload)
 
 	if err != nil {
 		t.Log("ok", err)
@@ -323,14 +320,14 @@ func TestCheckPermission(t *testing.T) {
 	}
 
 	policy.Actions = DownloadOnly
-	err = p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Upload, []Policy{policy})
+	err = p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Upload)
 	if err != nil {
 		t.Log("ok", err)
 	} else {
 		t.Error("shoud be error")
 	}
 
-	err = p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Download, []Policy{policy})
+	err = p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Download)
 	if err == nil {
 		t.Log("ok", err)
 	} else {
@@ -338,7 +335,7 @@ func TestCheckPermission(t *testing.T) {
 	}
 
 	policy.Actions = UploadOnly
-	err = p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Download, []Policy{policy})
+	err = p.CheckPermission("root@10.9.0.1:/data/xx.zip", user, Download)
 	if err != nil {
 		t.Log("ok", err)
 	} else {

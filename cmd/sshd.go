@@ -20,7 +20,6 @@ import (
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/jump"
 	"github.com/xops-infra/jms/core/sshd"
-	"github.com/xops-infra/jms/io"
 	appConfig "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
@@ -30,9 +29,6 @@ var (
 	timeOut  int // s
 	sshdPort int
 )
-
-var p *io.PolicyIO
-var i *io.InstanceIO
 
 var sshdCmd = &cobra.Command{
 	Use:   "sshd",
@@ -72,9 +68,7 @@ var sshdCmd = &cobra.Command{
 		}
 
 		if app.App.Config.WithDB.Enable {
-			_app.WithDB(!debug)
-			_app.LoadFromDB()        // 加载数据库配置
-			app.SetDBPolicyToCache() // 加载数据库策略
+			_app.WithDB(true)
 			log.Infof("enable db")
 		}
 
@@ -89,14 +83,10 @@ var sshdCmd = &cobra.Command{
 
 		app.App.WithMcs()
 
-		// new IO
-		p = io.NewPolicy(app.App.Config.WithDingtalk.Enable)
-		i = io.NewInstance(app.App.McsServer)
-
 		go func() {
 			for {
-				i.LoadServer(app.App.Config) // 加载服务列表
-				time.Sleep(1 * time.Minute)  // 休眠 1 分钟
+				app.App.InstanceIO.LoadServer() // 加载服务列表
+				time.Sleep(1 * time.Minute)     // 休眠 1 分钟
 			}
 		}()
 
@@ -265,12 +255,12 @@ func execHandler(sess *ssh.Session) {
 }
 
 func sshHandler(sess *ssh.Session) {
-	jps := jump.NewSession(p, sess, time.Duration(timeOut)*time.Second)
+	jps := jump.NewSession(sess, time.Duration(timeOut)*time.Second)
 	jps.Run()
 }
 
 func scpHandler(args []string, sess *ssh.Session) {
-	err := sshd.ExecuteSCP(p, args, sess)
+	err := sshd.ExecuteSCP(args, sess)
 	if err != nil {
 		sshd.ErrorInfo(err, sess)
 		return
@@ -290,15 +280,7 @@ func startScheduler() {
 		log.Infof("enabled db config hot update, 2 min check once")
 		// 启用定时热加载数据库配置,每 30s 检查一次
 		c.AddFunc("*/30 * * * * *", func() {
-			app.App.LoadFromDB()
 			app.App.WithMcs()
-		})
-		// 启用定时热加载数据库策略,每 5s 检查一次
-		c.AddFunc("*/5 * * * * *", func() {
-			err := app.SetDBPolicyToCache()
-			if err != nil {
-				log.Error(err.Error())
-			}
 		})
 
 		c.AddFunc("0 * * * * *", func() {

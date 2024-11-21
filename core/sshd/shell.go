@@ -21,7 +21,11 @@ func ServerShellRun() {
 	if err != nil {
 		log.Errorf("list shell task error: %s", err)
 	}
-	// servers := app.GetServers()
+	servers, err := app.App.JmsDBService.LoadServer()
+	if err != nil {
+		log.Errorf("list server error: %s", err)
+		return
+	}
 	wg := sync.WaitGroup{}
 	for _, task := range tasks {
 		log.Debugf("shell task: %s", tea.Prettify(task))
@@ -53,7 +57,8 @@ func ServerShellRun() {
 
 				// 执行
 				log.Infof("shell task start: %s", task.UUID)
-				status, err := RunShellTask(task, app.GetServers())
+
+				status, err := RunShellTask(task, servers)
 				if err != nil {
 					log.Errorf("run shell task error: %s", err)
 					state = status
@@ -76,6 +81,7 @@ func RunShellTask(task ShellTask, servers Servers) (Status, error) {
 
 	faildServers := []string{}
 	totalServer := 0
+
 	for _, server := range servers {
 		if MatchServerByFilter(task.Servers, server, false) {
 			totalServer++
@@ -86,7 +92,7 @@ func RunShellTask(task ShellTask, servers Servers) (Status, error) {
 					wg.Done()
 				}()
 				// 执行
-				if err := runShell(server, task); err != nil {
+				if err := runShell(server, task, servers.ToMap()); err != nil {
 					log.Errorf("server %s run shell error: %s", server.Host, err)
 					faildServers = append(faildServers, server.Host)
 					return
@@ -113,7 +119,7 @@ func RunShellTask(task ShellTask, servers Servers) (Status, error) {
 	return StatusSuccess, nil
 }
 
-func runShell(server Server, task ShellTask) error {
+func runShell(server Server, task ShellTask, servers map[string]Server) error {
 	req := &CreateShellTaskRecordRequest{
 		TaskID:     tea.String(task.UUID),
 		TaskName:   tea.String(task.Name),
@@ -121,6 +127,14 @@ func runShell(server Server, task ShellTask) error {
 		ServerName: tea.String(server.Name),
 		ServerIP:   tea.String(server.Host),
 		Shell:      tea.String(task.Shell),
+	}
+
+	// 获取实时 keys
+	keys, err := app.App.JmsDBService.InternalLoadKey()
+	if err != nil {
+		req.IsSuccess = tea.Bool(false)
+		req.Output = tea.String(fmt.Sprintf("get keys error: %s", err.Error()))
+		return err
 	}
 
 	execStartTime := time.Now()
@@ -134,33 +148,39 @@ func runShell(server Server, task ShellTask) error {
 		}
 	}()
 
-	if len(server.SSHUsers) == 0 {
-		return fmt.Errorf("server %s has no ssh user", server.Host)
-	}
-
-	sshUser := server.SSHUsers[0]
-	proxyClient, client, err := NewSSHClient(server, sshUser)
+	sshUsers, err := app.App.SshdIO.GetSSHUsersByHost(server.Host, servers, keys)
 	if err != nil {
 		req.IsSuccess = tea.Bool(false)
-		req.Output = tea.String(err.Error())
+		req.Output = tea.String(fmt.Sprintf("get ssh user error: %s", err.Error()))
 		return err
 	}
-	if proxyClient != nil {
-		defer proxyClient.Close()
-	}
-	defer client.Close()
-	sess, _ := client.NewSession()
-	defer sess.Close()
+	for _, sshUser := range sshUsers {
+		// TODO: 支持指定用户执行命令，目前随机选择一个
+		proxyClient, client, err := NewSSHClient(server, sshUser)
+		if err != nil {
+			req.IsSuccess = tea.Bool(false)
+			req.Output = tea.String(err.Error())
+			return err
+		}
+		if proxyClient != nil {
+			defer proxyClient.Close()
+		}
+		defer client.Close()
+		sess, _ := client.NewSession()
+		defer sess.Close()
 
-	// 执行命令
-	info, err := sess.Output(task.Shell)
-	if err != nil {
-		req.IsSuccess = tea.Bool(false)
+		// 执行命令
+		info, err := sess.Output(task.Shell)
+		if err != nil {
+			req.IsSuccess = tea.Bool(false)
+			req.Output = tea.String(string(info))
+			return err
+		}
+		req.IsSuccess = tea.Bool(true)
 		req.Output = tea.String(string(info))
-		return err
+
+		break // 只执行一次
 	}
-	req.IsSuccess = tea.Bool(true)
-	req.Output = tea.String(string(info))
 	return nil
 }
 

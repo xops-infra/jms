@@ -4,8 +4,55 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"time"
+	"sort"
+
+	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 )
+
+// Server server
+type Server struct {
+	ID       string               `gorm:"primaryKey;column:id;not null"`
+	Name     string               `gorm:"column:name"`
+	Host     string               `gorm:"column:host"` // 默认取私有 IP 第一个
+	Port     int                  `gorm:"column:port"`
+	KeyPairs StringSlice          `gorm:"column:key_pairs;type:json"` // key pair name
+	Profile  string               `gorm:"column:profile"`
+	Region   string               `gorm:"column:region"`
+	Tags     model.Tags           `gorm:"column:tags;type:json"`
+	Status   model.InstanceStatus `gorm:"column:status"`
+}
+
+func (s *Server) TableName() string {
+	return "server"
+}
+
+type LocalServer struct {
+	Name   string `mapstructure:"name"`
+	Host   string `mapstructure:"host"`
+	Port   int    `mapstructure:"port"`
+	User   string `mapstructure:"user"`
+	Passwd string `mapstructure:"passwd"`
+	// IdentityFile string `mapstructure:"identity_file"`
+}
+
+type Servers []Server
+
+// 按名称排序
+func (s Servers) SortByName() {
+	sort.Slice(s, func(i, j int) bool {
+		// log.Debugf("%s %s", s[i].Name, s[j].Name)
+		return s[i].Name < s[j].Name
+	})
+}
+
+// toMap
+func (s Servers) ToMap() map[string]Server {
+	res := make(map[string]Server)
+	for _, server := range s {
+		res[server.Host] = server
+	}
+	return res
+}
 
 type ServerFilter struct {
 	Name    *string `json:"name"`     // 名字完全匹配，支持*
@@ -42,23 +89,4 @@ func (a ServerFilter) Value() (driver.Value, error) {
 func (a *ServerFilter) Scan(value interface{}) error {
 	bytesValue, _ := value.([]byte)
 	return json.Unmarshal(bytesValue, a)
-}
-
-type PolicyOld struct {
-	ID           string       `json:"id" gorm:"column:id;primary_key;not null"`
-	CreatedAt    time.Time    `json:"created_at" gorm:"column:created_at"`
-	UpdatedAt    time.Time    `json:"updated_at" gorm:"column:updated_at"`
-	IsDeleted    bool         `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
-	Name         string       `json:"name" gorm:"column:name;not null"`
-	Users        ArrayString  `json:"users" gorm:"column:users;type:json;not null"`
-	ServerFilter ServerFilter `json:"server_filter" gorm:"column:server_filter;type:json;not null"`
-	Actions      ArrayString  `json:"actions" gorm:"column:actions;type:json;not null"`
-	ExpiresAt    time.Time    `json:"expires_at" gorm:"column:expires_at;not null"`
-	Approver     string       `json:"approver" gorm:"column:approver"`       // 审批人
-	ApprovalID   string       `json:"approval_id" gorm:"column:approval_id"` // 审批ID
-	IsEnabled    bool         `json:"is_enabled" gorm:"column:is_enabled;default:false;not null"`
-}
-
-func (PolicyOld) TableName() string {
-	return "jms_go_policy"
 }

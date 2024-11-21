@@ -15,30 +15,39 @@ import (
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/sshd"
-	"github.com/xops-infra/jms/io"
 	. "github.com/xops-infra/jms/model"
 )
 
-func GetServersMenuV2(p *io.PolicyIO, sess *ssh.Session, user User) (map[string]MenuItem, error) {
-	menu := make(map[string]MenuItem, 0)
-	// servers := app.GetServers()
-	matchPolicies := app.GetUserPolicys(user)
+func GetServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
+	timeStart := time.Now()
+	defer func() {
+		sshd.Info(fmt.Sprintf("GetServersMenuV2 cost: %s", time.Since(timeStart)), sess)
+	}()
+	menu := make([]MenuItem, 0)
+	matchPolicies := app.App.PolicyIO.GetUserPolicys((*sess).User())
 	sshd.Info(fmt.Sprintf("matchPolicies: %d", len(matchPolicies)), sess)
-	existServer := map[string]Server{}
-	for _, server := range app.GetServers() {
-		log.Debugf("server: %s", tea.Prettify(server))
-		if _, ok := existServer[server.ID]; ok {
-			log.Warnf("server %s already exist", tea.Prettify(server))
-			continue
-		}
+	servers, err := app.App.JmsDBService.LoadServer()
+	if err != nil {
+		return menu, err
+	}
+	// sshd.Info(fmt.Sprintf("servers: %d", len(servers)), sess)
+	serversMap := servers.ToMap()
+
+	user, err := app.App.JmsDBService.DescribeUser((*sess).User())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, server := range servers {
+
 		info := make(map[string]string, 0)
 		for _, key := range server.KeyPairs {
-			info[serverInfoKey] += " " + *key
+			info[serverInfoKey] += " " + key
 		}
 		info[serverHost] = server.Host
-		for _, sshUser := range server.SSHUsers {
-			info[serverUser] += fmt.Sprintf("%s: %s", sshUser.UserName, sshUser.KeyName)
-		}
+		// for _, sshUser := range sshUsers {
+		// 	info[serverUser] += fmt.Sprintf("%s: %s", sshUser.UserName, sshUser.KeyName)
+		// }
 		log.Debugf("info: %s", tea.Prettify(info))
 
 		// if server.Proxy != nil {
@@ -51,20 +60,16 @@ func GetServersMenuV2(p *io.PolicyIO, sess *ssh.Session, user User) (map[string]
 			Label:        fmt.Sprintf("%s\t[√]\t%s\t%s", server.ID, server.Host, server.Name),
 			Info:         info,
 			SubMenuTitle: fmt.Sprintf("%s '%s'", UserLoginLabel, server.Name),
-			GetSubMenu:   GetServerSSHUsersMenu(server, matchPolicies),
+			GetSubMenu:   GetServerSSHUsersMenu(server, serversMap),
 		}
 		// 判断机器权限进入不同菜单
-		if !p.MatchPolicy(user, Connect, server, matchPolicies, false) {
+		if !app.App.PolicyIO.MatchPolicy(user, Connect, server, matchPolicies, false) {
 			subMenu.Label = fmt.Sprintf("%s\t[x]\t%s\t%s", server.ID, server.Host, server.Name)
 			subMenu.SubMenuTitle = SelectServer
 			subMenu.GetSubMenu = getServerApproveMenu(server)
 		}
-		if _, ok := menu[server.ID]; ok {
-			log.Warnf("server %s already exist", tea.Prettify(server))
-			continue
-		}
-		menu[server.ID] = subMenu
-		log.Debugf("subMenu : %v", subMenu)
+		menu = append(menu, subMenu)
+		log.Debugf("subMenu: %v", tea.Prettify(subMenu))
 	}
 	return menu, nil
 }
@@ -112,26 +117,42 @@ func getApproveSubMenu(policy *Policy) func(int, MenuItem, *ssh.Session, []MenuI
 	}
 }
 
-func sortMenu(menu []MenuItem) []MenuItem {
-	for i := 0; i < len(menu); i++ {
-		for j := i + 1; j < len(menu); j++ {
-			if menu[i].Label > menu[j].Label {
-				menu[i], menu[j] = menu[j], menu[i]
-			}
-		}
-	}
-	return menu
-}
+// func sortMenu(menu []MenuItem) []MenuItem {
+// 	for i := 0; i < len(menu); i++ {
+// 		for j := i + 1; j < len(menu); j++ {
+// 			if menu[i].Label > menu[j].Label {
+// 				menu[i], menu[j] = menu[j], menu[i]
+// 			}
+// 		}
+// 	}
+// 	return menu
+// }
 
 // 判断权限在这里实现
-func GetServerSSHUsersMenu(server Server, matchPolicies []Policy) func(int, MenuItem, *ssh.Session, []MenuItem) []MenuItem {
+func GetServerSSHUsersMenu(server Server, serversMap map[string]Server) func(int, MenuItem, *ssh.Session, []MenuItem) []MenuItem {
 	return func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) []MenuItem {
+
 		var menu []MenuItem
 
-		for _, sshUser := range server.SSHUsers {
+		// 获取实时 keys
+		keys, err := app.App.JmsDBService.InternalLoadKey()
+		if err != nil {
+			log.Errorf("get keys error: %s", err)
+			sshd.ErrorInfo(err, sess)
+			return menu
+		}
+		// sshd.Info(fmt.Sprintf("all server keys: %d", len(keys)), sess)
+
+		users, err := app.App.SshdIO.GetSSHUsersByHost(server.Host, serversMap, keys)
+		if err != nil {
+			log.Errorf("get ssh users error: %s", err)
+			sshd.ErrorInfo(err, sess)
+			return menu
+		}
+
+		for _, sshUser := range users {
 			subMenu := MenuItem{}
 			log.Debugf("server:%s user:%s", server.Host, sshUser.UserName)
-			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUser.KeyName, sshUser.UserName)
 			subMenu.SelectedFunc = func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) (bool, error) {
 				if server.Status != model.InstanceStatusRunning {
 					return false, fmt.Errorf("%s status %s, can not login", server.Host, strings.ToLower(string(server.Status)))
@@ -154,6 +175,7 @@ func GetServerSSHUsersMenu(server Server, matchPolicies []Policy) func(int, Menu
 				}
 				return true, nil
 			}
+			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUser.KeyName, sshUser.UserName)
 			menu = append(menu, subMenu)
 		}
 

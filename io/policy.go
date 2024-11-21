@@ -5,18 +5,19 @@ import (
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/model"
 
 	"github.com/xops-infra/noop/log"
 )
 
 type PolicyIO struct {
-	WithDB bool
+	db *db.DBService
 }
 
-func NewPolicy(withDB bool) *PolicyIO {
+func NewPolicy(db *db.DBService) *PolicyIO {
 	return &PolicyIO{
-		WithDB: withDB,
+		db: db,
 	}
 }
 
@@ -24,14 +25,13 @@ func NewPolicy(withDB bool) *PolicyIO {
 // onlyIp 用来兼容策略对上传下载的判断，因为上传下载信息只会有 IP 信息。
 func (p *PolicyIO) MatchPolicy(user model.User, inPutAction model.Action, server model.Server, dbPolicies []model.Policy, onlyIp bool) bool {
 
-	if !p.WithDB {
+	if p.db == nil {
 		// 没有启用数据库策略的直接通过
 		log.Debugf("db is not enable, allow all")
 		return true
 	}
-	log.Debugf("systemPolicyCheck for user: %s", tea.Prettify(user))
-	if model.SystemPolicyCheck(user, server) {
-		log.Debugf("system policy allow for user: %s", *user.Username)
+	if p.SystemPolicyCheck(user, server) {
+		log.Debugf("system policy allow for user: %s", tea.Prettify(user))
 		return true
 	}
 
@@ -68,18 +68,95 @@ func (p *PolicyIO) MatchPolicy(user model.User, inPutAction model.Action, server
 	return isOK
 }
 
+func (p *PolicyIO) GetUserPolicys(username string) []model.Policy {
+	var matchPolicies []model.Policy
+	if p.db == nil {
+		// 如果没有使用数据库，则默认都可见
+		matchPolicies = append(matchPolicies, model.Policy{
+			Actions:   model.All,
+			IsEnabled: true,
+			Users:     model.ArrayString{username},
+		})
+	} else {
+		policies, err := p.db.QueryAllPolicy()
+		if err != nil {
+			log.Errorf("query all policy error: %s", err)
+			return nil
+		}
+		for _, policy := range policies {
+			if policy.Users.Contains(username) {
+				if policy.IsDeleted || !policy.IsEnabled {
+					continue
+				}
+				// log.Debugf("policy: %s", tea.Prettify(policy))
+				matchPolicies = append(matchPolicies, policy)
+			}
+		}
+	}
+	return matchPolicies
+}
+
 // argsWithServer 是 root@10.9.x.x:/data/xx.zip 这一串组合字符，方法内会解析
-func (p *PolicyIO) CheckPermission(argsWithServer string, user model.User, inputAction model.Action, matchPolicies []model.Policy) error {
+func (p *PolicyIO) CheckPermission(argsWithServer string, user model.User, inputAction model.Action) error {
 	serverIP, err := model.ExtractIP(argsWithServer)
 	if err != nil {
 		return err
 	}
-
+	dbPolicies := p.GetUserPolicys(*user.Username)
 	// 判断是否有权限
 	if !p.MatchPolicy(user, inputAction, model.Server{
 		Host: serverIP,
-	}, matchPolicies, true) {
+	}, dbPolicies, true) {
 		return fmt.Errorf("user: %s has no permission to %s server: %s", *user.Username, inputAction, serverIP)
 	}
 	return nil
+}
+
+// System level
+func (p *PolicyIO) SystemPolicyCheck(user model.User, server model.Server) bool {
+
+	if user.Groups.Contains("admin") {
+		log.Debugf("admin allow")
+		return true
+	}
+	// 用户组一致则有权限
+	if matchUserGroup(user, server) {
+		log.Debugf("team allow")
+		return true
+	}
+	// Owner和用户一样则有权限
+	if matchPolicyOwner(user, server) {
+		log.Debugf("owner allow")
+		return true
+	}
+	return false
+}
+
+// 用户组一致则有权限
+// admin有所有权限
+func matchUserGroup(user model.User, server model.Server) bool {
+	if user.Groups != nil {
+		if user.Groups.Contains("admin") {
+			return true
+		}
+		if server.Tags.GetTeam() != nil {
+			for _, group := range user.Groups {
+				if *server.Tags.GetTeam() == group {
+					return true
+				}
+			}
+		} else {
+			return false
+		}
+
+	}
+	return false
+}
+
+// Owner和用户一样则有权限
+func matchPolicyOwner(user model.User, server model.Server) bool {
+	if server.Tags.GetOwner() != nil && *server.Tags.GetOwner() == *user.Username {
+		return true
+	}
+	return false
 }

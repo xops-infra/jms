@@ -22,25 +22,13 @@ func TestRunShellTask(t *testing.T) {
 	server := model.Server{
 		Host: "192.168.3.233",
 		Name: "test-server",
-		SSHUsers: []model.SSHUser{
-			{
-				UserName: "root",
-				Password: "111111",
-			},
-		},
 		Port: 22,
 	}
 	servers := []model.Server{
 		server,
 		{
-			Host: "192.168.16.239",
-			Name: "test1-server",
-			SSHUsers: []model.SSHUser{
-				{
-					UserName: "root",
-					Password: "xxx",
-				},
-			},
+			Host: "192.168.3.234",
+			Name: "test-server",
 			Port: 22,
 		},
 	}
