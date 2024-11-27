@@ -62,6 +62,17 @@ var sshdCmd = &cobra.Command{
 			log.Infof("enable db")
 		}
 
+		if app.App.Config.WithDingtalk.Enable {
+			log.Infof("enable dingtalk")
+			_app.WithDingTalk()
+			if !app.App.Config.WithDB.Enable {
+				app.App.Config.WithDingtalk.Enable = false
+				log.Warnf("dingtalk enable but db not enable, disable dingtalk")
+			} else {
+				log.Infof("enable api dingtalk Approve")
+			}
+		}
+
 		app.App.Sshd.PolicyIO = io.NewPolicy(app.App.JmsDBService)
 		app.App.Sshd.SshdIO = io.NewSshd(app.App.JmsDBService, app.App.Config.LocalServers.ToMapWithHost())
 		app.App.Sshd.KeyIO = io.NewKey(app.App.JmsDBService)
