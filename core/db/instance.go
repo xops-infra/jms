@@ -14,6 +14,15 @@ func (d *DBService) LoadServer() (model.Servers, error) {
 	return servers, nil
 }
 
+func (d *DBService) GetInstanceByHost(host string) (*model.Server, error) {
+	var server model.Server
+	err := d.DB.Where("host = ?", host).First(&server).Error
+	if err != nil {
+		return nil, err
+	}
+	return &server, nil
+}
+
 // 更新数据库服务器列表，支持删除没有的服务器
 func (d *DBService) UpdateServerWithDelete(newServers []model.Server) error {
 	// Step 1: Load existing servers

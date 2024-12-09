@@ -102,11 +102,15 @@ func (p *PolicyIO) CheckPermission(argsWithServer string, user model.User, input
 	if err != nil {
 		return err
 	}
+	log.Debugf("serverIP: %s", serverIP)
+	// 丰富 server
+	server, err := p.db.GetInstanceByHost(serverIP)
+	if err != nil {
+		return fmt.Errorf("can not find server %s in jms try again later", serverIP)
+	}
 	dbPolicies := p.GetUserPolicys(*user.Username)
 	// 判断是否有权限
-	if !p.MatchPolicy(user, inputAction, model.Server{
-		Host: serverIP,
-	}, dbPolicies, true) {
+	if !p.MatchPolicy(user, inputAction, *server, dbPolicies, true) {
 		return fmt.Errorf("user: %s has no permission to %s server: %s", *user.Username, inputAction, serverIP)
 	}
 	return nil

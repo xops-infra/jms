@@ -63,7 +63,7 @@ type ShellTaskRecord struct {
 	Shell      string `json:"shell" gorm:"column:shell;type:text;not null"`
 	ServerIP   string `json:"server_ip" gorm:"column:server_ip;type:varchar(255);not null"`
 	ServerName string `json:"server_name" gorm:"column:server_name;type:varchar(255);not null"`
-	CostTime   string `json:"cost_time" gorm:"column:cost_time;type:varchar(255);not null"`
+	CostTime   string `json:"cost_time" gorm:"column:cost_time;type:varchar(255);not null;default:''"`
 	Output     string `json:"output" gorm:"column:output;type:text;not null"`
 	IsSuccess  bool   `json:"is_success" gorm:"column:is_success;type:boolean;not null"`
 }
