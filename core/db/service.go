@@ -21,6 +21,13 @@ func NewJmsDbService(db *gorm.DB) *DBService {
 	}
 }
 
+// getServerCount
+func (d *DBService) GetServerCount() int {
+	var count int64
+	d.DB.Model(&Server{}).Count(&count)
+	return int(count)
+}
+
 func (d *DBService) NeedApprove(username string) ([]*Policy, error) {
 	// 是否 admin组，且有需要审批的策略
 	var policies []*Policy

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -92,10 +91,8 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 			log.Errorf("panic: %v", err)
 		}
 	}()
-	matchPolicies := app.GetUserPolicys(User{
-		Username: tea.String((*clientSess).User()),
-	})
-	_user, err := app.GetUser((*clientSess).User())
+
+	user, err := app.App.JmsDBService.DescribeUser((*clientSess).User())
 	if err != nil {
 		return err
 	}
@@ -104,7 +101,7 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 			log.Debugf("arg: %s", arg)
 			switch arg {
 			case "-t":
-				err := CheckPermission(args[1], _user, Upload, matchPolicies)
+				err := app.App.Sshd.PolicyIO.CheckPermission(args[1], user, Upload)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -117,7 +114,7 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 				(*clientSess).Close()
 				return nil
 			case "-f":
-				err := CheckPermission(args[1], _user, Download, matchPolicies)
+				err := app.App.Sshd.PolicyIO.CheckPermission(args[1], user, Download)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -133,33 +130,6 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 		}
 	}
 	return errors.New("this feature is not currently supported")
-}
-
-func extractIP(input string) (string, error) {
-	// 定义正则表达式模式
-	re := regexp.MustCompile(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`)
-	// 查找匹配的字符串
-	match := re.FindString(input)
-	if match == "" {
-		return "", fmt.Errorf("no IP address found in input")
-	}
-	return match, nil
-}
-
-// argsWithServer 是 root@10.9.x.x:/data/xx.zip 这一串组合字符，方法内会解析
-func CheckPermission(argsWithServer string, user User, inputAction Action, matchPolicies []Policy) error {
-	serverIP, err := extractIP(argsWithServer)
-	if err != nil {
-		return err
-	}
-
-	// 判断是否有权限
-	if !MatchPolicy(user, inputAction, Server{
-		Host: serverIP,
-	}, matchPolicies) {
-		return fmt.Errorf("user: %s has no permission to %s server: %s", *user.Username, inputAction, serverIP)
-	}
-	return nil
 }
 
 func copyToServer(args []string, clientSess *ssh.Session) error {
@@ -219,7 +189,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 }
 
 func copyFromServer(args []string, clientSess *ssh.Session) error {
-	sshUser, server, filePath, err := parseServerPath(args[1], "", (*clientSess).User())
+	sshUser, server, filePath, err := app.App.Sshd.SshdIO.GetSSHUserAndServerByScpPath(args[1])
 	if err != nil {
 		return err
 	}
@@ -396,53 +366,6 @@ func copyToClientSession(tmpReader *bufio.Reader, clientSess *ssh.Session, perm,
 	return nil
 }
 
-func parseServerPath(fullPath, filename, currentUsername string) (*SSHUser, *Server, string, error) {
-	servers := app.GetServers()
-	args := strings.SplitN(fullPath, ":", 2)
-	invaildPathErr := errors.New(
-		"Please input your server key before your target path, like 'scp -P 2222 /tmp/tmp.file user@jumpserver:user@server1:/tmp/tmp.file'",
-	)
-
-	if len(args) < 2 {
-		return nil, nil, "", invaildPathErr
-	}
-
-	inputServer, remotePath := args[0], args[1]
-	serverArgs := strings.SplitN(inputServer, "@", 2)
-	if len(serverArgs) < 2 {
-		return nil, nil, "", invaildPathErr
-	}
-
-	sshUsername, host := serverArgs[0], serverArgs[1]
-	if server, ok := ServerListToMap(servers)[host]; ok {
-		if server.Host == "" {
-			return nil, nil, "", fmt.Errorf("server key '%s' of server not found", host)
-		}
-
-		if server.SSHUsers == nil {
-			return nil, nil, "", fmt.Errorf("SSHUsers of server '%s' not found", host)
-		}
-
-		var user *SSHUser
-
-	loop:
-		for _, sshUser := range server.SSHUsers {
-			if (sshUser).UserName == sshUsername {
-				user = &sshUser
-				break loop
-			}
-		}
-
-		if user == nil {
-			return nil, nil, "", fmt.Errorf("SSHUser '%s' of server '%s' not found", sshUsername, host)
-		}
-
-		return user, &server, remotePath, nil
-	} else {
-		return nil, nil, "", fmt.Errorf("server host '%s' not found", host)
-	}
-}
-
 func checkResponse(r io.Reader) error {
 	response, err := parseResponse(r)
 	if err != nil {
@@ -458,7 +381,7 @@ func checkResponse(r io.Reader) error {
 }
 
 func copyFileToServer(bfReader *bufio.Reader, size int64, filename, filePath string, perm string, clientSess *ssh.Session) error {
-	sshUser, server, filePath, err := parseServerPath(filePath, filename, (*clientSess).User())
+	sshUser, server, filePath, err := app.App.Sshd.SshdIO.GetSSHUserAndServerByScpPath(filePath)
 	if err != nil {
 		return err
 	}

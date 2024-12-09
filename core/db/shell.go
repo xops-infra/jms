@@ -32,11 +32,11 @@ func (d *DBService) CreateShellTask(req CreateShellTaskRequest) (string, error) 
 		return "", fmt.Errorf("shell task name %s already exists", *req.Name)
 	}
 	task := &ShellTask{
-		UUID:    uuid.New().String(),
-		Name:    *req.Name,
-		Shell:   *req.Shell,
-		Servers: *req.Servers,
-		Status:  StatusPending,
+		UUID:         uuid.New().String(),
+		Name:         *req.Name,
+		Shell:        *req.Shell,
+		ServerFilter: *req.Servers,
+		Status:       StatusPending,
 	}
 	if req.Corn != nil {
 		task.Corn = *req.Corn
@@ -72,7 +72,7 @@ func (d *DBService) UpdateShellTask(uuid string, req *CreateShellTaskRequest) er
 		task.Shell = *req.Shell
 	}
 	if req.Servers != nil {
-		task.Servers = *req.Servers
+		task.ServerFilter = *req.Servers
 	}
 	if req.Corn != nil {
 		task.Corn = *req.Corn

@@ -22,17 +22,17 @@ type CreateShellTaskRequest struct {
 }
 
 type ShellTask struct {
-	gorm.Model `json:"-"`
-	IsDeleted  bool           `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
-	UUID       string         `json:"uuid" gorm:"column:uuid;type:varchar(36);unique_index;not null"`
-	Name       string         `json:"name" gorm:"column:name;not null,unique"`
-	Shell      string         `json:"shell" gorm:"column:shell;not null"`
-	Corn       string         `json:"corn" gorm:"column:cron;not null;default:''"`
-	ExecTimes  int            `json:"exec_times" gorm:"column:exec_times;not null;default:0"` // 任务执行次数
-	Status     Status         `json:"status" gorm:"column:status;not null"`
-	ExecResult string         `json:"exec_result" gorm:"column:exec_result;type:text;not null;default:''"` // 任务执行结果信息
-	Servers    ServerFilterV1 `json:"servers" gorm:"column:servers;type:json;not null"`
-	SubmitUser string         `json:"submit_user" gorm:"column:submit_user;not null"` // 直接在token中获取
+	gorm.Model   `json:"-"`
+	IsDeleted    bool           `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
+	UUID         string         `json:"uuid" gorm:"column:uuid;type:varchar(36);unique_index;not null"`
+	Name         string         `json:"name" gorm:"column:name;not null,unique"`
+	Shell        string         `json:"shell" gorm:"column:shell;not null"`
+	Corn         string         `json:"corn" gorm:"column:cron;not null;default:''"`
+	ExecTimes    int            `json:"exec_times" gorm:"column:exec_times;not null;default:0"` // 任务执行次数
+	Status       Status         `json:"status" gorm:"column:status;not null"`
+	ExecResult   string         `json:"exec_result" gorm:"column:exec_result;type:text;not null;default:''"` // 任务执行结果信息
+	ServerFilter ServerFilterV1 `json:"servers" gorm:"column:servers;type:json;not null"`
+	SubmitUser   string         `json:"submit_user" gorm:"column:submit_user;not null"` // 直接在token中获取
 }
 
 func (s *ShellTask) TableName() string {
@@ -63,7 +63,7 @@ type ShellTaskRecord struct {
 	Shell      string `json:"shell" gorm:"column:shell;type:text;not null"`
 	ServerIP   string `json:"server_ip" gorm:"column:server_ip;type:varchar(255);not null"`
 	ServerName string `json:"server_name" gorm:"column:server_name;type:varchar(255);not null"`
-	CostTime   string `json:"cost_time" gorm:"column:cost_time;type:varchar(255);not null"`
+	CostTime   string `json:"cost_time" gorm:"column:cost_time;type:varchar(255);not null;default:''"`
 	Output     string `json:"output" gorm:"column:output;type:text;not null"`
 	IsSuccess  bool   `json:"is_success" gorm:"column:is_success;type:boolean;not null"`
 }

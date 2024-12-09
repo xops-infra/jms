@@ -1,19 +1,79 @@
-apiVersion: apps/v1
-kind: StatefulSet
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
 metadata:
-  name: jms-statefulset
+  name: jms-ssh-claim
 
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 80Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jms-api-svc
+
+spec:
+  ports:
+    - port: 6060
+      targetPort: 6060
+      protocol: TCP
+      name: pprof
+    - port: 8013
+      targetPort: 8013
+      protocol: TCP
+      name: api
+  type: ClusterIP
+  selector:
+    app: jms-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jms-sshd-svc
+
+spec:
+  ports:
+    - port: 22222
+      targetPort: 22222
+      protocol: TCP
+      name: ssh
+    - port: 6060
+      targetPort: 6060
+      protocol: TCP
+      name: pprof
+  type: ClusterIP
+  selector:
+    app: jms-sshd
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jms-config
+
+data:
+  config.yaml: |
+    # 请查看 config.yaml 的配置后在此配置。
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jms-api-deployment
+  labels:
+    app: jms-api
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: jms
-  serviceName: jms
+      app: jms-api
   template:
     metadata:
-      name: jms
       labels:
-        app: jms
+        app: jms-api
     spec:
       containers:
         - name: jms-api
@@ -40,8 +100,32 @@ spec:
             - name: api
               containerPort: 8013
               protocol: TCP
-
-        - name: jms
+      volumes:
+        - name: jms-config-volume
+          configMap:
+            name: jms-config
+        - name: ssh-volume
+          persistentVolumeClaim:
+            claimName: jms-ssh-claim
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jms-sshd-deployment
+  labels:
+    app: jms-sshd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jms-sshd
+  template:
+    metadata:
+      labels:
+        app: jms-sshd
+    spec:
+      containers:
+        - name: jms-sshd
           image: zhoushoujian/jms:latest
           imagePullPolicy: Always
           env:
@@ -54,11 +138,9 @@ spec:
               name: ssh-volume
             - mountPath: /opt/logs/
               name: logs-volume
-              readOnly: false
             - mountPath: /opt/jms/config.yaml
               subPath: config.yaml
               name: jms-config-volume
-              readOnly: true
           resources:
             limits:
               cpu: 1
@@ -71,52 +153,12 @@ spec:
               containerPort: 22222
               protocol: TCP
       volumes:
-        - name: jms-config-volume # 安全原因 configmap.yaml是没有上传的，需要自己去集群修改。
+        - name: jms-config-volume
           configMap:
             name: jms-config
         - name: ssh-volume
           persistentVolumeClaim:
-            claimName: s-ops-jms-ssh-claim
+            claimName: jms-ssh-claim
         - name: logs-volume
           hostPath:
             path: /mnt/logs/jms-tools/
-
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: jms-ssh-claim
-
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 80Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: jms-svc
-
-spec:
-  ports:
-    - port: 22222
-      targetPort: 22222
-      protocol: TCP
-      name: ssh
-    - port: 8013
-      targetPort: 8013
-      protocol: TCP
-      name: api
-  type: NodePort
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: jms-config
-
-data:
-  config.yaml: |
-    # 请查看 config.yaml 的配置后在此配置。

@@ -391,8 +391,6 @@ definitions:
     properties:
       corn:
         type: string
-      cost_time:
-        type: integer
       exec_result:
         description: 任务执行结果信息
         type: string
@@ -842,6 +840,37 @@ paths:
           schema:
             type: string
       summary: 更新策略
+      tags:
+      - Policy
+  /api/v1/policy/permission:
+    get:
+      consumes:
+      - application/json
+      description: 权限校验，提供用户名可以查询该用户拥有的权限
+      parameters:
+      - description: token
+        in: header
+        name: Authorization
+        type: string
+      - description: user
+        in: query
+        name: user
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Policy'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: 权限校验
       tags:
       - Policy
   /api/v1/profile:

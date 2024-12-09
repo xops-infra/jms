@@ -1,6 +1,9 @@
 package model
 
-import "gorm.io/gorm"
+import (
+	mcsModel "github.com/xops-infra/multi-cloud-sdk/pkg/model"
+	"gorm.io/gorm"
+)
 
 type CreateProfileRequest struct {
 	Name    *string     `json:"name"`
@@ -25,4 +28,17 @@ type Profile struct {
 
 func (Profile) TableName() string {
 	return "profile"
+}
+
+func DBProfilesToMcsProfiles(profiles []CreateProfileRequest) []mcsModel.ProfileConfig {
+	var mcsProfiles []mcsModel.ProfileConfig
+	for _, profile := range profiles {
+		mcsProfiles = append(mcsProfiles, mcsModel.ProfileConfig{
+			Name:  *profile.Name,
+			AK:    *profile.AK,
+			SK:    *profile.SK,
+			Cloud: mcsModel.Cloud(*profile.Cloud),
+		})
+	}
+	return mcsProfiles
 }

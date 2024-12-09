@@ -20,6 +20,7 @@ func (d *DBService) InternalLoadKey() ([]model.AddKeyRequest, error) {
 		res = append(res, model.AddKeyRequest{
 			IdentityFile: tea.String(keys[i].KeyName),
 			PemBase64:    tea.String(keys[i].PemBase64),
+			UserName:     tea.String(keys[i].UserName),
 			KeyID:        tea.String(keys[i].KeyID),
 			Profile:      tea.String(keys[i].Profile),
 		})
@@ -59,6 +60,7 @@ func (d *DBService) AddKey(req model.AddKeyRequest) (string, error) {
 		UUID:      uuid.NewString(),
 		KeyID:     tea.StringValue(req.KeyID),
 		KeyName:   tea.StringValue(req.IdentityFile),
+		UserName:  tea.StringValue(req.UserName),
 		Profile:   tea.StringValue(req.Profile),
 		PemBase64: tea.StringValue(req.PemBase64),
 	}

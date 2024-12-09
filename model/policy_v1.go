@@ -25,7 +25,7 @@ type Policy struct {
 	Name           string          `json:"name" gorm:"column:name;not null"`
 	Users          ArrayString     `json:"users" gorm:"column:users;type:json;not null"`
 	ServerFilterV1 *ServerFilterV1 `json:"server_filter_v1" gorm:"column:server_filter_v1;type:json;"`
-	ServerFilter   *ServerFilter   `json:"server_filter" gorm:"clumn:server_filter;type:json;"`
+	ServerFilter   *ServerFilter   `json:"server_filter" gorm:"column:server_filter;type:json;"`
 	Actions        ArrayString     `json:"actions" gorm:"column:actions;type:json;not null"`
 	ExpiresAt      time.Time       `json:"expires_at" gorm:"column:expires_at;not null"`
 	Approver       string          `json:"approver" gorm:"column:approver"`       // 审批人

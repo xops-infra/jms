@@ -1,7 +1,6 @@
 package db_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -17,16 +16,4 @@ func TestListProxy(t *testing.T) {
 		return
 	}
 	log.Infof(tea.Prettify(proxies))
-}
-
-// TEST AddProxy
-func TestAddProxy(t *testing.T) {
-	for _, proxy := range app.App.Config.Proxys {
-		fmt.Println(tea.Prettify(proxy))
-		_, err := app.App.JmsDBService.CreateProxy(proxy)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-	}
 }

@@ -44,6 +44,7 @@ func addShellTask(c *gin.Context) {
 	}
 	id, err := app.App.JmsDBService.CreateShellTask(req)
 	if err != nil {
+		log.Errorf("create shell task error: %s", err)
 		c.String(500, err.Error())
 		return
 	}

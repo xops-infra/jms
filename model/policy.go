@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -190,7 +191,7 @@ func stringMatch(std, judge string) bool {
 
 // 匹配服务器和过滤条件是否符合
 // 支持多维度的并联匹配，ServerFilterV1如果属性没有为nil，则要进行联合匹配
-func MatchServerByFilter(filter ServerFilterV1, server Server) bool {
+func MatchServerByFilter(filter ServerFilterV1, server Server, onlyIp bool) bool {
 	log.Debugf("filter:%s", tea.Prettify(filter))
 	log.Debugf("server:%s", tea.Prettify(server))
 
@@ -265,115 +266,29 @@ func MatchServerByFilter(filter ServerFilterV1, server Server) bool {
 		IsMatchKV = true
 	}
 
-	if IsMatchName && IsMatchIP && IsMatchEnvType && IsMatchTeam && IsMatchKV {
-		return true
-	}
-
-	return false
-}
-
-// Owner和用户一样则有权限
-func MatchPolicyOwner(user User, server Server) bool {
-	if server.Tags.GetOwner() != nil && *server.Tags.GetOwner() == *user.Username {
-		return true
-	}
-	return false
-}
-
-// 用户组一致则有权限
-// admin有所有权限
-func MatchUserGroup(user User, server Server) bool {
-	if user.Groups != nil {
-		if user.Groups.Contains("admin") {
+	if onlyIp {
+		if IsMatchIP {
 			return true
-		}
-		if server.Tags.GetTeam() != nil {
-			for _, group := range user.Groups {
-				if *server.Tags.GetTeam() == group {
-					return true
-				}
-			}
 		} else {
 			return false
 		}
-
-	}
-	return false
-}
-
-// 对用户，策略，服务器，动作做权限判断
-func MatchPolicy(user User, inPutAction Action, server Server, dbPolicies []Policy) bool {
-
-	if !Conf.WithDB.Enable {
-		// 没有启用数据库策略的直接通过
-		log.Debugf("db is not enable, allow all")
-		return true
-	}
-	log.Debugf("systemPolicyCheck for user: %s", tea.Prettify(user))
-	if systemPolicyCheck(user, server) {
-		log.Debugf("system policy allow for user: %s", *user.Username)
-		return true
-	}
-
-	isOK := false
-	for _, dbPolicy := range dbPolicies {
-		if !dbPolicy.IsEnabled {
-			log.Debugf("policy %s is disabled", dbPolicy.Name)
-			continue
-		}
-		// 策略失效也直接 pass
-		if dbPolicy.ExpiresAt.Before(time.Now()) {
-			log.Debugf("policy %s is expired", dbPolicy.Name)
-			continue
+	} else {
+		if IsMatchName && IsMatchIP && IsMatchEnvType && IsMatchTeam && IsMatchKV {
+			return true
 		}
 
-		// 数据库查 policy的时候已经过滤了非当前用户的情况
-		// if !dbPolicy.Users.Contains(*user.Username) {
-		// 	log.Debugf("policy %s is not for user %s", dbPolicy.Name, *user.Username)
-		// 	continue
-		// }
-		allow := policyCheck(inPutAction, server, dbPolicy)
+		return false
+	}
 
-		if allow == nil {
-			continue
-		}
-		if !*allow {
-			// 找到拒绝的策略直接拒绝
-			log.Infof("deny policy got! %s '%s', stop check other policy", dbPolicy.ID, dbPolicy.Name)
-			return false
-		}
-		// 找到允许的策略继续多策略校验
-		isOK = true
-	}
-	return isOK
-}
-
-// System level
-func systemPolicyCheck(user User, server Server) bool {
-	if user.Groups.Contains("admin") {
-		log.Debugf("admin allow")
-		return true
-	}
-	// 用户组一致则有权限
-	if MatchUserGroup(user, server) {
-		log.Debugf("team allow")
-		return true
-	}
-	// Owner和用户一样则有权限
-	if MatchPolicyOwner(user, server) {
-		log.Debugf("owner allow")
-		return true
-	}
-	return false
 }
 
 // Admin level check, only find ok, default deny
-func policyCheck(inPutAction Action, server Server, policy Policy) *bool {
+func PolicyCheck(inPutAction Action, server Server, policy Policy, onlyIp bool) *bool {
 	if policy.ServerFilterV1 == nil {
 		log.Debugf("ServerFilterV1 is nil")
 		return nil
 	}
-	if !MatchServerByFilter(*policy.ServerFilterV1, server) {
+	if !MatchServerByFilter(*policy.ServerFilterV1, server, onlyIp) {
 		// 不符合的机器直接跳过
 		log.Debugf("server not match policy ignore %s", tea.Prettify(policy.ServerFilter))
 		return nil
@@ -397,4 +312,34 @@ func policyCheck(inPutAction Action, server Server, policy Policy) *bool {
 // todo:判断策略属于审批的那个单子
 func FmtDingtalkApproveFile(envType []string) string {
 	return "prod"
+}
+
+func ExtractIP(input string) (string, error) {
+	// 定义正则表达式模式
+	re := regexp.MustCompile(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`)
+	// 查找匹配的字符串
+	match := re.FindString(input)
+	if match == "" {
+		return "", fmt.Errorf("no IP address found in input")
+	}
+	return match, nil
+}
+
+type PolicyOld struct {
+	ID           string       `json:"id" gorm:"column:id;primary_key;not null"`
+	CreatedAt    time.Time    `json:"created_at" gorm:"column:created_at"`
+	UpdatedAt    time.Time    `json:"updated_at" gorm:"column:updated_at"`
+	IsDeleted    bool         `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
+	Name         string       `json:"name" gorm:"column:name;not null"`
+	Users        ArrayString  `json:"users" gorm:"column:users;type:json;not null"`
+	ServerFilter ServerFilter `json:"server_filter" gorm:"column:server_filter;type:json;not null"`
+	Actions      ArrayString  `json:"actions" gorm:"column:actions;type:json;not null"`
+	ExpiresAt    time.Time    `json:"expires_at" gorm:"column:expires_at;not null"`
+	Approver     string       `json:"approver" gorm:"column:approver"`       // 审批人
+	ApprovalID   string       `json:"approval_id" gorm:"column:approval_id"` // 审批ID
+	IsEnabled    bool         `json:"is_enabled" gorm:"column:is_enabled;default:false;not null"`
+}
+
+func (PolicyOld) TableName() string {
+	return "jms_go_policy"
 }

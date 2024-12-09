@@ -11,10 +11,10 @@ import (
 	"github.com/patrickmn/go-cache"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/jms/core/db"
+	"github.com/xops-infra/jms/io"
 	model1 "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
-	"github.com/xops-infra/multi-cloud-sdk/pkg/io"
-	mcsModel "github.com/xops-infra/multi-cloud-sdk/pkg/model"
+	mcsIo "github.com/xops-infra/multi-cloud-sdk/pkg/io"
 	server "github.com/xops-infra/multi-cloud-sdk/pkg/service"
 	"github.com/xops-infra/noop/log"
 	"gorm.io/driver/postgres"
@@ -25,18 +25,28 @@ import (
 
 var App *Application
 
+type Core struct {
+	DingTalkClient *dt.DingTalkClient // 钉钉APP使用审批流
+	InstanceIO     *io.InstanceIO
+}
+
+type Sshd struct {
+	PolicyIO    *io.PolicyIO
+	KeyIO       *io.KeyIO
+	SshdIO      *io.SshdIO
+	RobotClient *dt.RobotClient // 钉钉机器人
+	Ldap        *utils.Ldap
+}
+
 type Application struct {
 	Debug           bool
 	HomeDir, SSHDir string // /opt/jms/
 	Version         string
-	RobotClient     *dt.RobotClient    // 钉钉机器人
-	DingTalkClient  *dt.DingTalkClient // 钉钉APP使用审批流
-	Ldap            *utils.Ldap
 	Config          *model1.Config // 支持数据库和配置文件两种方式载入配置
 	Cache           *cache.Cache
-
-	JmsDBService *db.DBService
-	McsServer    mcsModel.CommonContract
+	JmsDBService    *db.DBService
+	Core            Core
+	Sshd            Sshd
 }
 
 // Manager,Agent,Worker need to be initialized
@@ -79,6 +89,7 @@ func NewApp(debug bool, logDir string, version string) *Application {
 	}
 	go http.ListenAndServe(":6060", nil)
 	log.Infof("start pprof on :6060")
+
 	return App
 }
 
@@ -87,6 +98,9 @@ func NewApiApplication(sshd bool) *Application {
 		Debug:  sshd,
 		Config: model1.Conf,
 	}
+	// App.PolicyIO = io.NewPolicy(App.JmsDBService)
+	// App.SshdIO = io.NewSshd(App.JmsDBService, App.Config.LocalServers.ToMapWithHost())
+	// App.KeyIO = io.NewKey(App.JmsDBService)
 
 	return App
 }
@@ -97,26 +111,31 @@ func (app *Application) WithLdap() *Application {
 	if err != nil {
 		panic(err)
 	}
-	app.Ldap = ldap
+	app.Sshd.Ldap = ldap
 	return app
 }
 
-// withMcs
+// withMcs sdk 查询云服务器
 func (app *Application) WithMcs() *Application {
-	if len(App.Config.Profiles) == 0 {
-		panic("请配置 profiles")
+
+	profiles, err := app.JmsDBService.LoadProfile()
+	if err != nil {
+		log.Errorf("load profile error: %s", err)
+		return app
 	}
-	profiles := DBProfilesToMcsProfiles(app.Config.Profiles)
-	cloudIo := io.NewCloudClient(profiles)
-	serverTencent := io.NewTencentClient(cloudIo)
-	serverAws := io.NewAwsClient(cloudIo)
-	App.McsServer = server.NewCommonService(profiles, serverAws, serverTencent)
+	_profiles := model1.DBProfilesToMcsProfiles(profiles)
+	cloudIo := mcsIo.NewCloudClient(_profiles)
+	serverTencent := mcsIo.NewTencentClient(cloudIo)
+	serverAws := mcsIo.NewAwsClient(cloudIo)
+
+	mcsServer := server.NewCommonService(_profiles, serverAws, serverTencent)
+	App.Core.InstanceIO = io.NewInstance(mcsServer, app.JmsDBService, app.Config.LocalServers)
 	log.Infof("success load mcs")
 	return app
 }
 
 func (app *Application) WithRobot() *Application {
-	app.RobotClient = dt.NewRobotClient()
+	app.Sshd.RobotClient = dt.NewRobotClient()
 	return app
 }
 
@@ -126,7 +145,7 @@ func (app *Application) WithDingTalk() *Application {
 		AppSecret: app.Config.WithDingtalk.AppSecret,
 	})
 	client.WithWorkflowClientV2().WithDepartClient().WithUserClient()
-	app.DingTalkClient = client
+	app.Core.DingTalkClient = client
 	return app
 }
 
@@ -168,6 +187,7 @@ func (app *Application) WithDB(migrate bool) *Application {
 			&model1.SSHLoginRecord{}, &model1.ScpRecord{}, // 审计
 			&model1.Broadcast{},
 			&model1.ShellTask{}, &model1.ShellTaskRecord{}, // 定时任务功能
+			&model1.Server{}, // 实例
 		)
 	}
 
@@ -176,41 +196,4 @@ func (app *Application) WithDB(migrate bool) *Application {
 	}
 	App.JmsDBService = db.NewJmsDbService(rdb)
 	return app
-}
-
-// 抽出来在初始化用以及定时热加载数据库
-func (app *Application) LoadFromDB() {
-	log.Debugf("load from db")
-	profiles, err := App.JmsDBService.LoadProfile()
-	if err != nil {
-		panic(err)
-	}
-	App.Config.Profiles = profiles
-	// 支持mcs的动态init，因为 profiles 是动态变化的
-
-	resp, err := App.JmsDBService.InternalLoadKey()
-	if err != nil {
-		log.Panicf("load keys failed: %v", err)
-	}
-	App.Config.Keys = resp
-
-	proxys, err := App.JmsDBService.ListProxy()
-	if err != nil {
-		log.Panicf("load proxy failed: %v", err)
-	}
-	App.Config.Proxys = proxys
-
-}
-
-func DBProfilesToMcsProfiles(profiles []model1.CreateProfileRequest) []mcsModel.ProfileConfig {
-	var mcsProfiles []mcsModel.ProfileConfig
-	for _, profile := range profiles {
-		mcsProfiles = append(mcsProfiles, mcsModel.ProfileConfig{
-			Name:  *profile.Name,
-			AK:    *profile.AK,
-			SK:    *profile.SK,
-			Cloud: mcsModel.Cloud(*profile.Cloud),
-		})
-	}
-	return mcsProfiles
 }

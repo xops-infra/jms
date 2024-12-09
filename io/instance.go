@@ -1,30 +1,49 @@
-package instance
+package io
 
 import (
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/xops-infra/jms/core/db"
+	. "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	"github.com/xops-infra/noop/log"
-
-	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/model"
 )
 
-// 支持数据库和配置文件两种方式获取 KEY以及 Profile.
-func LoadServer(conf *Config) {
+type InstanceIO struct {
+	mcsS         model.CommonContract
+	db           *db.DBService
+	localServers []LocalServer
+}
+
+func NewInstance(m model.CommonContract, db *db.DBService, localServers []LocalServer) *InstanceIO {
+	return &InstanceIO{
+		mcsS: m,
+		db:   db,
+
+		localServers: localServers,
+	}
+}
+
+func (i *InstanceIO) LoadServer() {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorf("LoadServer panic: %v", err)
 		}
 	}()
 
+	// 获取最新的 Profile信息
+	profiles, err := i.db.LoadProfile()
+	if err != nil {
+		log.Errorf("LoadProfile error: %v", err)
+		return
+	}
+
 	mcsServers := make(map[string]model.Instance, 2000)
 	startTime := time.Now()
 	wg := sync.WaitGroup{}
-	for _, profile := range conf.Profiles {
+	for _, profile := range profiles {
 		log.Debugf(tea.Prettify(profile))
 		log.Debugf("profile: %s is enabled: %t", *profile.Name, profile.Enabled)
 		if !profile.Enabled {
@@ -36,7 +55,7 @@ func LoadServer(conf *Config) {
 				log.Debugf("get instances profile: %s region: %s", *profile.Name, region)
 				input := model.InstanceFilter{}
 				for {
-					resps, err := app.App.McsServer.DescribeInstances(*profile.Name, region, input)
+					resps, err := i.mcsS.DescribeInstances(*profile.Name, region, input)
 					if err != nil {
 						log.Errorf("%s %s DescribeInstances error: %v", *profile.Name, region, err)
 						break
@@ -64,11 +83,16 @@ func LoadServer(conf *Config) {
 		}(profile)
 	}
 	wg.Wait()
-	app.SetServers(fmtServer(mcsServers))
+	// 入库
+	err = i.db.UpdateServerWithDelete(fmtServer(i.localServers, mcsServers))
+	if err != nil {
+		log.Errorf("update server error: %v", err)
+		return
+	}
 	log.Infof("load server finished cost: %s ", time.Since(startTime))
 }
 
-func fmtServer(instances map[string]model.Instance) Servers {
+func fmtServer(localServers []LocalServer, instances map[string]model.Instance) Servers {
 	var instanceAll Servers
 	for _, instance := range instances {
 		if instance.Status != model.InstanceStatusRunning {
@@ -76,7 +100,7 @@ func fmtServer(instances map[string]model.Instance) Servers {
 		}
 
 		// 支持一个机器多个 key
-		var keyName []*string
+		var keyName []string
 		if instance.KeyIDs == nil {
 			log.Warnf("instance:%s key is nil", *instance.Name)
 		} else {
@@ -84,8 +108,7 @@ func fmtServer(instances map[string]model.Instance) Servers {
 				if key == nil {
 					continue
 				}
-				// 解决 key大写不识别问题
-				keyName = append(keyName, key)
+				keyName = append(keyName, *key)
 			}
 		}
 
@@ -93,7 +116,6 @@ func fmtServer(instances map[string]model.Instance) Servers {
 			log.Errorf("instance: %s private ip is empty", *instance.Name)
 			continue
 		}
-		sshUser := fmtSuperUser(instance)
 		newInstance := Server{
 			ID:       *instance.InstanceID,
 			Name:     tea.StringValue(instance.Name),
@@ -103,74 +125,22 @@ func fmtServer(instances map[string]model.Instance) Servers {
 			Region:   tea.StringValue(instance.Region),
 			Status:   instance.Status,
 			KeyPairs: keyName,
-			SSHUsers: sshUser,
 			Tags:     *instance.Tags,
 		}
 		instanceAll = append(instanceAll, newInstance)
 	}
+
 	// 载入自己配置服务器
-	for _, server := range app.App.Config.LocalServers {
+	for _, server := range localServers {
 		instanceAll = append(instanceAll, Server{
 			ID:     "local_config",
 			Name:   server.Name,
 			Host:   server.Host,
 			Port:   server.Port,
 			Status: model.InstanceStatusRunning, // 配置加入的默认为running
-			SSHUsers: []SSHUser{
-				{
-					UserName: server.User,
-					Password: server.Passwd,
-				},
-			},
 		})
 	}
 
-	instanceAll.SortByName()
+	// instanceAll.SortByName()
 	return instanceAll
-}
-
-// 通过机器的密钥对 KeyIDs 获取对应的密钥Pem的路径
-func getKeyPairByKeyIDS(keyIDS []*string) []AddKeyRequest {
-	keysAll := make([]AddKeyRequest, 0)
-	configKeys := app.App.Config.Keys.ToMapWithID()
-	for _, keyID := range keyIDS {
-		if keyID == nil {
-			continue
-		}
-		if key, ok := configKeys[*keyID]; ok {
-			keysAll = append(keysAll, key)
-		}
-	}
-	return keysAll
-}
-
-// fmtSuperUser 支持多用户选择
-func fmtSuperUser(instance model.Instance) []SSHUser {
-	keys := getKeyPairByKeyIDS(instance.KeyIDs)
-	var sshUser []SSHUser
-	for _, key := range keys {
-		u := SSHUser{}
-		if key.KeyID == nil {
-			continue
-		}
-		// KeyName 是支持本地读取内容的
-		if key.IdentityFile != nil {
-			u.KeyName = tea.StringValue(key.IdentityFile)
-		}
-		// 支持密钥文件为 base64 的字符串
-		if key.PemBase64 != nil {
-			u.Base64Pem = tea.StringValue(key.PemBase64)
-		}
-
-		if strings.Contains(*instance.Platform, "Ubuntu") {
-			u.UserName = "ubuntu"
-		} else if *instance.Platform == "Linux/UNIX" {
-			u.UserName = "ec2-user"
-		} else {
-			u.UserName = "root"
-		}
-		sshUser = append(sshUser, u)
-	}
-	// log.Debugf("ssh user: %v", sshUser)
-	return sshUser
 }

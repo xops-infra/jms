@@ -3,13 +3,11 @@ package model
 import (
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/robfig/cron"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
-	"github.com/xops-infra/multi-cloud-sdk/pkg/model"
 )
 
 var Conf *Config
@@ -20,16 +18,26 @@ func init() {
 
 // Config config
 type Config struct {
-	Profiles     []CreateProfileRequest `mapstructure:"profiles"` // 云账号配置，用来自动同步云服务器信息
-	Proxys       []CreateProxyRequest   `mapstructure:"proxies"`  // ssh代理
-	Keys         Keys                   `mapstructure:"keys"`
-	LocalServers []LocalServer          `mapstructure:"localServers"` // 支持人工加入的服务器
-	WithVideo    WithVideo              `mapstructure:"withVideo"`    // 视频存储
-	WithLdap     WithLdap               `mapstructure:"withLdap"`     // 配置ldap
-	WithSSHCheck WithSSHCheck           `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
-	WithDB       WithPolicy             `mapstructure:"withDB"`       // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
-	WithDingtalk WithDingtalk           `mapstructure:"withDingtalk"` // 配置钉钉审批流程
-	Broadcast    string                 `mapstructure:"broadcast"`    // 配置广播消息
+	// Profiles     []CreateProfileRequest `mapstructure:"profiles"` // 云账号配置，用来自动同步云服务器信息
+	// Proxys       []CreateProxyRequest `mapstructure:"proxies"` // ssh代理
+	// Keys         Keys         `mapstructure:"keys"`
+	LocalServers LocalServers `mapstructure:"localServers"` // 支持人工加入的服务器
+	WithVideo    WithVideo    `mapstructure:"withVideo"`    // 视频存储
+	WithLdap     WithLdap     `mapstructure:"withLdap"`     // 配置ldap
+	WithSSHCheck WithSSHCheck `mapstructure:"withSSHCheck"` // 配置服务器SSH可连接性告警
+	WithDB       WithPolicy   `mapstructure:"withDB"`       // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
+	WithDingtalk WithDingtalk `mapstructure:"withDingtalk"` // 配置钉钉审批流程
+	Broadcast    string       `mapstructure:"broadcast"`    // 配置广播消息
+}
+
+type LocalServers []LocalServer
+
+func (l LocalServers) ToMapWithHost() map[string]LocalServer {
+	m := make(map[string]LocalServer)
+	for _, server := range l {
+		m[server.Host] = server
+	}
+	return m
 }
 
 type Keys []AddKeyRequest
@@ -163,44 +171,10 @@ func configCheck() {
 // 	PublicKey  string `yaml:"publickey"`
 // }
 
-// Server server
-type Server struct {
-	ID       string
-	Name     string
-	Host     string // 默认取私有 IP 第一个
-	Port     int
-	KeyPairs []*string // key pair name
-	// Proxy    *CreateProxyRequest
-	Profile  string
-	Region   string
-	Tags     model.Tags
-	Status   model.InstanceStatus
-	SSHUsers []SSHUser
-}
-
-type LocalServer struct {
-	Name   string `mapstructure:"name"`
-	Host   string `mapstructure:"host"`
-	Port   int    `mapstructure:"port"`
-	User   string `mapstructure:"user"`
-	Passwd string `mapstructure:"passwd"`
-	// IdentityFile string `mapstructure:"identity_file"`
-}
-
-type Servers []Server
-
-// 按名称排序
-func (s Servers) SortByName() {
-	sort.Slice(s, func(i, j int) bool {
-		// log.Debugf("%s %s", s[i].Name, s[j].Name)
-		return s[i].Name < s[j].Name
-	})
-}
-
 // SSHUser ssh user
 type SSHUser struct {
-	UserName  string
+	UserName  string // 登录用户名 默认为 root
 	KeyName   string // pem file name, 这里是支持本地读取内容的
-	Base64Pem string // base64 pem
+	Base64Pem string // base64 pem，不指定KeyName本地读取可以将本地内容写入这里
 	Password  string
 }
