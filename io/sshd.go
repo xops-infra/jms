@@ -12,10 +12,10 @@ import (
 
 type SshdIO struct {
 	db           *db.DBService
-	localServers map[string]model.LocalServer
+	localServers map[string]model.ServerManual
 }
 
-func NewSshd(db *db.DBService, localServers map[string]model.LocalServer) *SshdIO {
+func NewSshd(db *db.DBService, localServers map[string]model.ServerManual) *SshdIO {
 	return &SshdIO{
 		localServers: localServers,
 		db:           db,
@@ -46,9 +46,18 @@ func (i *SshdIO) GetSSHUserByKeyID(keyID string, keys []model.AddKeyRequest) ([]
 }
 
 // 依据 host获取服务器所有的 sshuser
+// 支持在云上 key，还支持本地配置的 sshuser 通过 IP 匹配；
 func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server, keys []model.AddKeyRequest) ([]model.SSHUser, error) {
 	var newSshUsers []model.SSHUser
 	if server, ok := servers[host]; ok {
+		// 先组装带 passwd的 sshuser
+		if server.Passwd != "" && server.User != "" {
+			newSshUsers = append(newSshUsers, model.SSHUser{
+				KeyName:  "manual_passwd",
+				UserName: server.User,
+				Password: server.Passwd,
+			})
+		}
 		log.Debugf("GetSSHUsersByHost: %s key: %s", host, tea.Prettify(server.KeyPairs))
 		for _, keyID := range server.KeyPairs {
 			sshUsers, err := i.GetSSHUserByKeyID(keyID, keys)
@@ -61,14 +70,14 @@ func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server,
 		log.Errorf("server %s not found in jms", host)
 	}
 
-	// 再去本地配置
-	if server, ok := i.localServers[host]; ok {
-		newSshUsers = append(newSshUsers, model.SSHUser{
-			KeyName:  "local_config",
-			UserName: server.User,
-			Password: server.Passwd,
-		})
-	}
+	// 再去本地配置（不需要了。现在直接在数据库组装 passwd）
+	// if server, ok := i.localServers[host]; ok {
+	// 	newSshUsers = append(newSshUsers, model.SSHUser{
+	// 		KeyName:  "local_config",
+	// 		UserName: server.User,
+	// 		Password: server.Passwd,
+	// 	})
+	// }
 	log.Debugf("newSshUsers for host: %s is %s", host, tea.Prettify(newSshUsers))
 	return newSshUsers, nil
 }

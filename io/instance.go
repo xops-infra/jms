@@ -14,10 +14,10 @@ import (
 type InstanceIO struct {
 	mcsS         model.CommonContract
 	db           *db.DBService
-	localServers []LocalServer
+	localServers []ServerManual
 }
 
-func NewInstance(m model.CommonContract, db *db.DBService, localServers []LocalServer) *InstanceIO {
+func NewInstance(m model.CommonContract, db *db.DBService, localServers []ServerManual) *InstanceIO {
 	return &InstanceIO{
 		mcsS: m,
 		db:   db,
@@ -51,6 +51,7 @@ func (i *InstanceIO) LoadServer() {
 		}
 		wg.Add(1)
 		go func(profile CreateProfileRequest) {
+			defer wg.Done()
 			for _, region := range profile.Regions {
 				log.Debugf("get instances profile: %s region: %s", *profile.Name, region)
 				input := model.InstanceFilter{}
@@ -78,7 +79,6 @@ func (i *InstanceIO) LoadServer() {
 					input.NextMarker = resps.NextMarker
 				}
 			}
-			wg.Done()
 			log.Infof("get instances profile: %s len: %d", *profile.Name, len(mcsServers))
 		}(profile)
 	}
@@ -92,7 +92,7 @@ func (i *InstanceIO) LoadServer() {
 	log.Infof("load server finished cost: %s ", time.Since(startTime))
 }
 
-func fmtServer(localServers []LocalServer, instances map[string]model.Instance) Servers {
+func fmtServer(localServers []ServerManual, instances map[string]model.Instance) Servers {
 	var instanceAll Servers
 	for _, instance := range instances {
 		if instance.Status != model.InstanceStatusRunning {
@@ -133,7 +133,7 @@ func fmtServer(localServers []LocalServer, instances map[string]model.Instance) 
 	// 载入自己配置服务器
 	for _, server := range localServers {
 		instanceAll = append(instanceAll, Server{
-			ID:     "local_config",
+			ID:     server.Host,
 			Name:   server.Name,
 			Host:   server.Host,
 			Port:   server.Port,

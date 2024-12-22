@@ -22,6 +22,7 @@ func init() {
 }
 
 func CreateApproval(applicant string, values []dt.FormComponentValue) (string, error) {
+
 	user, err := app.App.JmsDBService.DescribeUser(applicant)
 	if err != nil {
 		return "", err
@@ -31,6 +32,12 @@ func CreateApproval(applicant string, values []dt.FormComponentValue) (string, e
 		return "", fmt.Errorf("get user %s dingtalkid or dingtalkdeptid failed", applicant)
 	}
 
+	// 主动刷新token
+	err = app.App.Core.DingTalkClient.SetAccessToken()
+	if err != nil {
+		log.Errorf("SetAccessToken failed! %s", err)
+		return "", err
+	}
 	return app.App.Core.DingTalkClient.Workflow.CreateProcessInstance(&dt.CreateProcessInstanceInput{
 		ProcessCode:         app.App.Config.WithDingtalk.ProcessCode,
 		OriginatorUserID:    tea.StringValue(user.DingtalkID),
@@ -137,7 +144,12 @@ func saveDingtalkUsers(users []*dt.UserInfo) error {
 func LoadApproval() {
 	timeStart := time.Now()
 	var successes []string
-	app.App.Core.DingTalkClient.SetAccessToken() // 更新 token
+	err := app.App.Core.DingTalkClient.SetAccessToken() // 更新 token
+	if err != nil {
+		log.Errorf("SetAccessToken failed! %s", err)
+		return
+	}
+	log.Infof("tonkens: %s", app.App.Core.DingTalkClient.AccessToken.Token)
 	// 获取审批列表
 	policies, err := app.App.JmsDBService.QueryAllPolicy()
 	if err != nil {

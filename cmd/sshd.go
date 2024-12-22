@@ -58,7 +58,7 @@ var sshdCmd = &cobra.Command{
 		}
 
 		if app.App.Config.WithDB.Enable {
-			_app.WithDB(false) // 直管连接
+			_app.WithDB(false) // sshd 只管连接，api 才去操作数据库
 			log.Infof("enable db")
 		}
 
