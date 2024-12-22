@@ -1,6 +1,11 @@
 package db
 
-import "github.com/xops-infra/jms/model"
+import (
+	"fmt"
+
+	"github.com/xops-infra/jms/model"
+	"github.com/xops-infra/noop/log"
+)
 
 // 数据库加载服务器
 func (d *DBService) LoadServer() (model.Servers, error) {
@@ -24,6 +29,7 @@ func (d *DBService) GetInstanceByHost(host string) (*model.Server, error) {
 }
 
 // 更新数据库服务器列表，支持删除没有的服务器
+// 注意支持 passwd 字段可以保留
 func (d *DBService) UpdateServerWithDelete(newServers []model.Server) error {
 	// Step 1: Load existing servers
 	var existingServers []model.Server
@@ -32,15 +38,35 @@ func (d *DBService) UpdateServerWithDelete(newServers []model.Server) error {
 		return err
 	}
 
+	var manualPasswdServers model.Servers
+	// find passwd not '' to reset new server
+	err = d.DB.Where("passwd != ''").Find(&manualPasswdServers).Error
+	if err != nil {
+		return err
+	}
+	manualPasswdServersMap := manualPasswdServers.ToMap()
+
 	// Step 2: Build a map of new servers for quick lookup
 	newServerMap := make(map[string]model.Server)
-	for _, server := range newServers {
+	for id, server := range newServers {
+		if manual_server, found := manualPasswdServersMap[server.Host]; found {
+			server.Passwd = manual_server.Passwd
+			server.User = manual_server.User
+			newServers[id] = server
+			log.Infof("reset server from manual passwd: %s", server.Host)
+		}
 		newServerMap[server.Host] = server
 	}
 
 	// Step 3: Find servers to delete
 	for _, existingServer := range existingServers {
 		if _, found := newServerMap[existingServer.Host]; !found {
+			if existingServer.Passwd != "" {
+				// 更新机器 Name 增加 [Offline]$Name 前缀方式 重新加回去
+				existingServer.Name = fmt.Sprintf("[Offline]%s", existingServer.Name)
+				newServers = append(newServers, existingServer)
+				log.Infof("add offline server passwd: %s", existingServer.Host)
+			}
 			// Existing server not in the new list, delete it
 			if err := d.DB.Delete(&existingServer).Error; err != nil {
 				return err

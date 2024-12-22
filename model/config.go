@@ -30,10 +30,10 @@ type Config struct {
 	Broadcast    string       `mapstructure:"broadcast"`    // 配置广播消息
 }
 
-type LocalServers []LocalServer
+type LocalServers []ServerManual
 
-func (l LocalServers) ToMapWithHost() map[string]LocalServer {
-	m := make(map[string]LocalServer)
+func (l LocalServers) ToMapWithHost() map[string]ServerManual {
+	m := make(map[string]ServerManual)
 	for _, server := range l {
 		m[server.Host] = server
 	}
