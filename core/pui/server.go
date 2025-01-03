@@ -18,7 +18,7 @@ import (
 	. "github.com/xops-infra/jms/model"
 )
 
-func GetServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
+func (ui *PUI) getServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
 	timeStart := time.Now()
 	defer func() {
 		sshd.Info(fmt.Sprintf("GetServersMenuV2 cost: %s", time.Since(timeStart)), sess)
@@ -60,7 +60,7 @@ func GetServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
 			Label:        fmt.Sprintf("%s\t[√]\t%s\t%s", server.ID, server.Host, server.Name),
 			Info:         info,
 			SubMenuTitle: fmt.Sprintf("%s '%s'", UserLoginLabel, server.Name),
-			GetSubMenu:   GetServerSSHUsersMenu(server, serversMap),
+			GetSubMenu:   ui.getServerSSHUsersMenu(server, serversMap),
 		}
 		// 判断机器权限进入不同菜单
 		if !app.App.Sshd.PolicyIO.MatchPolicy(user, Connect, server, matchPolicies, false) {
@@ -74,7 +74,7 @@ func GetServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
 	return menu, nil
 }
 
-func GetApproveMenu(policies []*Policy) []MenuItem {
+func getApproveMenu(policies []*Policy) []MenuItem {
 	var menu []MenuItem
 	for _, policy := range policies {
 		menu = append(menu, MenuItem{
@@ -129,7 +129,7 @@ func getApproveSubMenu(policy *Policy) func(int, MenuItem, *ssh.Session, []MenuI
 // }
 
 // 判断权限在这里实现
-func GetServerSSHUsersMenu(server Server, serversMap map[string]Server) func(int, MenuItem, *ssh.Session, []MenuItem) []MenuItem {
+func (ui *PUI) getServerSSHUsersMenu(server Server, serversMap map[string]Server) func(int, MenuItem, *ssh.Session, []MenuItem) []MenuItem {
 	return func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) []MenuItem {
 
 		var menu []MenuItem
@@ -169,10 +169,14 @@ func GetServerSSHUsersMenu(server Server, serversMap map[string]Server) func(int
 						log.Errorf("create ssh login record error: %s", err)
 					}
 				}
+				// 进入的时候标记超时暂停检查
+				ui.pause()
+				defer ui.resume()
 				err := sshd.NewTerminal(server, sshUser, sess)
 				if err != nil {
 					return false, err
 				}
+				// 登录之后就会阻塞在这里，如果主动退出继续执行后续代码
 				return true, nil
 			}
 			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUser.KeyName, sshUser.UserName)

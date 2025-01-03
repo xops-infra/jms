@@ -18,66 +18,73 @@ import (
 
 // PUI pui
 type PUI struct {
-	sess       *ssh.Session
-	timeOut    time.Duration
-	lastActive time.Time // 最后活跃时间
-	isLogout   bool      // 主动退出的标记
-	menuItem   []MenuItem
+	sess             *ssh.Session
+	timeOut          time.Duration
+	stopCheckTimeout bool      // 当用户进入服务器后暂停检测
+	lastActive       time.Time // 最后活跃时间
+	isLogout         bool      // 主动退出的标记
+	menuItem         []MenuItem
 }
 
 func NewPui(s *ssh.Session, timeout time.Duration) *PUI {
 	return &PUI{
-		sess:       s,
-		timeOut:    timeout,
-		lastActive: time.Now(),
-		isLogout:   false,
+		sess:             s,
+		timeOut:          timeout,
+		lastActive:       time.Now(),
+		isLogout:         false,
+		stopCheckTimeout: false,
 	}
 }
 
-func (ui *PUI) SessionWrite(msg string) error {
+func (ui *PUI) sessionWrite(msg string) error {
 	_, err := (*ui.sess).Write([]byte(msg))
 	return err
 }
 
+// pause
+func (ui *PUI) pause() {
+	ui.stopCheckTimeout = true
+}
+
+// resume
+func (ui *PUI) resume() {
+	log.Warnf("resume timeout check")
+	ui.stopCheckTimeout = false
+}
+
 // exit
-func (ui *PUI) Exit() {
-	ui.SessionWrite(fmt.Sprintf(BybLabel, time.Now().Local().Format("2006-01-02 15:04:05")))
+func (ui *PUI) exit() {
+	ui.sessionWrite(fmt.Sprintf(BybLabel, time.Now().Local().Format("2006-01-02 15:04:05")))
 	ui.isLogout = true
-	err := (*ui.sess).Close()
-	if err == nil {
-		log.Infof("User %s form %s exit", (*ui.sess).User(), (*ui.sess).RemoteAddr().String())
-	}
 	ui = nil
 }
 
-// 判断是否超时
-func (ui *PUI) IsTimeout() bool {
-	_, found := app.App.Cache.Get((*ui.sess).RemoteAddr().String())
-	// log.Debugf("remote addr: %s, found: %v", (*ui.sess).RemoteAddr().String(), found)
-	if found {
-		ui.FlashTimeout()
+// 当用户连接主机的时候这个判断永远不超时
+func (ui *PUI) isTimeout() bool {
+	if ui.stopCheckTimeout {
 		return false
 	}
+	log.Debugf("lastActive: %v, timeOut: %v", ui.lastActive, ui.timeOut)
 	return time.Since(ui.lastActive) > ui.timeOut
 }
 
-// 判断是否主动退出，依据是否超时
-func (ui *PUI) IsLogout() bool {
-	return ui.isLogout
-}
-
 // getTimeout
-func (ui *PUI) GetTimeout() string {
+func (ui *PUI) getTimeout() string {
 	return fmt.Sprint(ui.timeOut)
 }
 
-// FlashTimeout flash timeout
-func (ui *PUI) FlashTimeout() {
+// get username
+func (ui *PUI) getUsername() string {
+	return (*ui.sess).User()
+}
+
+// flashTimeout flash timeout
+func (ui *PUI) flashTimeout() {
 	ui.lastActive = time.Now()
 }
 
-// ShowMenu show menu
-func (ui *PUI) ShowMenu(label string, menu []MenuItem, BackOptionLabel string, selectedChain []MenuItem) {
+// showMenu show menu
+func (ui *PUI) showMenu(label string, menu []MenuItem, BackOptionLabel string, selectedChain []MenuItem) {
 
 loopMenu:
 	for {
@@ -103,11 +110,11 @@ loopMenu:
 				}
 				if len(policies) > 0 {
 					sshd.Info(fmt.Sprintf("作为管理员，有新的审批工单(%d)待处理。", len(policies)), ui.sess)
-					ui.menuItem = append(ui.menuItem, GetApproveMenu(policies)...)
+					ui.menuItem = append(ui.menuItem, getApproveMenu(policies)...)
 				}
 			}
 
-			_menus, err := GetServersMenuV2(ui.sess)
+			_menus, err := ui.getServersMenuV2(ui.sess)
 			if err != nil {
 				sshd.ErrorInfo(err, ui.sess)
 				break loopMenu
@@ -115,9 +122,7 @@ loopMenu:
 			{
 				// 实现新旧菜单内容的合并
 				newMenus := make([]MenuItem, 0)
-				for _, _menu := range _menus {
-					newMenus = append(newMenus, _menu)
-				}
+				newMenus = append(newMenus, _menus...)
 				ui.menuItem = newMenus
 			}
 			filter, err := ui.inputFilter(app.GetBroadcast())
@@ -169,11 +174,10 @@ loopMenu:
 			if strings.Contains(err.Error(), "^C") {
 				log.Debugf(label, MainLabel)
 				// 返回主菜单
-				ui.ShowMenu(MainLabel, ui.menuItem, BackOptionLabel, selectedChain)
+				ui.showMenu(MainLabel, ui.menuItem, BackOptionLabel, selectedChain)
 
 			} else if strings.Contains(err.Error(), "^D") {
-				app.App.Cache.Delete((*ui.sess).User())
-				ui.Exit()
+				ui.exit()
 				break
 			} else {
 				log.Errorf("Select menu error %s\n", err)
@@ -203,7 +207,7 @@ loopMenu:
 				if selected.SubMenuTitle != "" {
 					subMenuLabel = selected.SubMenuTitle
 				}
-				ui.ShowMenu(subMenuLabel, subMenu, back, append(selectedChain, selected))
+				ui.showMenu(subMenuLabel, subMenu, back, append(selectedChain, selected))
 			} else {
 				noSubMenuInfo := "No options under this menu ..."
 				if selected.NoSubMenuInfo != "" {
@@ -230,18 +234,18 @@ loopMenu:
 
 // inputFilter input filter
 func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
-	ui.FlashTimeout()
-	defer ui.SessionWrite("\033c") // clear
+	ui.flashTimeout()
+	defer ui.sessionWrite("\033c") // clear
 	// 发送屏幕清理指令
 	// 发送当前时间
-	ui.SessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
-		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount()-1, app.App.JmsDBService.GetServerCount(),
+	ui.sessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
+		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount(), app.App.JmsDBService.GetServerCount(),
 	))
 	// 发送欢迎信息
 	if broadcast != nil {
-		ui.SessionWrite(fmt.Sprintf(InfoLabel, app.App.Version, "\n"+broadcast.Message))
+		ui.sessionWrite(fmt.Sprintf(InfoLabel, app.App.Version, "\n"+broadcast.Message))
 	} else {
-		ui.SessionWrite(fmt.Sprintf(InfoLabel, app.App.Version, ""))
+		ui.sessionWrite(fmt.Sprintf(InfoLabel, app.App.Version, ""))
 	}
 	prompt := promptui.Prompt{
 		Label:  "Filter",
@@ -254,7 +258,7 @@ func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 		if err.Error() == "^C" {
 			return "^C", nil
 		} else if err.Error() == "^D" {
-			ui.Exit()
+			ui.exit()
 			return "", fmt.Errorf("exit")
 		}
 		log.Errorf("Prompt error: %s", err)
@@ -266,7 +270,37 @@ func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 
 // ShowMainMenu show main menu
 func (ui *PUI) ShowMainMenu() {
+	go ui.timeoutCheck()
 	MainMenu := make([]MenuItem, 0)
 	selectedChain := make([]MenuItem, 0)
-	ui.ShowMenu(MainLabel, MainMenu, "Quit", selectedChain)
+	ui.showMenu(MainLabel, MainMenu, "Quit", selectedChain)
+}
+
+func (ui *PUI) timeoutCheck() {
+	for {
+		// 用户主动 退出的也要直接中断
+		if ui.isLogout {
+			log.Debugf("%s exit by user logout", ui.getUsername())
+			break
+		}
+		time.Sleep(1 * time.Second)
+		log.Debugf("system timeout check for %s", ui.getUsername())
+		if ui.isTimeout() {
+			isExit := false
+			// 10 秒倒计时，如果捕捉到输入则取消退出，刷新超时时间
+			for i := 15; i > 0; i-- {
+				time.Sleep(1 * time.Second)
+				if !ui.isTimeout() {
+					isExit = true
+					break
+				}
+				ui.sessionWrite(fmt.Sprintf("\033[2K\r系统超时设置：%s。%2.d秒后自动退出。ctrl+c 取消退出！", ui.getTimeout(), i))
+			}
+			if !isExit {
+				ui.exit()
+				log.Debugf("exit by timeout")
+				break
+			}
+		}
+	}
 }

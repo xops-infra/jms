@@ -17,7 +17,7 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/jump"
+	"github.com/xops-infra/jms/core/pui"
 	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/jms/io"
 	appConfig "github.com/xops-infra/jms/model"
@@ -172,11 +172,13 @@ func publicKeyAuth(ctx ssh.Context, key ssh.PublicKey) bool {
 }
 
 func sessionHandler(sess *ssh.Session) {
-	defer func() {
-		(*sess).Close()
-	}()
 	user := (*sess).User()
 	remote := (*sess).RemoteAddr()
+	defer func() {
+		log.Warnf("[exit] user: %s, remote addr: %s login success", user, remote)
+		(*sess).Close()
+		app.App.Cache.Delete(user)
+	}()
 	_, found := app.App.Cache.Get(user)
 	if !found {
 		app.App.Cache.Add(user, 1, cache.DefaultExpiration)
@@ -198,10 +200,10 @@ func sessionHandler(sess *ssh.Session) {
 	case "exit":
 		(*sess).Exit(0)
 	case "ssh":
-		log.Infof("user: %s, remote addr: %s login success", user, remote)
+		log.Warnf("user: %s, remote addr: %s login success", user, remote)
 		sshHandler(sess)
 	default:
-		log.Infof("[default] user: %s, remote addr: %s login success", user, remote)
+		log.Warnf("user: %s, remote addr: %s login success", user, remote)
 		if strings.Contains(cmd, "umask") {
 			// 版本问题导致的 cmd不一致问题
 			execHandler(sess)
@@ -242,8 +244,9 @@ func execHandler(sess *ssh.Session) {
 }
 
 func sshHandler(sess *ssh.Session) {
-	jps := jump.NewSession(sess, time.Duration(timeOut)*time.Second)
-	jps.Run()
+	personalUi := pui.NewPui(sess, time.Duration(timeOut)*time.Second)
+
+	personalUi.ShowMainMenu()
 }
 
 func scpHandler(args []string, sess *ssh.Session) {
