@@ -49,6 +49,7 @@ func (d *DBService) UpdateServerWithDelete(newServers []model.Server) error {
 	// Step 2: Build a map of new servers for quick lookup
 	newServerMap := make(map[string]model.Server)
 	for id, server := range newServers {
+		// find manual passwd move to new server
 		if manual_server, found := manualPasswdServersMap[server.Host]; found {
 			server.Passwd = manual_server.Passwd
 			server.User = manual_server.User
@@ -61,6 +62,7 @@ func (d *DBService) UpdateServerWithDelete(newServers []model.Server) error {
 	// Step 3: Find servers to delete
 	for _, existingServer := range existingServers {
 		if _, found := newServerMap[existingServer.Host]; !found {
+			// keep manual passwd server
 			if existingServer.Passwd != "" {
 				// 更新机器 Name 增加 [Offline]$Name 前缀方式 重新加回去
 				existingServer.Name = fmt.Sprintf("[Offline]%s", existingServer.Name)
@@ -71,6 +73,7 @@ func (d *DBService) UpdateServerWithDelete(newServers []model.Server) error {
 			if err := d.DB.Delete(&existingServer).Error; err != nil {
 				return err
 			}
+			log.Infof("delete server: %s", existingServer.Host)
 		}
 	}
 

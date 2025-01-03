@@ -33,7 +33,7 @@ func (i *InstanceIO) LoadServer() {
 		}
 	}()
 
-	// 获取最新的 Profile信息
+	// 获取最新的 Profile 信息
 	profiles, err := i.db.LoadProfile()
 	if err != nil {
 		log.Errorf("LoadProfile error: %v", err)
@@ -42,54 +42,64 @@ func (i *InstanceIO) LoadServer() {
 
 	mcsServers := make(map[string]model.Instance, 2000)
 	startTime := time.Now()
-	wg := sync.WaitGroup{}
-	for _, profile := range profiles {
-		log.Debugf(tea.Prettify(profile))
-		log.Debugf("profile: %s is enabled: %t", *profile.Name, profile.Enabled)
-		if !profile.Enabled {
-			continue
+
+	var wg sync.WaitGroup
+	serverChan := make(chan model.Instance) // 建立一个通道用以安全传递实例
+
+	// 启动一个 goroutine 处理实例数据
+	go func() {
+		for server := range serverChan {
+			mcsServers[*server.InstanceID] = server
 		}
-		wg.Add(1)
-		go func(profile CreateProfileRequest) {
-			defer wg.Done()
-			for _, region := range profile.Regions {
-				log.Debugf("get instances profile: %s region: %s", *profile.Name, region)
-				input := model.InstanceFilter{}
-				for {
-					resps, err := i.mcsS.DescribeInstances(*profile.Name, region, input)
-					if err != nil {
-						log.Errorf("%s %s DescribeInstances error: %v", *profile.Name, region, err)
-						break
-					}
-					for _, instance := range resps.Instances {
-						if instance.InstanceID == nil {
-							log.Errorf("instance id is nil, %s", tea.Prettify(instance))
-							continue
+	}()
+
+	for _, profile := range profiles {
+		if profile.Enabled {
+			wg.Add(1)
+			go func(profile CreateProfileRequest) {
+				defer wg.Done()
+
+				for _, region := range profile.Regions {
+					input := model.InstanceFilter{}
+					log.Debugf("get instances profile: %s region: %s", *profile.Name, region)
+
+					for {
+						resps, err := i.mcsS.DescribeInstances(*profile.Name, region, input)
+						if err != nil {
+							log.Errorf("%s %s DescribeInstances error: %v", *profile.Name, region, err)
+							break
 						}
-						if _, ok := mcsServers[*instance.InstanceID]; ok {
-							log.Warnf("instance %s already exist", *instance.InstanceID)
-							continue
+
+						for _, instance := range resps.Instances {
+							if instance.InstanceID == nil {
+								log.Errorf("instance id is nil, %s", tea.Prettify(instance))
+								continue
+							}
+							serverChan <- instance
 						}
-						mcsServers[*instance.InstanceID] = instance
+
+						if resps.NextMarker == nil {
+							break
+						}
+						input.NextMarker = resps.NextMarker
 					}
-					if resps.NextMarker == nil {
-						// log.Warnf("break get instances profile: %s region: %s len: %d", *profile.Name, region, len(mcsServers))
-						break
-					}
-					input.NextMarker = resps.NextMarker
 				}
-			}
-			log.Infof("get instances profile: %s len: %d", *profile.Name, len(mcsServers))
-		}(profile)
+				log.Infof("get instances profile: %s completed", *profile.Name)
+			}(profile)
+		}
 	}
+
 	wg.Wait()
+	close(serverChan) // 关闭通道，避免 goroutine 泄露
+
 	// 入库
 	err = i.db.UpdateServerWithDelete(fmtServer(i.localServers, mcsServers))
 	if err != nil {
 		log.Errorf("update server error: %v", err)
 		return
 	}
-	log.Infof("load server finished cost: %s ", time.Since(startTime))
+
+	log.Infof("load server finished cost: %s, total: %d ", time.Since(startTime), len(mcsServers))
 }
 
 func fmtServer(localServers []ServerManual, instances map[string]model.Instance) Servers {
