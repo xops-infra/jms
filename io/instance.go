@@ -1,7 +1,6 @@
 package io
 
 import (
-	"sync"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -43,54 +42,37 @@ func (i *InstanceIO) LoadServer() {
 	mcsServers := make(map[string]model.Instance, 2000)
 	startTime := time.Now()
 
-	var wg sync.WaitGroup
-	serverChan := make(chan model.Instance) // 建立一个通道用以安全传递实例
-
-	// 启动一个 goroutine 处理实例数据
-	go func() {
-		for server := range serverChan {
-			mcsServers[*server.InstanceID] = server
-		}
-	}()
-
 	for _, profile := range profiles {
 		if profile.Enabled {
-			wg.Add(1)
-			go func(profile CreateProfileRequest) {
-				defer wg.Done()
+			for _, region := range profile.Regions {
+				input := model.InstanceFilter{}
+				log.Debugf("get instances profile: %s region: %s", *profile.Name, region)
 
-				for _, region := range profile.Regions {
-					input := model.InstanceFilter{}
-					log.Debugf("get instances profile: %s region: %s", *profile.Name, region)
-
-					for {
-						resps, err := i.mcsS.DescribeInstances(*profile.Name, region, input)
-						if err != nil {
-							log.Errorf("%s %s DescribeInstances error: %v", *profile.Name, region, err)
-							break
-						}
-
-						for _, instance := range resps.Instances {
-							if instance.InstanceID == nil {
-								log.Errorf("instance id is nil, %s", tea.Prettify(instance))
-								continue
-							}
-							serverChan <- instance
-						}
-
-						if resps.NextMarker == nil {
-							break
-						}
-						input.NextMarker = resps.NextMarker
+				for {
+					resps, err := i.mcsS.DescribeInstances(*profile.Name, region, input)
+					if err != nil {
+						log.Errorf("%s %s DescribeInstances error: %v", *profile.Name, region, err)
+						break
 					}
+
+					for _, instance := range resps.Instances {
+						if instance.InstanceID == nil {
+							log.Errorf("instance id is nil, %s", tea.Prettify(instance))
+							continue
+						}
+
+						mcsServers[*instance.InstanceID] = instance
+					}
+
+					if resps.NextMarker == nil {
+						break
+					}
+					input.NextMarker = resps.NextMarker
 				}
 				log.Infof("get instances profile: %s completed", *profile.Name)
-			}(profile)
+			}
 		}
 	}
-
-	wg.Wait()
-	close(serverChan) // 关闭通道，避免 goroutine 泄露
 
 	// 入库
 	err = i.db.UpdateServerWithDelete(fmtServer(i.localServers, mcsServers))
@@ -100,6 +82,7 @@ func (i *InstanceIO) LoadServer() {
 	}
 
 	log.Infof("load server finished cost: %s, total: %d ", time.Since(startTime), len(mcsServers))
+	mcsServers = nil
 }
 
 func fmtServer(localServers []ServerManual, instances map[string]model.Instance) Servers {

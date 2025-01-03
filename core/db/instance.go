@@ -68,6 +68,7 @@ func (d *DBService) UpdateServerWithDelete(newServers []model.Server) error {
 				existingServer.Name = fmt.Sprintf("[Offline]%s", existingServer.Name)
 				newServers = append(newServers, existingServer)
 				log.Infof("add offline server passwd: %s", existingServer.Host)
+				continue
 			}
 			// Existing server not in the new list, delete it
 			if err := d.DB.Delete(&existingServer).Error; err != nil {
