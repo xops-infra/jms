@@ -510,8 +510,12 @@ func createTmpFile(r *bufio.Reader, perm string, size int64) (string, *os.File, 
 	if err != nil {
 		return "", nil, err
 	}
+	tmpDir := strings.TrimSuffix(app.App.Config.WithVideo.Dir, "/")
+	if tmpDir == "" {
+		tmpDir = "/tmp"
+	}
 
-	tmpFilePath := fmt.Sprintf("/tmp/jms-tmp-file-%d", time.Now().UnixNano())
+	tmpFilePath := fmt.Sprintf("%s/jms-tmp-file-%d", tmpDir, time.Now().UnixNano())
 	f, err := os.OpenFile(tmpFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(fileMode))
 	if err != nil {
 		return "", nil, err
@@ -540,7 +544,7 @@ func createTmpFile(r *bufio.Reader, perm string, size int64) (string, *os.File, 
 			}
 			break
 		} else if off+buffSize > size && buf[n-1] != '\x00' {
-			return "", nil, errors.New("File size not match. ")
+			return "", nil, errors.New("file size not match")
 		}
 
 		_, err = f.WriteAt(buf, off)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/xops-infra/jms/app"
@@ -44,7 +45,19 @@ func AuditLogArchiver() {
 		if info.IsDir() {
 			return nil
 		}
-		if info.ModTime().Add(days).Before(time.Now()) {
+		// 删除 scp 超过 8小时的文件 jms-tmp-file-xxx
+		if strings.HasPrefix(info.Name(), "jms-tmp-file-") {
+			if info.ModTime().Add(8 * time.Hour).Before(time.Now().Local()) {
+				err := os.Remove(path)
+				if err != nil {
+					log.Errorf("Remove %s error: %s", path, err)
+				}
+				log.Infof("Remove more than 3 months file: %s", path)
+			}
+		}
+
+		// 删除超过 3个月的文件
+		if info.ModTime().Add(days).Before(time.Now().Local()) {
 			err := os.Remove(path)
 			if err != nil {
 				log.Errorf("Remove %s error: %s", path, err)
