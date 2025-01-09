@@ -37,9 +37,9 @@ func GetClientByPasswd(username, host string, port int, passwd string) (*sshclie
 	return client, nil
 }
 
-// NewTerminal NewTerminal
+// 独立的阻塞远程客户端连接方法
 func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
-	proxyClient, upstreamClient, err := NewSSHClient(server, sshUser)
+	proxyClient, upstreamClient, err := NewSSHClient((*sess).User(), server, sshUser)
 	if err != nil {
 		log.Errorf("NewSSHClient error: %s", err)
 		return err
@@ -91,7 +91,8 @@ func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
 			upstreamSess.WindowChange(win.Height, win.Width)
 		}
 	}()
-	fmt.Println((*sess).Environ(), (*sess).RemoteAddr())
+
+	// fmt.Println((*sess).Environ(), (*sess).RemoteAddr())
 	app.App.Cache.Set((*sess).RemoteAddr().String(), true, cache.DefaultExpiration)
 	defer app.App.Cache.Delete((*sess).RemoteAddr().String())
 
@@ -126,7 +127,7 @@ func isProxyServer(server Server) (*CreateProxyRequest, error) {
 
 // NewSSHClient NewSSHClient
 // proxy client 返回主要是为了外部 close 用。
-func NewSSHClient(server Server, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
+func NewSSHClient(user string, server Server, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
 	proxy, err := isProxyServer(server)
 	if err != nil {
 		return nil, nil, err
@@ -134,7 +135,7 @@ func NewSSHClient(server Server, sshUser SSHUser) (*gossh.Client, *gossh.Client,
 	if proxy != nil {
 		return ProxyClient(server, *proxy, sshUser)
 	}
-	log.Debugf("direct connect: %s:%d", server.Host, server.Port)
+	log.Infof("%s direct connect: %s:%d", user, server.Host, server.Port)
 	config, err := newSshConfig(sshUser)
 	if err != nil {
 		return nil, nil, err

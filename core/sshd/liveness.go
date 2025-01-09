@@ -46,7 +46,7 @@ func ServerLiveness(dingtalkToken string) {
 		}
 
 		for _, sshUser := range sshUsers {
-			proxyClient, client, err := NewSSHClient(server, sshUser)
+			proxyClient, client, err := NewSSHClient("system_liveness_check", server, sshUser)
 			if err != nil {
 				_, found := app.App.Cache.Get(server.Host)
 				if found {
@@ -87,6 +87,7 @@ func ServerLiveness(dingtalkToken string) {
 
 // 发送到群里
 func SendMessage(token, msg string) {
+	log.Infof("send dingtalk msg: %s", msg)
 	err := app.App.Sshd.RobotClient.SendMessage(context.Background(), &dt.SendMessageRequest{
 		AccessToken: token,
 		MessageContent: dt.MessageContent{

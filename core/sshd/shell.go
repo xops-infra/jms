@@ -154,7 +154,7 @@ func runShell(server model.Server, task model.ShellTask, sshUsers []model.SSHUse
 
 	for _, sshUser := range sshUsers {
 		// TODO: 支持指定用户执行命令，目前随机选择一个
-		proxyClient, client, err := NewSSHClient(server, sshUser)
+		proxyClient, client, err := NewSSHClient("system_run_shell", server, sshUser)
 		if err != nil {
 			req.IsSuccess = tea.Bool(false)
 			req.Output = tea.String(err.Error())

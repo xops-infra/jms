@@ -188,12 +188,12 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 	return nil
 }
 
-func copyFromServer(args []string, clientSess *ssh.Session) error {
+func copyFromServer(args []string, sess *ssh.Session) error {
 	sshUser, server, filePath, err := app.App.Sshd.SshdIO.GetSSHUserAndServerByScpPath(args[1])
 	if err != nil {
 		return err
 	}
-	proxyClient, upstream, err := NewSSHClient(*server, *sshUser)
+	proxyClient, upstream, err := NewSSHClient((*sess).User(), *server, *sshUser)
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 				errCh <- err
 				return
 			}
-			err = copyFileFromServer(stdOutReader, size, filename, perm, clientSess)
+			err = copyFileFromServer(stdOutReader, size, filename, perm, sess)
 			if err != nil {
 				errCh <- err
 				return
@@ -288,14 +288,14 @@ func copyFromServer(args []string, clientSess *ssh.Session) error {
 					Action: tea.String("download"),
 					To:     tea.String(filename),
 					From:   tea.String(args[1]), // root@10.9.x.x:/data/xxx.json
-					User:   tea.String((*clientSess).User()),
-					Client: tea.String((*clientSess).RemoteAddr().String()),
+					User:   tea.String((*sess).User()),
+					Client: tea.String((*sess).RemoteAddr().String()),
 				})
 				if err != nil {
 					log.Errorf("record scp download file to db failed: %v", err)
 				}
 			}
-			log.Infof("user %s download file %s from %s success", (*clientSess).User(), filename, args[1])
+			log.Infof("user %s download file %s from %s success", (*sess).User(), filename, args[1])
 			return
 		case flagEndDirectory:
 		case flagStartDirectory:
@@ -380,17 +380,17 @@ func checkResponse(r io.Reader) error {
 
 }
 
-func copyFileToServer(bfReader *bufio.Reader, size int64, filename, filePath string, perm string, clientSess *ssh.Session) error {
+func copyFileToServer(bfReader *bufio.Reader, size int64, filename, filePath string, perm string, sess *ssh.Session) error {
 	sshUser, server, filePath, err := app.App.Sshd.SshdIO.GetSSHUserAndServerByScpPath(filePath)
 	if err != nil {
 		return err
 	}
-	err = replyOk(*clientSess)
+	err = replyOk(*sess)
 	if err != nil {
 		return err
 	}
 
-	proxyClient, upstream, err := NewSSHClient(*server, *sshUser)
+	proxyClient, upstream, err := NewSSHClient((*sess).User(), *server, *sshUser)
 	if err != nil {
 		return err
 	}
@@ -408,7 +408,7 @@ func copyFileToServer(bfReader *bufio.Reader, size int64, filename, filePath str
 		return err
 	}
 
-	err = replyOk(*clientSess)
+	err = replyOk(*sess)
 	if err != nil {
 		return err
 	}
