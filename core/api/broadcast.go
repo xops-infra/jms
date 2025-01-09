@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/model"
+	"github.com/xops-infra/jms/model"
 )
 
 // @Summary Broadcast
@@ -13,7 +13,7 @@ import (
 // @Success 200 {string} string "ok"
 // @Router /api/v1/broadcast [post]
 func broadcast(c *gin.Context) {
-	var req CreateBroadcastRequest
+	var req model.CreateBroadcastRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err)
 		return

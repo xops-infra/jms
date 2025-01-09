@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/model"
+	"github.com/xops-infra/jms/model"
 )
 
 // @Summary 获取策略列表
@@ -79,7 +79,7 @@ func updatePolicy(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *PolicyRequest
+	var req *model.PolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -114,9 +114,9 @@ func deletePolicy(c *gin.Context) {
 }
 
 type PolicyCheckRequest struct {
-	UserName string `json:"username"`
-	Action   Action `json:"action"`
-	ServerIp string `json:"serverip"`
+	UserName string       `json:"username"`
+	Action   model.Action `json:"action"`
+	ServerIp string       `json:"serverip"`
 }
 
 // @Summary 权限校验

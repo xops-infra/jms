@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/model"
+	"github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
 )
 
@@ -36,7 +36,7 @@ func listShellTask(c *gin.Context) {
 // @Success 200 {string} id
 // @Router /api/v1/shell/task [post]
 func addShellTask(c *gin.Context) {
-	var req CreateShellTaskRequest
+	var req model.CreateShellTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Errorf("bind json error: %s", err)
 		c.String(400, err.Error())
@@ -60,7 +60,7 @@ func addShellTask(c *gin.Context) {
 // @Success 200 {string} success
 // @Router /api/v1/shell/task/:uuid [put]
 func updateShellTask(c *gin.Context) {
-	var req CreateShellTaskRequest
+	var req model.CreateShellTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.String(400, err.Error())
 		return
@@ -102,7 +102,7 @@ func deleteShellTask(c *gin.Context) {
 func listShellRecord(c *gin.Context) {
 	taskid := c.Query("taskid")
 	serverIP := c.Query("serverip")
-	req := QueryRecordRequest{}
+	req := model.QueryRecordRequest{}
 	if taskid != "" {
 		req.TaskID = &taskid
 	}

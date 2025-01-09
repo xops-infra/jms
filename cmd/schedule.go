@@ -21,8 +21,11 @@ var scheduleCmd = &cobra.Command{
 	Use:   "schedule",
 	Short: "run schedule, should be only 1 instance",
 	Long: `运行一些辅助任务，主要如下功能：
-1. 执行定时任务，加载一些必要信息，比如如果接入钉钉审批则需要录入人员信息；
-2. 下发 ssh liveness check 周期任务；
+- 执行定时任务，加载一些必要信息，比如如果接入钉钉审批则需要录入人员信息；
+- 执行定时任务，检查机器 ssh 可连接性；
+- 执行定时任务，加载云服务器信息入库；
+- 执行定时任务，检查机器 ssh 可连接性并依据配置发送钉钉告警通知；
+- 执行批量脚本；
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("schedule called")
@@ -105,6 +108,7 @@ func startSchedule() {
 
 	if app.App.Config.WithDB.Enable {
 		c.AddFunc("0 * * * * *", func() {
+			log.Infof("run shell task")
 			err := core.ServerShellRun() // 每 1min 检查一次
 			if err != nil {
 				log.Errorf("server shell run error: %s", err)
@@ -116,6 +120,7 @@ func startSchedule() {
 	if app.App.Config.WithSSHCheck.Enable {
 		log.Infof("with ssh check,5min check once")
 		c.AddFunc("0 */5 * * * *", func() {
+			log.Infof("run ssh check")
 			core.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
 		})
 	}

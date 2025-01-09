@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/model"
+	"github.com/xops-infra/jms/model"
 )
 
 // @Summary ListProxy
@@ -29,7 +29,7 @@ func listProxy(c *gin.Context) {
 // @Success 200 {object} Proxy
 // @Router /api/v1/proxy [post]
 func addProxy(c *gin.Context) {
-	var req CreateProxyRequest
+	var req model.CreateProxyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -51,7 +51,7 @@ func addProxy(c *gin.Context) {
 // @Router /api/v1/proxy/:uuid [put]
 func updateProxy(c *gin.Context) {
 
-	var req CreateProxyRequest
+	var req model.CreateProxyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return

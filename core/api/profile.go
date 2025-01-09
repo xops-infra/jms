@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/model"
+	"github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
 )
 
@@ -34,7 +34,7 @@ func listProfile(c *gin.Context) {
 // @Success 200 {string} string
 // @Router /api/v1/profile [post]
 func createProfile(c *gin.Context) {
-	var req CreateProfileRequest
+	var req model.CreateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -59,7 +59,7 @@ func createProfile(c *gin.Context) {
 // @Success 200 {string} string
 // @Router /api/v1/profile/:uuid [put]
 func updateProfile(c *gin.Context) {
-	var req CreateProfileRequest
+	var req model.CreateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return

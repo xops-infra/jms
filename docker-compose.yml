@@ -10,7 +10,8 @@ services:
       - POSTGRES_DB=jms
     ports:
       - "5432:5432"
-  jms:
+      
+  jms-sshd:
     depends_on:
       - pg
     restart: always # 支持 always, on-failure, unless-stopped
@@ -20,10 +21,23 @@ services:
     environment:
       - TIMEOUT=1800
       - DEBUG=false
-      - API=false
     volumes: 
       - "./config.yaml:/opt/jms/config.yaml"
       - "/opt/jms/.ssh/:/opt/jms/.ssh/" # 持久化数据
+
+  jms-schedule:
+    depends_on:
+      - pg
+    restart: always
+    image: zhoushoujian/jms:latest
+    ports: 
+      - "6060:6060"
+    environment:
+      - DEBUG=false
+      - SCHEDULE=true
+    volumes:
+      - "./config.yaml:/opt/jms/config.yaml"
+
   jms-api:
     depends_on:
       - pg
@@ -33,7 +47,7 @@ services:
       - "8013:8013"
     environment:
       - DEBUG=false
-      - API=true # true为api模式，false为ssh服务模式
+      - API=true # true为api模式
     volumes: 
       - "./config.yaml:/opt/jms/config.yaml"
       - "/opt/jms/.ssh/:/opt/jms/.ssh/" # 持久化数据

@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
-	. "github.com/xops-infra/jms/model"
+	"github.com/xops-infra/jms/model"
 )
 
 // @Summary 获取用户列表
@@ -58,7 +58,7 @@ func listUser(c *gin.Context) {
 // @Success 200 {string} success
 // @Router /api/v1/user [post]
 func addUser(c *gin.Context) {
-	var req UserRequest
+	var req model.UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -87,7 +87,7 @@ func updateUserGroup(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *UserPatchMut
+	var req *model.UserPatchMut
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return
@@ -115,7 +115,7 @@ func updateUser(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	var req *UserRequest
+	var req *model.UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, err.Error())
 		return

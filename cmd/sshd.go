@@ -177,7 +177,7 @@ func sessionHandler(sess *ssh.Session) {
 	user := (*sess).User()
 	remote := (*sess).RemoteAddr()
 	defer func() {
-		log.Warnf("[exit] user: %s, remote addr: %s login success", user, remote)
+		log.Warnf("user: %s, remote addr: %s exited", user, remote)
 		(*sess).Close()
 		app.App.Cache.Delete(user)
 	}()
