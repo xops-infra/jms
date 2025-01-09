@@ -40,6 +40,7 @@ func ServerLiveness(dingtalkToken string) {
 		if isIgnore {
 			continue
 		}
+		log.Infof("server liveness check: %s", server.Host)
 		sshUsers, err := app.App.Sshd.SshdIO.GetSSHUsersByHost(server.Host, serversMap, keys)
 		if err != nil {
 			log.Errorf("server liveness check error: %s", err)

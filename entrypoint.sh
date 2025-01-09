@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # 判断是否有变量DEBUG 如果有则带上启动参数
-if [ -n "$DEBUG" ]; then
+if [ -n "$DEBUG" ] && [ "$DEBUG" = "true" ]; then
     DEBUG="--debug"
 fi
 
@@ -12,7 +12,7 @@ fi
 
 if [ -n "$API" ] && [ "$API" = "true" ]; then
     /usr/bin/jms-go api $DEBUG
-else if [ -n "$SCHEDULE" ] && [ "$SCHEDULE" = "true" ]; then
+elif [ -n "$SCHEDULE" ] && [ "$SCHEDULE" = "true" ]; then
     /usr/bin/jms-go schedule $DEBUG
 else
     /usr/bin/jms-go sshd  $DEBUG $TIMEOUT

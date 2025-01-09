@@ -87,8 +87,6 @@ spec:
               subPath: config.yaml
               name: jms-config-volume
               readOnly: true
-            - mountPath: /opt/jms/
-              name: ssh-volume
           resources:
             limits:
               cpu: 1
@@ -161,4 +159,47 @@ spec:
             claimName: jms-ssh-claim
         - name: logs-volume
           hostPath:
-            path: /mnt/logs/jms-tools/
+            path: /mnt/logs/jms-sshd/
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jms-schedule-deployment
+  labels:
+    app: jms-schedule
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jms-schedule
+  template:
+    metadata:
+      labels:
+        app: jms-schedule
+    spec:
+      containers:
+        - name: jms-schedule
+          image: zhoushoujian/jms:latest
+          imagePullPolicy: Always
+          env:
+            - name: SCHEDULE
+              value: "true"
+            - name: DEBUG
+              value: "false"
+            - name: JMS_DINGTALK_WEB_HOOK_TOKEN
+              value: ""
+          volumeMounts:
+            - mountPath: /opt/jms/config.yaml
+              subPath: config.yaml
+              name: jms-config-volume
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 0.1
+              memory: 256Mi
+      volumes:
+        - name: jms-config-volume
+          configMap:
+            name: jms-config

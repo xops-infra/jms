@@ -10,17 +10,20 @@ GOOS=linux GOARCH=amd64 go build -o ./bin/jms-linux-amd64 -ldflags "-X main.vers
 # GOOS=linux GOARCH=arm64 go build -o ./bin/jms-linux-arm64 -ldflags "-X main.version=$RELEASE"
 # GOOS=windows GOARCH=amd64 go build -o ./bin/jms-windows-amd64.exe -ldflags "-X main.version=$RELEASE"
 
+docker build -t zhoushoujian/jms:$RELEASE . --build-arg="RELEASE=$RELEASE"
+if [ $? -eq 0 ]; then
+    echo "build success"
+else
+    echo "build failed"
+    exit 1
+fi
+
 echo "build success"
 
 push() {
-    docker build -t zhoushoujian/jms:$RELEASE . --build-arg="RELEASE=$RELEASE"
-    if [ $? -eq 0 ]; then
-        docker push zhoushoujian/jms:$RELEASE && \
-        docker tag zhoushoujian/jms:$RELEASE zhoushoujian/jms:latest && \
-        docker push zhoushoujian/jms:latest
-    else
-        echo "build failed"
-    fi
+    docker push zhoushoujian/jms:$RELEASE && \
+    docker tag zhoushoujian/jms:$RELEASE zhoushoujian/jms:latest && \
+    docker push zhoushoujian/jms:latest
 }
 
 if [ "$1" = "push" ]; then
