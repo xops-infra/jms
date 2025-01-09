@@ -18,7 +18,7 @@ func broadcast(c *gin.Context) {
 		c.JSON(400, err)
 		return
 	}
-	err := app.App.JmsDBService.AddBroadcast(req)
+	err := app.App.DBIo.AddBroadcast(req)
 	if err != nil {
 		c.JSON(500, err)
 		return

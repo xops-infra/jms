@@ -4,14 +4,12 @@ import (
 	"testing"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/model"
 )
 
 func init() {
-	model.LoadYaml("/opt/jms/config.yaml")
-	app.NewApp(true, "", "---").WithRobot().WithDB(true).WithMcs()
+	app.NewApplication(true, "", "---", "/opt/jms/config.yaml").WithRobot().WithDB(true).WithMcs()
 }
 
 func TestServerLiveness(t *testing.T) {
-	app.App.Core.InstanceIO.LoadServer()
+	app.App.Schedule.InstanceIO.LoadServer()
 }

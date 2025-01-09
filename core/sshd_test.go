@@ -1,20 +1,19 @@
-package sshd_test
+package core_test
 
 import (
 	"testing"
 
 	"github.com/xops-infra/jms/app"
-	"github.com/xops-infra/jms/core/sshd"
+	"github.com/xops-infra/jms/core"
 	"github.com/xops-infra/jms/model"
 )
 
 func init() {
-	model.LoadYaml("/opt/jms/config.yaml")
-	app.NewApp(true, "", "---")
+	app.NewApplication(true, "", "---", "/opt/jms/config.yaml")
 }
 
 func TestAuditArch(t *testing.T) {
-	sshd.AuditLogArchiver()
+	core.AuditLogArchiver()
 }
 
 // runShellTask
@@ -32,11 +31,11 @@ func TestRunShellTask(t *testing.T) {
 			Port: 22,
 		},
 	}
-	keys, err := app.App.JmsDBService.InternalLoadKey()
+	keys, err := app.App.DBIo.InternalLoadKey()
 	if err != nil {
 		t.Error(err)
 	}
-	status, err := sshd.RunShellTask(model.ShellTask{
+	status, err := core.RunShellTask(model.ShellTask{
 		UUID:  "xxxxxx",
 		Shell: "pwd",
 		Name:  "测试脚本",

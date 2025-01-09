@@ -12,10 +12,7 @@ import (
 )
 
 func init() {
-	model.LoadYaml("/opt/jms/config.yaml")
-	// load env
-
-	app.NewApp(true, "", "---").WithDB(false)
+	app.NewApplication(true, "", "---", "/opt/jms/config.yaml").WithDB(false)
 }
 
 func TestCreatePolicy(t *testing.T) {
@@ -29,7 +26,7 @@ func TestCreatePolicy(t *testing.T) {
 		Actions:   model.DenyALL,
 		ExpiresAt: &expiredAt,
 	}
-	result, err := app.App.JmsDBService.CreatePolicy(&req)
+	result, err := app.App.DBIo.CreatePolicy(&req)
 	if err != nil {
 		t.Error(err)
 		return
@@ -45,7 +42,7 @@ func TestUpdatePolicy(t *testing.T) {
 			"fangjie", "zhangruiji", "xiayubin", "chenglinqing", "wuwentao3", "baizilong", "lushijie", "dongweijia",
 			"zhonghanmeng"},
 	}
-	err := app.App.JmsDBService.UpdatePolicy("57284668-aad8-4104-9e4f-96c8c0186568", &req)
+	err := app.App.DBIo.UpdatePolicy("57284668-aad8-4104-9e4f-96c8c0186568", &req)
 	if err != nil {
 		t.Error(err)
 		return
@@ -53,7 +50,7 @@ func TestUpdatePolicy(t *testing.T) {
 }
 
 func TestDeletePolicy(t *testing.T) {
-	err := app.App.JmsDBService.DeletePolicy("default")
+	err := app.App.DBIo.DeletePolicy("default")
 	if err != nil {
 		t.Error(err)
 		return
@@ -61,7 +58,7 @@ func TestDeletePolicy(t *testing.T) {
 }
 
 func TestUpdateUserGroups(t *testing.T) {
-	err := app.App.JmsDBService.UpdateUser("yaolong", model.UserRequest{
+	err := app.App.DBIo.UpdateUser("yaolong", model.UserRequest{
 		Groups: model.ArrayString{"admin"},
 	})
 	if err != nil {
@@ -70,7 +67,7 @@ func TestUpdateUserGroups(t *testing.T) {
 }
 
 func TestQueryPolicy(t *testing.T) {
-	result, err := app.App.JmsDBService.QueryAllPolicy()
+	result, err := app.App.DBIo.QueryAllPolicy()
 	if err != nil {
 		t.Error(err)
 		return
@@ -79,7 +76,7 @@ func TestQueryPolicy(t *testing.T) {
 }
 
 func TestQueryUser(t *testing.T) {
-	result, err := app.App.JmsDBService.DescribeUser("zhoushoujian")
+	result, err := app.App.DBIo.DescribeUser("zhoushoujian")
 	if err != nil {
 		t.Error(err)
 		return
@@ -88,7 +85,7 @@ func TestQueryUser(t *testing.T) {
 }
 
 func TestQueryPolicyByUser(t *testing.T) {
-	result, err := app.App.JmsDBService.QueryPolicyByUser("zhoushoujian")
+	result, err := app.App.DBIo.QueryPolicyByUser("zhoushoujian")
 	if err != nil {
 		t.Error(err)
 		return
@@ -102,7 +99,7 @@ func TestListServerLoginRecord(t *testing.T) {
 		Duration: tea.Int(4),
 		User:     tea.String("zhoushoujian"),
 	}
-	records, err := app.App.JmsDBService.ListServerLoginRecord(req)
+	records, err := app.App.DBIo.ListServerLoginRecord(req)
 	if err != nil {
 		t.Error(err)
 		return

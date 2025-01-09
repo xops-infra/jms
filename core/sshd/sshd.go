@@ -37,6 +37,17 @@ func GetClientByPasswd(username, host string, port int, passwd string) (*sshclie
 	return client, nil
 }
 
+// new audit log
+func newAuditLog(user, host string) (*os.File, error) {
+	auditDir := app.App.Config.WithVideo.Dir
+	logFile := fmt.Sprintf("%s/%s_%s_%s.log", auditDir, time.Now().Format("20060102_150405"), host, user)
+	logIo, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return logIo, nil
+}
+
 // 独立的阻塞远程客户端连接方法
 func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
 	proxyClient, upstreamClient, err := NewSSHClient((*sess).User(), server, sshUser)
@@ -58,7 +69,7 @@ func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
 
 	if app.App.Config.WithVideo.Enable {
 		// 创建日志文件
-		logFile, err := NewAuditLog((*sess).User(), server.Host)
+		logFile, err := newAuditLog((*sess).User(), server.Host)
 		if err != nil {
 			return err
 		}
@@ -107,7 +118,7 @@ func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
 // 本地配置的优先级高于数据库配置
 func isProxyServer(server Server) (*CreateProxyRequest, error) {
 	if app.App.Config.WithDB.Enable {
-		proxys, err := app.App.JmsDBService.ListProxy()
+		proxys, err := app.App.DBIo.ListProxy()
 		if err != nil {
 			return nil, err
 		}
@@ -187,14 +198,14 @@ func ProxyClient(instance Server, proxy CreateProxyRequest, sshUser SSHUser) (*g
 	} else if proxy.KeyID != nil && *proxy.KeyID != "" {
 		// 走 proxy keyID 去获取认证信息
 		log.Debugf("proxy keyID: %s", *proxy.KeyID)
-		signerProxy, err := app.App.Sshd.KeyIO.GetSignerByKeyID(*proxy.KeyID)
+		signerProxy, err := app.App.Sshd.SshdIO.GetSignerByKeyID(*proxy.KeyID)
 		if err != nil {
 			return nil, nil, err
 		}
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.PublicKeys(signerProxy))
 	} else if proxy.IdentityFile != nil && *proxy.IdentityFile != "" {
 		// 兼容数据库通过 identityFile 认证, 随后走文件认证
-		signerProxy, err := app.App.Sshd.KeyIO.GetSignerByIdentityFile(*proxy.IdentityFile)
+		signerProxy, err := app.App.Sshd.SshdIO.GetSignerByIdentityFile(*proxy.IdentityFile)
 		if err != nil {
 			// 走文件认证
 			log.Debugf("proxy identityFile: %s", *proxy.IdentityFile)

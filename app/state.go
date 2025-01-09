@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -12,7 +13,7 @@ import (
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
 	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/jms/io"
-	model1 "github.com/xops-infra/jms/model"
+	"github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 	mcsIo "github.com/xops-infra/multi-cloud-sdk/pkg/io"
 	server "github.com/xops-infra/multi-cloud-sdk/pkg/service"
@@ -25,33 +26,33 @@ import (
 
 var App *Application
 
-type Core struct {
+type Schedule struct {
 	DingTalkClient *dt.DingTalkClient // 钉钉APP使用审批流
+	RobotClient    *dt.RobotClient    // 钉钉机器人
 	InstanceIO     *io.InstanceIO
 }
 
 type Sshd struct {
-	PolicyIO    *io.PolicyIO
-	KeyIO       *io.KeyIO
-	SshdIO      *io.SshdIO
-	RobotClient *dt.RobotClient // 钉钉机器人
-	Ldap        *utils.Ldap
+	SshdIO *io.SshdIO
+	Ldap   *utils.Ldap
 }
 
 type Application struct {
 	Debug           bool
 	HomeDir, SSHDir string // /opt/jms/
 	Version         string
-	Config          *model1.Config // 支持数据库和配置文件两种方式载入配置
+	Config          *model.Config // 支持数据库和配置文件两种方式载入配置
 	Cache           *cache.Cache
-	JmsDBService    *db.DBService
-	Core            Core
-	Sshd            Sshd
+
+	DBIo *db.DBService
+
+	Schedule Schedule
+	Sshd     Sshd
 }
 
 // Manager,Agent,Worker need to be initialized
 // logdir 如果为空,默认为/opt/jms/logs
-func NewApp(debug bool, logDir string, version string) *Application {
+func NewApplication(debug bool, logDir, version, config string) *Application {
 	if version == "" {
 		version = "unknown"
 	}
@@ -61,81 +62,57 @@ func NewApp(debug bool, logDir string, version string) *Application {
 		SSHDir:  "/opt/jms/.ssh/",
 		Version: version,
 		Debug:   debug,
-		Config:  model1.Conf,
+		Config:  model.InitConfig(config),
 		Cache:   cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
+
 	// init log
 	if logDir == "" {
 		logDir = App.HomeDir + "logs/"
 	}
-	logfile := strings.TrimSuffix(logDir, "/") + "/sshd.log"
+
+	err := os.MkdirAll(utils.FilePath(logDir), 0755)
+	if err != nil {
+		log.Panicf("create log dir failed: %s", err.Error())
+	}
+
+	logfile := strings.TrimSuffix(logDir, "/") + "/app.log"
 	if debug {
 		log.Default().WithLevel(log.DebugLevel).WithHumanTime(time.Local).WithFilename(logfile).Init()
 	} else {
 		log.Default().WithLevel(log.InfoLevel).WithHumanTime(time.Local).WithFilename(logfile).Init()
 	}
-
-	// mkdir
-	err := os.MkdirAll(App.SSHDir, 0755)
-	if err != nil {
-		panic(err)
-	}
-	// 判断文件hostAuthorizedKeys是否存在，不存在则创建
-	hostAuthorizedKeys := App.SSHDir + "authorized_keys"
-	if !utils.FileExited(hostAuthorizedKeys) {
-		// 600权限
-		os.Create(hostAuthorizedKeys)
-		os.Chmod(hostAuthorizedKeys, 0600)
-	}
 	go http.ListenAndServe(":6060", nil)
-	log.Infof("start pprof on :6060")
+
+	fmt.Println("jms version: ", App.Version)
+	fmt.Println("log file: ", logfile)
+	fmt.Println("ssh dir: ", App.SSHDir)
+	fmt.Println("home dir: ", App.HomeDir)
+	fmt.Println("pprof: localhost:6060")
 
 	return App
-}
-
-func NewApiApplication(sshd bool) *Application {
-	App = &Application{
-		Debug:  sshd,
-		Config: model1.Conf,
-	}
-	// App.PolicyIO = io.NewPolicy(App.JmsDBService)
-	// App.SshdIO = io.NewSshd(App.JmsDBService, App.Config.LocalServers.ToMapWithHost())
-	// App.KeyIO = io.NewKey(App.JmsDBService)
-
-	return App
-}
-
-// withLdap
-func (app *Application) WithLdap() *Application {
-	ldap, err := utils.NewLdap(App.Config.WithLdap)
-	if err != nil {
-		panic(err)
-	}
-	app.Sshd.Ldap = ldap
-	return app
 }
 
 // withMcs sdk 查询云服务器
 func (app *Application) WithMcs() *Application {
 
-	profiles, err := app.JmsDBService.LoadProfile()
+	profiles, err := app.DBIo.LoadProfile()
 	if err != nil {
 		log.Errorf("load profile error: %s", err)
 		return app
 	}
-	_profiles := model1.DBProfilesToMcsProfiles(profiles)
+	_profiles := model.DBProfilesToMcsProfiles(profiles)
 	cloudIo := mcsIo.NewCloudClient(_profiles)
 	serverTencent := mcsIo.NewTencentClient(cloudIo)
 	serverAws := mcsIo.NewAwsClient(cloudIo)
 
 	mcsServer := server.NewCommonService(_profiles, serverAws, serverTencent)
-	App.Core.InstanceIO = io.NewInstance(mcsServer, app.JmsDBService, app.Config.LocalServers)
+	App.Schedule.InstanceIO = io.NewInstance(mcsServer, app.DBIo, app.Config.LocalServers)
 	log.Infof("success load mcs")
 	return app
 }
 
 func (app *Application) WithRobot() *Application {
-	app.Sshd.RobotClient = dt.NewRobotClient()
 	return app
 }
 
@@ -145,7 +122,7 @@ func (app *Application) WithDingTalk() *Application {
 		AppSecret: app.Config.WithDingtalk.AppSecret,
 	})
 	client.WithWorkflowClientV2().WithDepartClient().WithUserClient()
-	app.Core.DingTalkClient = client
+	app.Schedule.DingTalkClient = client
 	return app
 }
 
@@ -157,7 +134,7 @@ func (app *Application) WithDB(migrate bool) *Application {
 		log.Debugf("with policy pg database: %s", app.Config.WithDB.PG.GetUrl())
 		dialector = postgres.Open(app.Config.WithDB.PG.GetUrl())
 	} else {
-		dbFile := model1.Conf.WithDB.DBFile
+		dbFile := app.Config.WithDB.DBFile
 		if !strings.HasSuffix(dbFile, ".db") {
 			panic("db file must be end with .db")
 		}
@@ -182,18 +159,18 @@ func (app *Application) WithDB(migrate bool) *Application {
 	if migrate {
 		log.Infof("auto migrate db!")
 		err = rdb.AutoMigrate(
-			&model1.Policy{}, &model1.User{}, &model1.AuthorizedKey{},
-			&model1.Key{}, &model1.Profile{}, &model1.Proxy{}, // 配置
-			&model1.SSHLoginRecord{}, &model1.ScpRecord{}, // 审计
-			&model1.Broadcast{},
-			&model1.ShellTask{}, &model1.ShellTaskRecord{}, // 定时任务功能
-			&model1.Server{}, // 实例
+			&model.Policy{}, &model.User{}, &model.AuthorizedKey{},
+			&model.Key{}, &model.Profile{}, &model.Proxy{}, // 配置
+			&model.SSHLoginRecord{}, &model.ScpRecord{}, // 审计
+			&model.Broadcast{},
+			&model.ShellTask{}, &model.ShellTaskRecord{}, // 定时任务功能
+			&model.Server{}, // 实例
 		)
 	}
 
 	if err != nil {
 		panic(err)
 	}
-	App.JmsDBService = db.NewJmsDbService(rdb)
+	App.DBIo = db.NewJmsDbService(rdb)
 	return app
 }

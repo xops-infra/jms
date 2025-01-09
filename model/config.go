@@ -10,12 +10,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var Conf *Config
-
-func init() {
-	Conf = &Config{}
-}
-
 // Config config
 type Config struct {
 	// Profiles     []CreateProfileRequest `mapstructure:"profiles"` // 云账号配置，用来自动同步云服务器信息
@@ -130,7 +124,9 @@ type WithLdap struct {
 }
 
 // load config from file
-func LoadYaml(configFile string) {
+func InitConfig(configFile string) *Config {
+
+	conf := &Config{}
 	homedir := os.Getenv("HOME")
 
 	if strings.HasPrefix(configFile, "~") {
@@ -142,22 +138,23 @@ func LoadYaml(configFile string) {
 	if err := viper.ReadInConfig(); err != nil {
 		panic(err)
 	}
-	err := viper.Unmarshal(Conf)
+	err := viper.Unmarshal(conf)
 	if err != nil {
 		panic(err)
 	}
 
-	configCheck()
+	configCheck(conf)
 
+	return conf
 }
 
-func configCheck() {
+func configCheck(conf *Config) {
 	// 校验 corn配置是否正确
-	if Conf.WithVideo.Enable {
-		if _, err := cron.Parse(Conf.WithVideo.Cron); err != nil {
+	if conf.WithVideo.Enable {
+		if _, err := cron.Parse(conf.WithVideo.Cron); err != nil {
 			panic(fmt.Errorf("cron parse error: %s", err))
 		}
-		err := os.MkdirAll(Conf.WithVideo.Dir, 0755)
+		err := os.MkdirAll(conf.WithVideo.Dir, 0755)
 		if err != nil {
 			panic(err)
 		}

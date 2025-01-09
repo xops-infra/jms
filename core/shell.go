@@ -1,4 +1,4 @@
-package sshd
+package core
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"github.com/robfig/cron"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/dingtalk"
+	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
 )
@@ -18,17 +19,17 @@ import (
 // 具有分布式执行特性
 func ServerShellRun() error {
 	// 查库
-	tasks, err := app.App.JmsDBService.ListShellTask()
+	tasks, err := app.App.DBIo.ListShellTask()
 	if err != nil {
 		return err
 	}
 
 	// 初始化准备好要用的服务器列表，认证信息 key列表
-	servers, err := app.App.JmsDBService.LoadServer()
+	servers, err := app.App.DBIo.LoadServer()
 	if err != nil {
 		return err
 	}
-	keys, err := app.App.JmsDBService.InternalLoadKey()
+	keys, err := app.App.DBIo.InternalLoadKey()
 	if err != nil {
 		return err
 	}
@@ -38,7 +39,7 @@ func ServerShellRun() error {
 		log.Debugf("shell task: %s", tea.Prettify(task))
 		if task.Status == model.StatusPending {
 			// 状态更新
-			err = app.App.JmsDBService.UpdateShellTaskStatus(task.UUID, model.StatusRunning, "")
+			err = app.App.DBIo.UpdateShellTaskStatus(task.UUID, model.StatusRunning, "")
 			if err != nil {
 				log.Errorf("update shell task status error: %s", err)
 				continue
@@ -50,7 +51,7 @@ func ServerShellRun() error {
 				result := ""
 				defer func() {
 					log.Debugf("shell task done: %s, state: %s, result: %s", task.UUID, state, result)
-					err := app.App.JmsDBService.UpdateShellTaskStatus(task.UUID, state, result)
+					err := app.App.DBIo.UpdateShellTaskStatus(task.UUID, state, result)
 					if err != nil {
 						log.Errorf("update shell task status error: %s", err)
 					}
@@ -146,7 +147,7 @@ func runShell(server model.Server, task model.ShellTask, sshUsers []model.SSHUse
 	defer func() {
 		req.CostTime = tea.String(time.Since(execStartTime).String())
 		log.Debugf("shell task record: %s", tea.Prettify(req))
-		err := app.App.JmsDBService.CreateShellTaskRecord(req)
+		err := app.App.DBIo.CreateShellTaskRecord(req)
 		if err != nil {
 			log.Errorf("create shell task record error: %s", err)
 		}
@@ -154,7 +155,7 @@ func runShell(server model.Server, task model.ShellTask, sshUsers []model.SSHUse
 
 	for _, sshUser := range sshUsers {
 		// TODO: 支持指定用户执行命令，目前随机选择一个
-		proxyClient, client, err := NewSSHClient("system_run_shell", server, sshUser)
+		proxyClient, client, err := sshd.NewSSHClient("system_run_shell", server, sshUser)
 		if err != nil {
 			req.IsSuccess = tea.Bool(false)
 			req.Output = tea.String(err.Error())
@@ -184,7 +185,7 @@ func runShell(server model.Server, task model.ShellTask, sshUsers []model.SSHUse
 
 // corn任务的处理，实现对 corn 的支持，主要就是判断时间对了就修改一下任务状态
 func serverCronRun() {
-	tasks, err := app.App.JmsDBService.ListShellTask()
+	tasks, err := app.App.DBIo.ListShellTask()
 	if err != nil {
 		log.Errorf("list shell task error: %s", err)
 	}
@@ -197,7 +198,7 @@ func serverCronRun() {
 			continue
 		}
 		// 更新任务状态
-		err = app.App.JmsDBService.UpdateShellTaskStatus(task.UUID, model.StatusPending, "system reset pengding cause cron time match")
+		err = app.App.DBIo.UpdateShellTaskStatus(task.UUID, model.StatusPending, "system reset pengding cause cron time match")
 		if err != nil {
 			log.Errorf("update shell task status error: %s", err)
 		}

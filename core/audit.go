@@ -1,7 +1,6 @@
-package sshd
+package core
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,17 +9,6 @@ import (
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/noop/log"
 )
-
-// new audit log
-func NewAuditLog(user, host string) (*os.File, error) {
-	auditDir := app.App.Config.WithVideo.Dir
-	logFile := fmt.Sprintf("%s/%s_%s_%s.log", auditDir, time.Now().Format("20060102_150405"), host, user)
-	logIo, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, err
-	}
-	return logIo, nil
-}
 
 // audit操作日志归档定时任务
 // 每天归档一次压缩到tar.gz；默认保留3个月

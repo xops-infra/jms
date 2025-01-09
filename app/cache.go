@@ -9,7 +9,7 @@ import (
 
 func GetBroadcast() *model.Broadcast {
 	if App.Config.WithDB.Enable {
-		broadcast, err := App.JmsDBService.GetBroadcast()
+		broadcast, err := App.DBIo.GetBroadcast()
 		if err != nil {
 			log.Errorf("GetBroadcast error: %s", err)
 		}

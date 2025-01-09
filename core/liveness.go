@@ -1,4 +1,4 @@
-package sshd
+package core
 
 import (
 	"context"
@@ -9,19 +9,20 @@ import (
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/core/sshd"
 )
 
 // dingtalkToken 为钉钉机器人的token
 func ServerLiveness(dingtalkToken string) {
 	timeStart := time.Now()
-	servers, err := app.App.JmsDBService.LoadServer()
+	servers, err := app.App.DBIo.LoadServer()
 	if err != nil {
 		log.Errorf("server liveness check error: %s", err)
 		return
 	}
 	serversMap := servers.ToMap()
 	// 获取实时 keys
-	keys, err := app.App.JmsDBService.InternalLoadKey()
+	keys, err := app.App.DBIo.InternalLoadKey()
 	if err != nil {
 		log.Errorf("server liveness check error: %s", err)
 		return
@@ -46,7 +47,7 @@ func ServerLiveness(dingtalkToken string) {
 		}
 
 		for _, sshUser := range sshUsers {
-			proxyClient, client, err := NewSSHClient("system_liveness_check", server, sshUser)
+			proxyClient, client, err := sshd.NewSSHClient("system_liveness_check", server, sshUser)
 			if err != nil {
 				_, found := app.App.Cache.Get(server.Host)
 				if found {
@@ -88,7 +89,7 @@ func ServerLiveness(dingtalkToken string) {
 // 发送到群里
 func SendMessage(token, msg string) {
 	log.Infof("send dingtalk msg: %s", msg)
-	err := app.App.Sshd.RobotClient.SendMessage(context.Background(), &dt.SendMessageRequest{
+	err := app.App.Schedule.RobotClient.SendMessage(context.Background(), &dt.SendMessageRequest{
 		AccessToken: token,
 		MessageContent: dt.MessageContent{
 			MsgType: "text",

@@ -16,7 +16,7 @@ import (
 // @Success 200 {object} []Profile
 // @Router /api/v1/profile [get]
 func listProfile(c *gin.Context) {
-	profiles, err := app.App.JmsDBService.ListProfile()
+	profiles, err := app.App.DBIo.ListProfile()
 	if err != nil {
 		c.String(500, err.Error())
 		return
@@ -39,7 +39,7 @@ func createProfile(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
-	id, err := app.App.JmsDBService.CreateProfile(req)
+	id, err := app.App.DBIo.CreateProfile(req)
 	if err != nil {
 		log.Errorf("create profile error: %v", err)
 		c.JSON(500, err.Error())
@@ -69,7 +69,7 @@ func updateProfile(c *gin.Context) {
 		c.JSON(400, "uuid is required")
 		return
 	}
-	err := app.App.JmsDBService.UpdateProfile(uuid, req)
+	err := app.App.DBIo.UpdateProfile(uuid, req)
 	if err != nil {
 		log.Errorf("update profile error: %v", err)
 		c.JSON(500, err.Error())
@@ -93,7 +93,7 @@ func deleteProfile(c *gin.Context) {
 		c.JSON(400, "uuid is required")
 		return
 	}
-	err := app.App.JmsDBService.DeleteProfile(uuid)
+	err := app.App.DBIo.DeleteProfile(uuid)
 	if err != nil {
 		log.Errorf("delete profile error: %v", err)
 		c.JSON(500, err.Error())

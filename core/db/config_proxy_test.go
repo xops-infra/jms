@@ -10,7 +10,7 @@ import (
 
 // TEST ListProxy
 func TestListProxy(t *testing.T) {
-	proxies, err := app.App.JmsDBService.ListProxy()
+	proxies, err := app.App.DBIo.ListProxy()
 	if err != nil {
 		t.Error(err)
 		return

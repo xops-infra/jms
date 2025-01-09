@@ -10,15 +10,16 @@ import (
 	mcsModel "github.com/xops-infra/multi-cloud-sdk/pkg/model"
 	"github.com/xops-infra/noop/log"
 
+	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/io"
 	. "github.com/xops-infra/jms/model"
 )
 
-var p *io.PolicyIO
+var p *io.SshdIO
 
 func init() {
 	log.Default().WithLevel(log.DebugLevel).WithFilename("/tmp/test.log").Init()
-	p = io.NewPolicy(nil)
+	p = io.NewSshd(nil, nil)
 }
 
 func TestMatchServer(t *testing.T) {
@@ -64,7 +65,7 @@ func TestMatchServer(t *testing.T) {
 
 // TEST p.MatchPolicy
 func TestMatchPolicy(t *testing.T) {
-	Conf.WithDB.Enable = true
+	app.App.Config.WithDB.Enable = true
 
 	user := User{
 		Username: tea.String("zhoushoujian"),
@@ -197,8 +198,7 @@ func TestMatchPolicy(t *testing.T) {
 }
 
 func TestMultipolicy(t *testing.T) {
-	Conf.WithDB.Enable = true
-
+	app.App.Config.WithDB.Enable = true
 	user := User{
 		Username: tea.String("zhoushoujian"),
 	}

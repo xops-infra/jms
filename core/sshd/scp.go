@@ -92,7 +92,7 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 		}
 	}()
 
-	user, err := app.App.JmsDBService.DescribeUser((*clientSess).User())
+	user, err := app.App.DBIo.DescribeUser((*clientSess).User())
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 			log.Debugf("arg: %s", arg)
 			switch arg {
 			case "-t":
-				err := app.App.Sshd.PolicyIO.CheckPermission(args[1], user, Upload)
+				err := app.App.Sshd.SshdIO.CheckPermission(args[1], user, Upload)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -114,7 +114,7 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 				(*clientSess).Close()
 				return nil
 			case "-f":
-				err := app.App.Sshd.PolicyIO.CheckPermission(args[1], user, Download)
+				err := app.App.Sshd.SshdIO.CheckPermission(args[1], user, Download)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -164,7 +164,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 			return err
 		}
 		if app.App.Config.WithDB.Enable {
-			err = app.App.JmsDBService.AddScpRecord(&AddScpRecordRequest{
+			err = app.App.DBIo.AddScpRecord(&AddScpRecordRequest{
 				Action: tea.String("upload"),
 				From:   tea.String(filename),
 				To:     tea.String(args[1]), // root@10.9.x.x:/data/xx.zip
@@ -284,7 +284,7 @@ func copyFromServer(args []string, sess *ssh.Session) error {
 				return
 			}
 			if app.App.Config.WithDB.Enable {
-				err = app.App.JmsDBService.AddScpRecord(&AddScpRecordRequest{
+				err = app.App.DBIo.AddScpRecord(&AddScpRecordRequest{
 					Action: tea.String("download"),
 					To:     tea.String(filename),
 					From:   tea.String(args[1]), // root@10.9.x.x:/data/xxx.json

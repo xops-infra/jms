@@ -69,7 +69,7 @@ func createApproval(c *gin.Context) {
 			})
 		}
 
-		policyId, err := app.App.JmsDBService.CreatePolicy(req.ToPolicyMut())
+		policyId, err := app.App.DBIo.CreatePolicy(req.ToPolicyMut())
 		if err != nil {
 			log.Errorf("JmsDBService.CreatePolicy error: %s", err)
 			c.JSON(500, err.Error())
@@ -80,13 +80,13 @@ func createApproval(c *gin.Context) {
 		if err != nil {
 			log.Errorf("dingtalk.CreateApproval error: %s", err)
 			// 删除策略
-			if err := app.App.JmsDBService.DeletePolicy(policyId); err != nil {
+			if err := app.App.DBIo.DeletePolicy(policyId); err != nil {
 				log.Errorf("JmsDBService.DeletePolicy error: %s", err)
 			}
 			c.JSON(500, err.Error())
 			return
 		}
-		err = app.App.JmsDBService.UpdatePolicy(policyId, &PolicyRequest{
+		err = app.App.DBIo.UpdatePolicy(policyId, &PolicyRequest{
 			ApprovalID: &processid,
 		})
 		if err != nil {
@@ -96,7 +96,7 @@ func createApproval(c *gin.Context) {
 		}
 		c.JSON(200, policyId)
 	} else {
-		policyId, err := app.App.JmsDBService.CreatePolicy(req.ToPolicyMut())
+		policyId, err := app.App.DBIo.CreatePolicy(req.ToPolicyMut())
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -126,7 +126,7 @@ func updateApproval(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.JmsDBService.UpdatePolicyStatus(id, *req); err != nil {
+	if err := app.App.DBIo.UpdatePolicyStatus(id, *req); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}

@@ -29,7 +29,7 @@ func TestAddAuthorizedKey(t *testing.T) {
 		}
 		keyArry := strings.SplitN(line, " ", 2)
 		// 入库
-		err := app.App.JmsDBService.AddAuthorizedKey(keyArry[0], keyArry[1])
+		err := app.App.DBIo.AddAuthorizedKey(keyArry[0], keyArry[1])
 		if err != nil {
 			log.Panicf(err.Error())
 		}

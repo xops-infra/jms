@@ -30,7 +30,7 @@ func listLoginAudit(c *gin.Context) {
 		req.User = tea.String(c.Query("user"))
 	}
 
-	records, err := app.App.JmsDBService.ListServerLoginRecord(req)
+	records, err := app.App.DBIo.ListServerLoginRecord(req)
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -63,7 +63,7 @@ func listScpAudit(c *gin.Context) {
 	if c.Query("action") != "" {
 		req.Action = tea.String(c.Query("action"))
 	}
-	records, err := app.App.JmsDBService.ListScpRecord(req)
+	records, err := app.App.DBIo.ListScpRecord(req)
 	if err != nil {
 		c.JSON(500, err.Error())
 		return

@@ -10,17 +10,16 @@ import (
 	"time"
 
 	"github.com/elfgzp/ssh"
-	"github.com/google/gops/agent"
 	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron"
 	"github.com/spf13/cobra"
 	"github.com/xops-infra/noop/log"
 
 	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/core"
 	"github.com/xops-infra/jms/core/pui"
 	"github.com/xops-infra/jms/core/sshd"
 	"github.com/xops-infra/jms/io"
-	appConfig "github.com/xops-infra/jms/model"
 	"github.com/xops-infra/jms/utils"
 )
 
@@ -36,50 +35,53 @@ var sshdCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := agent.Listen(agent.Options{}); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to start gops agent: %v\n", err)
-			os.Exit(1)
-		}
-		defer agent.Close()
-
-		appConfig.LoadYaml(config)
-
-		err := os.MkdirAll(utils.FilePath(logDir), 0755)
-		if err != nil {
-			log.Fatalf("create log dir failed: %s", err.Error())
-		}
 
 		// init app
-		_app := app.NewApp(debug, logDir, rootCmd.Version)
+		_app := app.NewApplication(debug, logDir, rootCmd.Version, config)
+
+		// mkdir
+		err := os.MkdirAll(_app.SSHDir, 0755)
+		if err != nil {
+			log.Fatalf("create ssh dir failed: %s", err.Error())
+		}
+
+		// 判断文件hostAuthorizedKeys是否存在，不存在则创建
+		hostAuthorizedKeys := _app.SSHDir + "authorized_keys"
+		log.Infof("check hostAuthorizedKeys: %s", hostAuthorizedKeys)
+		if !utils.FileExited(hostAuthorizedKeys) {
+			log.Infof("create hostAuthorizedKeys: %s", hostAuthorizedKeys)
+			os.Create(hostAuthorizedKeys)
+			os.Chmod(hostAuthorizedKeys, 0600)
+		}
 
 		if app.App.Config.WithLdap.Enable {
 			log.Infof("enable ldap")
-			_app.WithLdap()
+			ldap, err := utils.NewLdap(_app.Config.WithLdap)
+			if err != nil {
+				panic(err)
+			}
+			_app.Sshd.Ldap = ldap
 		}
 
 		if app.App.Config.WithDB.Enable {
+			log.Infof("enable db without automigrate")
 			_app.WithDB(false) // sshd 只管连接，api 才去操作数据库
-			log.Infof("enable db")
 		}
 
 		if app.App.Config.WithDingtalk.Enable {
 			log.Infof("enable dingtalk")
 			_app.WithDingTalk()
 			if !app.App.Config.WithDB.Enable {
-				app.App.Config.WithDingtalk.Enable = false
 				log.Warnf("dingtalk enable but db not enable, disable dingtalk")
+				app.App.Config.WithDingtalk.Enable = false
 			} else {
 				log.Infof("enable api dingtalk Approve")
 			}
 		}
 
-		app.App.Sshd.PolicyIO = io.NewPolicy(app.App.JmsDBService)
-		app.App.Sshd.SshdIO = io.NewSshd(app.App.JmsDBService, app.App.Config.LocalServers.ToMapWithHost())
-		app.App.Sshd.KeyIO = io.NewKey(app.App.JmsDBService)
+		app.App.Sshd.SshdIO = io.NewSshd(app.App.DBIo, app.App.Config.LocalServers.ToMapWithHost())
 
-		if !debug {
-			go startSshdScheduler()
-		}
+		go startSshdScheduler()
 
 		ssh.Handle(func(sess ssh.Session) {
 			defer func() {
@@ -143,7 +145,7 @@ func passwordAuth(ctx ssh.Context, pass string) bool {
 	}
 	// 如果启用 policy策略，登录时需要验证用户密码
 	if app.App.Config.WithDB.Enable {
-		allow, err := app.App.JmsDBService.Login(ctx.User(), pass)
+		allow, err := app.App.DBIo.Login(ctx.User(), pass)
 		if err != nil {
 			log.Error(err.Error())
 			return false
@@ -165,7 +167,7 @@ func passwordAuth(ctx ssh.Context, pass string) bool {
 func publicKeyAuth(ctx ssh.Context, key ssh.PublicKey) bool {
 	if app.App.Config.WithDB.Enable {
 		// 数据库读取数据认证
-		return app.App.JmsDBService.AuthKey(ctx.User(), key)
+		return app.App.DBIo.AuthKey(ctx.User(), key)
 	}
 	// 否则走文件认证
 	return utils.AuthFromFile(ctx, key, app.App.SSHDir)
@@ -226,7 +228,7 @@ func execHandler(sess *ssh.Session) {
 	}
 	if app.App.Config.WithDB.Enable {
 		// 数据库读取数据认证
-		if err := app.App.JmsDBService.AddAuthorizedKey((*sess).User(), pubKey); err != nil {
+		if err := app.App.DBIo.AddAuthorizedKey((*sess).User(), pubKey); err != nil {
 			sshd.ErrorInfo(err, sess)
 			log.Errorf("add authorized key error: %s", err.Error())
 			return
@@ -261,32 +263,14 @@ func scpHandler(args []string, sess *ssh.Session) {
 func startSshdScheduler() {
 
 	c := cron.New()
-
-	if app.App.Config.WithDB.Enable {
-		c.AddFunc("0 * * * * *", func() {
-			err := sshd.ServerShellRun() // 每 1min 检查一次
-			if err != nil {
-				log.Errorf("server shell run error: %s", err)
-			}
-		})
-	}
-
-	// 启动检测机器 ssh可连接性并依据配置发送钉钉告警通知
-	if app.App.Config.WithSSHCheck.Enable {
-		log.Infof("with ssh check,5min check once")
-		c.AddFunc("0 */5 * * * *", func() {
-			sshd.ServerLiveness(app.App.Config.WithSSHCheck.Alert.RobotToken)
-		})
-	}
-
-	cron := "0 0 3 * * *" // 默认每天早上 3 点
+	// 默认每天早上 3 点 清理日志
+	cron := "0 0 3 * * *"
 	if app.App.Config.WithVideo.Cron != "" {
 		cron = app.App.Config.WithVideo.Cron
 	}
 	c.AddFunc(cron, func() {
-		sshd.AuditLogArchiver()
+		core.AuditLogArchiver()
 	})
-
 	c.Start()
 	select {}
 }

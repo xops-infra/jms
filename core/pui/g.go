@@ -104,7 +104,7 @@ loopMenu:
 
 			if app.App.Config.WithDB.Enable && !app.App.Config.WithDingtalk.Enable {
 				// 没有审批策略时候，会在 admin 服务器选择列表里面显示审批菜单
-				policies, err := app.App.JmsDBService.NeedApprove((*ui.sess).User())
+				policies, err := app.App.DBIo.NeedApprove((*ui.sess).User())
 				if err != nil {
 					log.Errorf("Get need approve policy for admin error: %s", err)
 				}
@@ -239,7 +239,7 @@ func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	// 发送屏幕清理指令
 	// 发送当前时间
 	ui.sessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
-		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount(), app.App.JmsDBService.GetServerCount(),
+		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Cache.ItemCount(), app.App.DBIo.GetServerCount(),
 	))
 	// 发送欢迎信息
 	if broadcast != nil {

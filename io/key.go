@@ -5,23 +5,12 @@ import (
 	"fmt"
 
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/xops-infra/jms/core/db"
 	"github.com/xops-infra/noop/log"
 	gossh "golang.org/x/crypto/ssh"
 )
 
-type KeyIO struct {
-	db *db.DBService
-}
-
-func NewKey(db *db.DBService) *KeyIO {
-	return &KeyIO{
-		db: db,
-	}
-}
-
 // getSignerByKeyID
-func (k *KeyIO) GetSignerByKeyID(keyID string) (gossh.Signer, error) {
+func (k *SshdIO) GetSignerByKeyID(keyID string) (gossh.Signer, error) {
 	keys, err := k.db.InternalLoadKey()
 	if err != nil {
 		return nil, err
@@ -36,7 +25,7 @@ func (k *KeyIO) GetSignerByKeyID(keyID string) (gossh.Signer, error) {
 }
 
 // getSignerByIdentityFile
-func (k *KeyIO) GetSignerByIdentityFile(identityFile string) (gossh.Signer, error) {
+func (k *SshdIO) GetSignerByIdentityFile(identityFile string) (gossh.Signer, error) {
 	keys, err := k.db.InternalLoadKey()
 	if err != nil {
 		return nil, err

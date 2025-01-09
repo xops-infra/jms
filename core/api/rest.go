@@ -11,6 +11,7 @@ import (
 )
 
 func NewGin() *gin.Engine {
+
 	r := gin.Default()
 	middleware.AttachTo(r).
 		WithCacheDisabled().

@@ -32,7 +32,7 @@ func TestAddKey(t *testing.T) {
 		}
 		base64Pem := base64.StdEncoding.EncodeToString(pem)
 		// 添加到数据库
-		_, err = app.App.JmsDBService.AddKey(model.AddKeyRequest{
+		_, err = app.App.DBIo.AddKey(model.AddKeyRequest{
 			IdentityFile: tea.String(info.Name()),
 			PemBase64:    tea.String(base64Pem),
 		})
@@ -46,7 +46,7 @@ func TestAddKey(t *testing.T) {
 
 // ListKey
 func TestListKey(t *testing.T) {
-	keys, err := app.App.JmsDBService.ListKey()
+	keys, err := app.App.DBIo.ListKey()
 	if err != nil {
 		t.Fatal(err)
 	}

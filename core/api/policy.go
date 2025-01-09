@@ -26,7 +26,7 @@ func listPolicy(c *gin.Context) {
 	name := c.Query("name")
 	id := c.Query("id")
 	if user != "" {
-		policies, err := app.App.JmsDBService.QueryPolicyByUser(user)
+		policies, err := app.App.DBIo.QueryPolicyByUser(user)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -35,7 +35,7 @@ func listPolicy(c *gin.Context) {
 		return
 	}
 	if name != "" {
-		policies, err := app.App.JmsDBService.QueryPolicyByName(name)
+		policies, err := app.App.DBIo.QueryPolicyByName(name)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -44,7 +44,7 @@ func listPolicy(c *gin.Context) {
 		return
 	}
 	if id != "" {
-		policy, err := app.App.JmsDBService.QueryPolicyById(id)
+		policy, err := app.App.DBIo.QueryPolicyById(id)
 		if err != nil {
 			c.JSON(500, err.Error())
 			return
@@ -53,7 +53,7 @@ func listPolicy(c *gin.Context) {
 		return
 	}
 	// 否则查询所有
-	policies, err := app.App.JmsDBService.QueryAllPolicy()
+	policies, err := app.App.DBIo.QueryAllPolicy()
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
@@ -84,7 +84,7 @@ func updatePolicy(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
-	if err := app.App.JmsDBService.UpdatePolicy(id, req); err != nil {
+	if err := app.App.DBIo.UpdatePolicy(id, req); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}
@@ -106,7 +106,7 @@ func deletePolicy(c *gin.Context) {
 		c.JSON(400, fmt.Errorf("id is empty"))
 		return
 	}
-	if err := app.App.JmsDBService.DeletePolicy(id); err != nil {
+	if err := app.App.DBIo.DeletePolicy(id); err != nil {
 		c.JSON(500, err.Error())
 		return
 	}

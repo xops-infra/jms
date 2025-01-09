@@ -33,24 +33,24 @@ var dbCmd = &cobra.Command{
 			cmd.Help()
 			return
 		}
-		appConfig.LoadYaml(config)
+		appConfig.InitConfig(config)
 		err := os.MkdirAll(utils.FilePath(logDir), 0755)
 		if err != nil {
 			log.Fatalf("create log dir failed: %s", err.Error())
 		}
 		// init app
-		_app := app.NewApp(debug, logDir, rootCmd.Version)
+		_app := app.NewApplication(debug, logDir, rootCmd.Version, config)
 		_app.WithDB(false)
 		switch args[0] {
 		case "upgrade":
 			// 数据结构变更做的库数据升级用,比如这里的 serverfilter数据结构重新设计后字段解析都要重做。
-			policies, err := _app.JmsDBService.QueryAllPolicyOld()
+			policies, err := _app.DBIo.QueryAllPolicyOld()
 			if err != nil {
 				log.Fatalf("query all policy failed: %s", err.Error())
 			}
 
 			for _, policy := range policies {
-				err := _app.JmsDBService.UpdatePolicy(policy.ID, &appConfig.PolicyRequest{
+				err := _app.DBIo.UpdatePolicy(policy.ID, &appConfig.PolicyRequest{
 					ServerFilterV1: policy.ServerFilter.ToV1(),
 				})
 				if err != nil {
@@ -98,7 +98,7 @@ var dbCmd = &cobra.Command{
 				log.Fatalf("open target db failed: %s", err.Error())
 			}
 
-			err = _app.JmsDBService.SyncToTargetDB(rdb, talbeNames)
+			err = _app.DBIo.SyncToTargetDB(rdb, talbeNames)
 			if err != nil {
 				log.Fatalf("sync db failed: %s", err.Error())
 			}

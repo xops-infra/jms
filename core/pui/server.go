@@ -24,16 +24,16 @@ func (ui *PUI) getServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
 		sshd.Info(fmt.Sprintf("GetServersMenuV2 cost: %s", time.Since(timeStart)), sess)
 	}()
 	menu := make([]MenuItem, 0)
-	matchPolicies := app.App.Sshd.PolicyIO.GetUserPolicys((*sess).User())
+	matchPolicies := app.App.Sshd.SshdIO.GetUserPolicys((*sess).User())
 	sshd.Info(fmt.Sprintf("matchPolicies: %d", len(matchPolicies)), sess)
-	servers, err := app.App.JmsDBService.LoadServer()
+	servers, err := app.App.DBIo.LoadServer()
 	if err != nil {
 		return menu, err
 	}
 	// sshd.Info(fmt.Sprintf("servers: %d", len(servers)), sess)
 	serversMap := servers.ToMap()
 
-	user, err := app.App.JmsDBService.DescribeUser((*sess).User())
+	user, err := app.App.DBIo.DescribeUser((*sess).User())
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (ui *PUI) getServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
 			GetSubMenu:   ui.getServerSSHUsersMenu(server, serversMap),
 		}
 		// 判断机器权限进入不同菜单
-		if !app.App.Sshd.PolicyIO.MatchPolicy(user, Connect, server, matchPolicies, false) {
+		if !app.App.Sshd.SshdIO.MatchPolicy(user, Connect, server, matchPolicies, false) {
 			subMenu.Label = fmt.Sprintf("%s\t[x]\t%s\t%s", server.ID, server.Host, server.Name)
 			subMenu.SubMenuTitle = SelectServer
 			subMenu.GetSubMenu = getServerApproveMenu(server)
@@ -96,7 +96,7 @@ func getApproveSubMenu(policy *Policy) func(int, MenuItem, *ssh.Session, []MenuI
 		menu = append(menu, MenuItem{
 			Label: "Approve",
 			SelectedFunc: func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) (bool, error) {
-				err := app.App.JmsDBService.ApprovePolicy(policy.Name, (*sess).User(), true)
+				err := app.App.DBIo.ApprovePolicy(policy.Name, (*sess).User(), true)
 				if err != nil {
 					return false, err
 				}
@@ -106,7 +106,7 @@ func getApproveSubMenu(policy *Policy) func(int, MenuItem, *ssh.Session, []MenuI
 		menu = append(menu, MenuItem{
 			Label: "Reject",
 			SelectedFunc: func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) (bool, error) {
-				err := app.App.JmsDBService.ApprovePolicy(policy.Name, (*sess).User(), false)
+				err := app.App.DBIo.ApprovePolicy(policy.Name, (*sess).User(), false)
 				if err != nil {
 					return false, err
 				}
@@ -135,7 +135,7 @@ func (ui *PUI) getServerSSHUsersMenu(server Server, serversMap map[string]Server
 		var menu []MenuItem
 
 		// 获取实时 keys
-		keys, err := app.App.JmsDBService.InternalLoadKey()
+		keys, err := app.App.DBIo.InternalLoadKey()
 		if err != nil {
 			log.Errorf("get keys error: %s", err)
 			sshd.ErrorInfo(err, sess)
@@ -159,7 +159,7 @@ func (ui *PUI) getServerSSHUsersMenu(server Server, serversMap map[string]Server
 				}
 				// 记录登录日志到数据库
 				if app.App.Config.WithDB.Enable {
-					err := app.App.JmsDBService.AddServerLoginRecord(&AddSshLoginRequest{
+					err := app.App.DBIo.AddServerLoginRecord(&AddSshLoginRequest{
 						TargetServer: tea.String(server.Host),
 						InstanceID:   tea.String(server.ID),
 						User:         tea.String((*sess).User()),
@@ -275,12 +275,10 @@ func getSureApplyMenu(serverFilter ServerFilterV1, actions ArrayString, expiredD
 					return false, fmt.Errorf("server filter is nil")
 				}
 
-				adminMessage := ""
 				// 创建审批策略
-				policyId, err := app.App.JmsDBService.CreatePolicy(policyNew)
+				policyId, err := app.App.DBIo.CreatePolicy(policyNew)
 				if err != nil {
 					log.Errorf("create policy error: %s", err)
-					adminMessage = "创建审批策略失败"
 					return false, err
 				}
 				log.Infof("create approve success, id: %s", policyId)
@@ -314,10 +312,9 @@ func getSureApplyMenu(serverFilter ServerFilterV1, actions ArrayString, expiredD
 						return false, err
 					}
 					// 更新审批ID到策略字段
-					if err := app.App.JmsDBService.UpdatePolicy(policyId, &PolicyRequest{
+					if err := app.App.DBIo.UpdatePolicy(policyId, &PolicyRequest{
 						ApprovalID: &id,
 					}); err != nil {
-						adminMessage = fmt.Sprintf("更新审批ID到策略字段,需要人工修复审批id: %s 的approveid字段为: %s error: %s", policyId, id, err)
 						log.Errorf("update policy approval id error, report to admin: %s", err)
 						return false, err
 					}
@@ -327,11 +324,6 @@ func getSureApplyMenu(serverFilter ServerFilterV1, actions ArrayString, expiredD
 
 				// 产生一个申请权限的任务，等待管理员审核
 				sshd.Info(fmt.Sprintf("审批ID:%s，创建成功！等待管理员审核。", policyId), sess)
-				if adminMessage != "" {
-					// TODO: 发送钉钉消息
-					sshd.SendMessage(app.App.Config.WithSSHCheck.Alert.RobotToken,
-						adminMessage)
-				}
 				return true, nil
 			}})
 		return menu
