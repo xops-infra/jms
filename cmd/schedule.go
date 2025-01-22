@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron"
 	"github.com/spf13/cobra"
 	dt "github.com/xops-infra/go-dingtalk-sdk-wrapper"
@@ -118,6 +119,7 @@ func startSchedule() {
 
 	// 启动检测机器 ssh可连接性并依据配置发送钉钉告警通知
 	if app.App.Config.WithSSHCheck.Enable {
+		app.App.Config.WithSSHCheck.LivenessCache = cache.New(cache.NoExpiration, cache.NoExpiration)
 		log.Infof("with ssh check,5min check once")
 		c.AddFunc("0 */5 * * * *", func() {
 			log.Infof("run ssh check")

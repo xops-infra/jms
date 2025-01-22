@@ -80,6 +80,7 @@ var sshdCmd = &cobra.Command{
 		}
 
 		app.App.Sshd.SshdIO = io.NewSshd(app.App.DBIo, app.App.Config.LocalServers.ToMapWithHost())
+		app.App.Sshd.UserCache = cache.New(cache.NoExpiration, cache.NoExpiration)
 
 		go startSshdScheduler()
 
@@ -179,11 +180,11 @@ func sessionHandler(sess *ssh.Session) {
 	defer func() {
 		log.Warnf("user: %s, remote addr: %s exited", user, remote)
 		(*sess).Close()
-		app.App.Cache.Delete(user)
+		app.App.Sshd.UserCache.Delete(user)
 	}()
-	_, found := app.App.Cache.Get(user)
+	_, found := app.App.Sshd.UserCache.Get(user)
 	if !found {
-		app.App.Cache.Add(user, 1, cache.DefaultExpiration)
+		app.App.Sshd.UserCache.Add(user, 1, cache.DefaultExpiration)
 	}
 
 	rawCmd := (*sess).RawCommand()

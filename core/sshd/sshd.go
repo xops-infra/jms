@@ -104,8 +104,8 @@ func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
 	}()
 
 	// fmt.Println((*sess).Environ(), (*sess).RemoteAddr())
-	app.App.Cache.Set((*sess).RemoteAddr().String(), true, cache.DefaultExpiration)
-	defer app.App.Cache.Delete((*sess).RemoteAddr().String())
+	app.App.Sshd.UserCache.Set((*sess).RemoteAddr().String(), true, cache.DefaultExpiration)
+	defer app.App.Sshd.UserCache.Delete((*sess).RemoteAddr().String())
 
 	if err := upstreamSess.Wait(); err != nil {
 		return err

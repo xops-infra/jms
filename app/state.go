@@ -29,12 +29,13 @@ var App *Application
 type Schedule struct {
 	DingTalkClient *dt.DingTalkClient // 钉钉APP使用审批流
 	RobotClient    *dt.RobotClient    // 钉钉机器人
-	InstanceIO     *io.InstanceIO
+	InstanceIO     *io.InstanceIO     // 刷服务器信息入库
 }
 
 type Sshd struct {
-	SshdIO *io.SshdIO
-	Ldap   *utils.Ldap
+	UserCache *cache.Cache
+	SshdIO    *io.SshdIO
+	Ldap      *utils.Ldap
 }
 
 type Application struct {
@@ -42,7 +43,6 @@ type Application struct {
 	HomeDir, SSHDir string // /opt/jms/
 	Version         string
 	Config          *model.Config // 支持数据库和配置文件两种方式载入配置
-	Cache           *cache.Cache
 
 	DBIo *db.DBService
 
@@ -63,7 +63,6 @@ func NewApplication(debug bool, logDir, version, config string) *Application {
 		Version: version,
 		Debug:   debug,
 		Config:  model.InitConfig(config),
-		Cache:   cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
 
 	// init log

@@ -50,11 +50,11 @@ func ServerLiveness(dingtalkToken string) {
 		for _, sshUser := range sshUsers {
 			proxyClient, client, err := sshd.NewSSHClient("system_liveness_check", server, sshUser)
 			if err != nil {
-				_, found := app.App.Cache.Get(server.Host)
+				_, found := app.App.Config.WithSSHCheck.LivenessCache.Get(server.Host)
 				if found {
 					return
 				}
-				app.App.Cache.Add(server.Host, 1, 0)
+				app.App.Config.WithSSHCheck.LivenessCache.Add(server.Host, 1, 0)
 				SendMessage(dingtalkToken, fmt.Sprintf("（紧急）机器ssh连接失败，请检查机器是否失联！\n机器名称：%s\n机器IP：%s\n登录用户：%s\n告警时间：%s\n错误信息：%s", server.Name, server.Host,
 					sshUser.UserName, time.Now().Format(time.RFC3339), err))
 				continue
@@ -76,10 +76,10 @@ func ServerLiveness(dingtalkToken string) {
 				log.Infof("server %s SSH ESTABLISHED nu: %s ", server.Host, string(info))
 			}
 
-			_, found := app.App.Cache.Get(server.Host)
+			_, found := app.App.Config.WithSSHCheck.LivenessCache.Get(server.Host)
 			if found {
 				SendMessage(dingtalkToken, fmt.Sprintf("机器ssh连接已经恢复！\n机器名称：%s\n机器IP：%s\n告警时间：%s\n登录用户：%s", server.Name, server.Host, time.Now().Format(time.RFC3339), sshUser.UserName))
-				app.App.Cache.Delete(server.Host)
+				app.App.Config.WithSSHCheck.LivenessCache.Delete(server.Host)
 			}
 			break // 只检查一个
 		}

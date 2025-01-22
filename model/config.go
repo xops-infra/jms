@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
@@ -102,9 +103,10 @@ func (c *PGConfig) GetUrl() string {
 }
 
 type WithSSHCheck struct {
-	Enable bool     `mapstructure:"enable"`
-	Alert  SSHAlert `mapstructure:"alert"`
-	IPS    []string `mapstructure:"ips"`
+	LivenessCache *cache.Cache `mapstructure:"livenessCache"`
+	Enable        bool         `mapstructure:"enable"`
+	Alert         SSHAlert     `mapstructure:"alert"`
+	IPS           []string     `mapstructure:"ips"`
 }
 
 // 目前只支持钉钉机器人群告警
