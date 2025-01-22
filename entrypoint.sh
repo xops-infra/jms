@@ -12,8 +12,8 @@ fi
 
 if [ -n "$API" ] && [ "$API" = "true" ]; then
     /usr/bin/jms-go api $DEBUG
-elif [ -n "$SCHEDULE" ] && [ "$SCHEDULE" = "true" ]; then
-    /usr/bin/jms-go schedule $DEBUG
+elif [ -n "$SCHEDULER" ] && [ "$SCHEDULER" = "true" ]; then
+    /usr/bin/jms-go scheduler $DEBUG
 else
     /usr/bin/jms-go sshd  $DEBUG $TIMEOUT
 fi

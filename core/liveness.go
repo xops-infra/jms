@@ -90,7 +90,7 @@ func ServerLiveness(dingtalkToken string) {
 // 发送到群里
 func SendMessage(token, msg string) {
 	log.Infof("send dingtalk msg: %s", msg)
-	err := app.App.Schedule.RobotClient.SendMessage(context.Background(), &dt.SendMessageRequest{
+	err := app.App.Scheduler.RobotClient.SendMessage(context.Background(), &dt.SendMessageRequest{
 		AccessToken: token,
 		MessageContent: dt.MessageContent{
 			MsgType: "text",

@@ -207,12 +207,12 @@ func serverCronRun() {
 
 func checkCronTime(cronExpr string) bool {
 	parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
-	schedule, err := parser.Parse(cronExpr)
+	scheduler, err := parser.Parse(cronExpr)
 	if err != nil {
 		log.Errorf("parse cron expression error: %s", err)
 		return false
 	}
 
-	nextRun := schedule.Next(time.Now().Add(-1 * time.Minute))
+	nextRun := scheduler.Next(time.Now().Add(-1 * time.Minute))
 	return nextRun.Before(time.Now()) && nextRun.After(time.Now().Add(-1*time.Minute))
 }

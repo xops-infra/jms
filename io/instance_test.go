@@ -11,5 +11,5 @@ func init() {
 }
 
 func TestServerLiveness(t *testing.T) {
-	app.App.Schedule.InstanceIO.LoadServer()
+	app.App.Scheduler.InstanceIO.LoadServer()
 }

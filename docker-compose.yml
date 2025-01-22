@@ -25,7 +25,7 @@ services:
       - "./config.yaml:/opt/jms/config.yaml"
       - "/opt/jms/.ssh/:/opt/jms/.ssh/" # 持久化数据
 
-  jms-schedule:
+  jms-scheduler:
     depends_on:
       - pg
     restart: always
@@ -34,7 +34,7 @@ services:
       - "6060:6060"
     environment:
       - DEBUG=false
-      - SCHEDULE=true
+      - SCHEDULER=true
       - JMS_DINGTALK_WEB_HOOK_TOKEN=xxx # 钉钉群机器人 token (可选)
     volumes:
       - "./config.yaml:/opt/jms/config.yaml"

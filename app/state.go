@@ -26,7 +26,7 @@ import (
 
 var App *Application
 
-type Schedule struct {
+type Scheduler struct {
 	DingTalkClient *dt.DingTalkClient // 钉钉APP使用审批流
 	RobotClient    *dt.RobotClient    // 钉钉机器人
 	InstanceIO     *io.InstanceIO     // 刷服务器信息入库
@@ -46,8 +46,8 @@ type Application struct {
 
 	DBIo *db.DBService
 
-	Schedule Schedule
-	Sshd     Sshd
+	Scheduler Scheduler
+	Sshd      Sshd
 }
 
 // Manager,Agent,Worker need to be initialized
@@ -106,7 +106,7 @@ func (app *Application) WithMcs() *Application {
 	serverAws := mcsIo.NewAwsClient(cloudIo)
 
 	mcsServer := server.NewCommonService(_profiles, serverAws, serverTencent)
-	App.Schedule.InstanceIO = io.NewInstance(mcsServer, app.DBIo, app.Config.LocalServers)
+	App.Scheduler.InstanceIO = io.NewInstance(mcsServer, app.DBIo, app.Config.LocalServers)
 	log.Infof("success load mcs")
 	return app
 }
@@ -121,7 +121,7 @@ func (app *Application) WithDingTalk() *Application {
 		AppSecret: app.Config.WithDingtalk.AppSecret,
 	})
 	client.WithWorkflowClientV2().WithDepartClient().WithUserClient()
-	app.Schedule.DingTalkClient = client
+	app.Scheduler.DingTalkClient = client
 	return app
 }
 

@@ -14,13 +14,14 @@ import (
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core"
 	"github.com/xops-infra/jms/core/dingtalk"
+	"github.com/xops-infra/jms/io"
 	"github.com/xops-infra/noop/log"
 )
 
-// scheduleCmd represents the schedule command
-var scheduleCmd = &cobra.Command{
-	Use:   "schedule",
-	Short: "run schedule, should be only 1 instance",
+// SchedulerCmd represents the Scheduler command
+var SchedulerCmd = &cobra.Command{
+	Use:   "scheduler",
+	Short: "run Scheduler, should be only 1 instance",
 	Long: `运行一些辅助任务，主要如下功能：
 - 执行定时任务，加载一些必要信息，比如如果接入钉钉审批则需要录入人员信息；
 - 执行定时任务，检查机器 ssh 可连接性；
@@ -29,12 +30,13 @@ var scheduleCmd = &cobra.Command{
 - 执行批量脚本；
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("schedule called")
+		fmt.Println("Scheduler called")
 		_app := app.NewApplication(debug, logDir, rootCmd.Version, config)
 
 		if app.App.Config.WithDB.Enable {
 			log.Infof("enable db with automigrate")
 			_app.WithDB(true)
+			app.App.Sshd.SshdIO = io.NewSshd(app.App.DBIo, app.App.Config.LocalServers.ToMapWithHost()) // todo: 把认证那块的函数移到 db操作
 		}
 
 		if app.App.Config.WithDingtalk.Enable {
@@ -50,38 +52,38 @@ var scheduleCmd = &cobra.Command{
 
 		if app.App.Config.WithSSHCheck.Enable {
 			log.Infof("enable dingtalk")
-			_app.Schedule.RobotClient = dt.NewRobotClient()
+			_app.Scheduler.RobotClient = dt.NewRobotClient()
 		}
 
 		app.App.WithMcs()
 
 		go func() {
 			for {
-				app.App.Schedule.InstanceIO.LoadServer() // 加载服务列表
-				time.Sleep(1 * time.Minute)              // 休眠 1 分钟
+				app.App.Scheduler.InstanceIO.LoadServer() // 加载服务列表
+				time.Sleep(1 * time.Minute)               // 休眠 1 分钟
 			}
 		}()
 
-		startSchedule()
+		startScheduler()
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(scheduleCmd)
+	rootCmd.AddCommand(SchedulerCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// scheduleCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// SchedulerCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// scheduleCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// SchedulerCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
 }
 
-func startSchedule() {
+func startScheduler() {
 	c := cron.New()
 	time.Sleep(10 * time.Second) // 等待app初始化完成
 

@@ -33,22 +33,22 @@ func CreateApproval(applicant string, values []dt.FormComponentValue) (string, e
 	}
 
 	// 主动刷新token
-	err = app.App.Schedule.DingTalkClient.SetAccessToken()
+	err = app.App.Scheduler.DingTalkClient.SetAccessToken()
 	if err != nil {
 		log.Errorf("SetAccessToken failed! %s", err)
 		return "", err
 	}
-	return app.App.Schedule.DingTalkClient.Workflow.CreateProcessInstance(&dt.CreateProcessInstanceInput{
+	return app.App.Scheduler.DingTalkClient.Workflow.CreateProcessInstance(&dt.CreateProcessInstanceInput{
 		ProcessCode:         app.App.Config.WithDingtalk.ProcessCode,
 		OriginatorUserID:    tea.StringValue(user.DingtalkID),
 		DeptId:              tea.StringValue(user.DingtalkDeptID),
 		FormComponentValues: values,
-	}, app.App.Schedule.DingTalkClient.AccessToken.Token)
+	}, app.App.Scheduler.DingTalkClient.AccessToken.Token)
 }
 
 // 同步钉钉用户到数据库user表
 func LoadUsers() error {
-	err := app.App.Schedule.DingTalkClient.SetAccessToken()
+	err := app.App.Scheduler.DingTalkClient.SetAccessToken()
 	if err != nil {
 		log.Errorf("SetAccessToken failed! %s", err)
 	}
@@ -58,20 +58,20 @@ func LoadUsers() error {
 	log.Infof("load dingtalk users start")
 	for depart := range departIDChan {
 		log.Infof("load depart %d", depart)
-		departRes, err := app.App.Schedule.DingTalkClient.Depart.GetDepartmentIDs(&dt.GetDepartmentsIDInput{
+		departRes, err := app.App.Scheduler.DingTalkClient.Depart.GetDepartmentIDs(&dt.GetDepartmentsIDInput{
 			DeptID: depart,
-		}, app.App.Schedule.DingTalkClient.AccessToken.Token)
+		}, app.App.Scheduler.DingTalkClient.AccessToken.Token)
 		if err != nil {
 			return err
 		}
 		for _, v := range departRes {
 			departIDChan <- v
 		}
-		_users, err := app.App.Schedule.DingTalkClient.User.GetUsers(&dt.GetUsersInput{
+		_users, err := app.App.Scheduler.DingTalkClient.User.GetUsers(&dt.GetUsersInput{
 			DeptID: depart,
 			Size:   100,
 			Cursor: 0,
-		}, app.App.Schedule.DingTalkClient.AccessToken.Token)
+		}, app.App.Scheduler.DingTalkClient.AccessToken.Token)
 		if err != nil {
 			return err
 		}
@@ -89,7 +89,7 @@ func getDepart(c chan int64) {
 	input := &dt.GetDepartmentsIDInput{
 		DeptID: int64(1),
 	}
-	departRes, err := app.App.Schedule.DingTalkClient.Depart.GetDepartmentIDs(input, app.App.Schedule.DingTalkClient.AccessToken.Token)
+	departRes, err := app.App.Scheduler.DingTalkClient.Depart.GetDepartmentIDs(input, app.App.Scheduler.DingTalkClient.AccessToken.Token)
 	if err != nil {
 		panic(err)
 	}
@@ -144,12 +144,12 @@ func saveDingtalkUsers(users []*dt.UserInfo) error {
 func LoadApproval() {
 	timeStart := time.Now()
 	var successes []string
-	err := app.App.Schedule.DingTalkClient.SetAccessToken() // 更新 token
+	err := app.App.Scheduler.DingTalkClient.SetAccessToken() // 更新 token
 	if err != nil {
 		log.Errorf("SetAccessToken failed! %s", err)
 		return
 	}
-	log.Infof("tonkens: %s", app.App.Schedule.DingTalkClient.AccessToken.Token)
+	log.Infof("tonkens: %s", app.App.Scheduler.DingTalkClient.AccessToken.Token)
 	// 获取审批列表
 	policies, err := app.App.DBIo.QueryAllPolicy()
 	if err != nil {
@@ -164,7 +164,7 @@ func LoadApproval() {
 			// 已经更新过的审批不再更新
 			continue
 		}
-		resp, err := app.App.Schedule.DingTalkClient.Workflow.GetProcessInstance(policy.ApprovalID, app.App.Schedule.DingTalkClient.AccessToken.Token)
+		resp, err := app.App.Scheduler.DingTalkClient.Workflow.GetProcessInstance(policy.ApprovalID, app.App.Scheduler.DingTalkClient.AccessToken.Token)
 		if err != nil {
 			log.Errorf("GetProcessInstance failed! %s", err)
 		}

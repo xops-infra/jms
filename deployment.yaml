@@ -59,6 +59,7 @@ data:
     # 请查看 config.yaml 的配置后在此配置。
 
 ---
+# jms-api
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -106,6 +107,7 @@ spec:
           persistentVolumeClaim:
             claimName: jms-ssh-claim
 ---
+# jms-sshd
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -161,28 +163,29 @@ spec:
           hostPath:
             path: /mnt/logs/jms-sshd/
 ---
+# jms-scheduler
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: jms-schedule-deployment
+  name: jms-scheduler-deployment
   labels:
-    app: jms-schedule
+    app: jms-scheduler
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: jms-schedule
+      app: jms-scheduler
   template:
     metadata:
       labels:
-        app: jms-schedule
+        app: jms-scheduler
     spec:
       containers:
-        - name: jms-schedule
+        - name: jms-scheduler
           image: zhoushoujian/jms:latest
           imagePullPolicy: Always
           env:
-            - name: SCHEDULE
+            - name: SCHEDULER
               value: "true"
             - name: DEBUG
               value: "false"
