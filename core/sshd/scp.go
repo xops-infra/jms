@@ -441,9 +441,12 @@ func copyToUpstreamSession(r *bufio.Reader, upstreamSess *gossh.Session, perm, f
 		return err
 	}
 
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
 	go func() {
 		defer stdin.Close()
-
+		defer wg.Done()
 		if err = checkResponse(stdout); err != nil {
 			errCh <- err
 			return
@@ -495,6 +498,7 @@ func copyToUpstreamSession(r *bufio.Reader, upstreamSess *gossh.Session, perm, f
 
 	upstreamSess.Wait()
 
+	wg.Wait()
 	close(errCh)
 	for err := range errCh {
 		if err != nil {
