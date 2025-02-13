@@ -28,18 +28,14 @@ func ServerLiveness(dingtalkToken string) {
 		return
 	}
 
-	for _, server := range servers {
-		isIgnore := true
-		for _, checkIp := range app.App.Config.WithSSHCheck.IPS {
-			if checkIp == server.Host {
-				isIgnore = false
-				break
-			}
-		}
-
-		if isIgnore {
+	// 以配置文件为准，检查配置文件中的机器是否存在
+	for _, checkIp := range app.App.Config.WithSSHCheck.IPS {
+		if _, ok := serversMap[checkIp]; !ok {
+			log.Errorf("server liveness check error: %s not found", checkIp)
+			SendMessage(dingtalkToken, fmt.Sprintf("（紧急）机器 %s 不存在，请检查机器是否存在，若已经下线请及时更新配置", checkIp))
 			continue
 		}
+		server := serversMap[checkIp]
 		log.Infof("server liveness check: %s", server.Host)
 		sshUsers, err := app.App.Sshd.SshdIO.GetSSHUsersByHost(server.Host, serversMap, keys)
 		if err != nil {
@@ -83,6 +79,7 @@ func ServerLiveness(dingtalkToken string) {
 			}
 			break // 只检查一个
 		}
+
 	}
 	log.Infof("server liveness check done cost: %s", time.Since(timeStart))
 }

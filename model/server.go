@@ -48,7 +48,7 @@ func (s Servers) SortByName() {
 	})
 }
 
-// toMap
+// toMap by host
 func (s Servers) ToMap() map[string]Server {
 	res := make(map[string]Server)
 	for _, server := range s {
