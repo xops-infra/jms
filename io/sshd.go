@@ -51,7 +51,12 @@ func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server,
 	var newSshUsers []model.SSHUser
 	if server, ok := servers[host]; ok {
 		// 先组装带 passwd的 sshuser
-		if server.Passwd != "" && server.User != "" {
+		if server.Passwd != "" {
+			if server.User == "" {
+				log.Errorf("server %s user is empty, set to root. if not ok, please set user for server %s", host, host)
+				// set user to root
+				server.User = "root"
+			}
 			newSshUsers = append(newSshUsers, model.SSHUser{
 				KeyName:  "manual_passwd",
 				UserName: server.User,

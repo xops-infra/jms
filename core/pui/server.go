@@ -143,14 +143,14 @@ func (ui *PUI) getServerSSHUsersMenu(server Server, serversMap map[string]Server
 		}
 		// sshd.Info(fmt.Sprintf("all server keys: %d", len(keys)), sess)
 
-		users, err := app.App.Sshd.SshdIO.GetSSHUsersByHost(server.Host, serversMap, keys)
+		ssh_users, err := app.App.Sshd.SshdIO.GetSSHUsersByHost(server.Host, serversMap, keys)
 		if err != nil {
 			log.Errorf("get ssh users error: %s", err)
 			sshd.ErrorInfo(err, sess)
 			return menu
 		}
 
-		for _, sshUser := range users {
+		for _, sshUser := range ssh_users {
 			subMenu := MenuItem{}
 			log.Debugf("server:%s user:%s", server.Host, sshUser.UserName)
 			subMenu.SelectedFunc = func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) (bool, error) {
