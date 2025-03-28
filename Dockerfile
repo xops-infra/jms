@@ -2,7 +2,7 @@
 FROM golang:1.21 AS builder
 WORKDIR /build
 COPY . .
-RUN GOOS=linux GOARCH=amd64 go build -o jms-linux-amd64 -ldflags "-X main.version=$(date +%Y%m%d)"
+RUN GOOS=linux GOARCH=amd64 go build -o jms-linux-amd64 -ldflags "-X main.version=v2.0.0-$(date +%Y%m%d)"
 
 # Final stage
 FROM amd64/centos:7
