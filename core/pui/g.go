@@ -56,7 +56,7 @@ func (ui *PUI) resume() {
 func (ui *PUI) exit() {
 	ui.sessionWrite(fmt.Sprintf(BybLabel, time.Now().Local().Format("2006-01-02 15:04:05")))
 	ui.isLogout = true
-	ui = nil
+	(*ui.sess).Close() // 只关闭当前会话
 }
 
 // 当用户连接主机的时候这个判断永远不超时
@@ -85,14 +85,12 @@ func (ui *PUI) flashTimeout() {
 
 // showMenu show menu
 func (ui *PUI) showMenu(label string, menu []MenuItem, BackOptionLabel string, selectedChain []MenuItem) {
-
 loopMenu:
 	for {
 		menuLabels := make([]string, 0) // 菜单，用于显示
 		menuItems := make([]MenuItem, 0)
 		if ui.menuItem == nil {
 			log.Debugf("menu is nil, label: %s", label)
-			// break
 		}
 
 		// 返回顶级菜单
@@ -127,12 +125,14 @@ loopMenu:
 			}
 			filter, err := ui.inputFilter(app.GetBroadcast())
 			if err != nil {
+				if strings.Contains(err.Error(), "exit") {
+					return
+				}
 				sshd.ErrorInfo(err, ui.sess)
 				break loopMenu
 			}
-			// sshd.Info(fmt.Sprintf("过滤: %s", filter), ui.sess)
 			if filter == "^C" {
-				continue
+				continue // 在主菜单，^C 刷新当前菜单
 			}
 			for index, menuItem := range ui.menuItem {
 				log.Debugf("menu: %s", tea.Prettify(menuItem))
@@ -173,15 +173,19 @@ loopMenu:
 			// ^C ^D is not error
 			if strings.Contains(err.Error(), "^C") {
 				log.Debugf(label, MainLabel)
-				// 返回主菜单
-				ui.showMenu(MainLabel, ui.menuItem, BackOptionLabel, selectedChain)
-
+				if label == MainLabel {
+					// 在主菜单，^C 刷新当前菜单
+					continue
+				}
+				// 在子菜单，^C 返回上一层
+				break loopMenu
 			} else if strings.Contains(err.Error(), "^D") {
 				ui.exit()
-				break
+				return
 			} else {
 				log.Errorf("Select menu error %s\n", err)
 			}
+			continue
 		}
 		if index == backIndex {
 			// 返回上一级菜单，如果主菜单了则退无可退。
@@ -248,7 +252,7 @@ func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 		ui.sessionWrite(fmt.Sprintf(InfoLabel, app.App.Version, ""))
 	}
 	prompt := promptui.Prompt{
-		Label:  "Filter",
+		Label:  "请输入关键字，回车进行过滤后选择",
 		Stdin:  *ui.sess,
 		Stdout: *ui.sess,
 	}
