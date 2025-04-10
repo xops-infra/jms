@@ -2,10 +2,10 @@
 FROM golang:1.21 AS builder
 WORKDIR /build
 COPY . .
-RUN GOOS=linux GOARCH=amd64 go build -o jms-linux-amd64 -ldflags "-X main.version=v2.0.0-$(date +%Y%m%d)"
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o jms-linux-amd64 -ldflags "-X main.version=v2.0.0-$(date +%Y%m%d)"
 
 # Final stage
-FROM amd64/centos:7
+FROM ubuntu:22.04
 LABEL maintainer="zhoushoujianwork@163.com"
 
 COPY --from=builder /build/jms-linux-amd64 /usr/bin/jms-go
