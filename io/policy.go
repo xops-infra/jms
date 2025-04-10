@@ -2,6 +2,7 @@ package io
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -134,7 +135,8 @@ func matchUserGroup(user model.User, server model.Server) bool {
 		}
 		if server.Tags.GetTeam() != nil {
 			for _, group := range user.Groups {
-				if *server.Tags.GetTeam() == group {
+				// 大小写不敏感
+				if strings.EqualFold(*server.Tags.GetTeam(), group) {
 					return true
 				}
 			}
@@ -148,7 +150,7 @@ func matchUserGroup(user model.User, server model.Server) bool {
 
 // Owner和用户一样则有权限
 func matchPolicyOwner(user model.User, server model.Server) bool {
-	if server.Tags.GetOwner() != nil && *server.Tags.GetOwner() == *user.Username {
+	if server.Tags.GetOwner() != nil && strings.EqualFold(*server.Tags.GetOwner(), *user.Username) {
 		return true
 	}
 	return false
