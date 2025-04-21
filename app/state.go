@@ -116,10 +116,12 @@ func (app *Application) WithRobot() *Application {
 }
 
 func (app *Application) WithDingTalk() *Application {
-	client, err := dt.NewDingTalkClient(&dt.DingTalkConfig{
+	c := dt.DingTalkConfig{
 		AppKey:    app.Config.WithDingtalk.AppKey,
 		AppSecret: app.Config.WithDingtalk.AppSecret,
-	})
+	}
+	log.Infof("dingtalk config: %+v", c)
+	client, err := dt.NewDingTalkClient(&c)
 	if err != nil {
 		log.Errorf("create dingtalk client failed: %s", err)
 		return app

@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
@@ -65,7 +66,9 @@ func (d *DBService) UpdateServerWithDelete(newServers []model.Server) error {
 			// keep manual passwd server
 			if existingServer.Passwd != "" {
 				// 更新机器 Name 增加 [Offline]$Name 前缀方式 重新加回去
-				existingServer.Name = fmt.Sprintf("[Offline]%s", existingServer.Name)
+				if !strings.HasPrefix(existingServer.Name, "[Offline]") {
+					existingServer.Name = fmt.Sprintf("[Offline]%s", existingServer.Name)
+				}
 				newServers = append(newServers, existingServer)
 				log.Infof("add offline server passwd: %s", existingServer.Host)
 				continue

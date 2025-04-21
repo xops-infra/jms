@@ -63,11 +63,6 @@ var sshdCmd = &cobra.Command{
 			_app.Sshd.Ldap = ldap
 		}
 
-		if app.App.Config.WithDB.Enable {
-			log.Infof("enable db without automigrate")
-			_app.WithDB(false) // sshd 只管连接，api 才去操作数据库
-		}
-
 		if app.App.Config.WithDingtalk.Enable {
 			log.Infof("启用 dingtalk 支持 cli的权限申请功能")
 			_app.WithDingTalk()
@@ -78,6 +73,13 @@ var sshdCmd = &cobra.Command{
 				log.Infof("enable api dingtalk Approve")
 			}
 		}
+
+		if app.App.Config.WithDB.Enable {
+			log.Infof("enable db without automigrate")
+			_app.WithDB(false) // sshd 只管连接，api 才去操作数据库
+		}
+
+		
 
 		app.App.Sshd.SshdIO = io.NewSshd(app.App.DBIo, app.App.Config.LocalServers.ToMapWithHost())
 		app.App.Sshd.UserCache = cache.New(cache.NoExpiration, cache.NoExpiration)

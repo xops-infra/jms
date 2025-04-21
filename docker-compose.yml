@@ -1,7 +1,7 @@
 version: "3"
 services: 
   pg:
-    image: postgres
+    image: postgres:16
     restart: always
     hostname: pg
     environment:
@@ -10,45 +10,51 @@ services:
       - POSTGRES_DB=jms
     ports:
       - "5432:5432"
+    volumes:
+      - /root/data:/var/lib/postgresql/data
 
   jms-sshd:
     depends_on:
       - pg
-    restart: always # 支持 always, on-failure, unless-stopped
-    image: zhoushoujian/jms:latest
+    restart: always
+    build: 
+      context: .
+      dockerfile: Dockerfile
     ports: 
       - "22222:22222"
     environment:
       - TIMEOUT=1800
       - DEBUG=false
     volumes: 
-      - "./config.yaml:/opt/jms/config.yaml"
-      - "/opt/jms/.ssh/:/opt/jms/.ssh/" # 持久化数据
+      - "/opt/jms/config.yaml:/opt/jms/config.yaml"
+      - "/opt/jms/:/opt/jms/"
 
   jms-scheduler:
     depends_on:
       - pg
     restart: always
-    image: zhoushoujian/jms:latest
+    build: 
+      context: .
+      dockerfile: Dockerfile
     ports: 
       - "6060:6060"
     environment:
       - DEBUG=false
       - SCHEDULER=true
-      - JMS_DINGTALK_WEB_HOOK_TOKEN=xxx # 钉钉群机器人 token (可选)
     volumes:
-      - "./config.yaml:/opt/jms/config.yaml"
+      - "/opt/jms/config.yaml:/opt/jms/config.yaml"
 
   jms-api:
     depends_on:
       - pg
     restart: always
-    image: zhoushoujian/jms:latest
+    build: 
+      context: .
+      dockerfile: Dockerfile
     ports: 
       - "8013:8013"
     environment:
       - DEBUG=false
-      - API=true # true为api模式
+      - API=true
     volumes: 
-      - "./config.yaml:/opt/jms/config.yaml"
-      - "/opt/jms/.ssh/:/opt/jms/.ssh/" # 持久化数据
+      - "/opt/jms/config.yaml:/opt/jms/config.yaml"
