@@ -30,4 +30,4 @@ jobs:
         push: true
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/jms:latest
-          ${{ secrets.DOCKERHUB_USERNAME }}/jms:${{ github.sha }} 
+          ${{ secrets.DOCKERHUB_USERNAME }}/jms:${{ github.run_id }}

@@ -97,6 +97,8 @@ var sshdCmd = &cobra.Command{
 		hostKeyFile := app.App.SSHDir + "id_rsa"
 		// log.Panicf(hostKeyFile)
 		if !utils.FileExited(hostKeyFile) {
+			// 旧服务迁移记得转移文件到这里，否则用户端的指纹会变化要重新复写删除 known_hosts 的记录。
+			log.Warnf("if you migrate from old service, please move the file to replace %s", hostKeyFile)
 			sshd.GenKey(hostKeyFile)
 		}
 
