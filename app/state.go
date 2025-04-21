@@ -116,10 +116,14 @@ func (app *Application) WithRobot() *Application {
 }
 
 func (app *Application) WithDingTalk() *Application {
-	client, _ := dt.NewDingTalkClient(&dt.DingTalkConfig{
+	client, err := dt.NewDingTalkClient(&dt.DingTalkConfig{
 		AppKey:    app.Config.WithDingtalk.AppKey,
 		AppSecret: app.Config.WithDingtalk.AppSecret,
 	})
+	if err != nil {
+		log.Errorf("create dingtalk client failed: %s", err)
+		return app
+	}
 	client.WithWorkflowClientV2().WithDepartClient().WithUserClient()
 	app.Scheduler.DingTalkClient = client
 	return app

@@ -69,7 +69,7 @@ var sshdCmd = &cobra.Command{
 		}
 
 		if app.App.Config.WithDingtalk.Enable {
-			log.Infof("enable dingtalk")
+			log.Infof("启用 dingtalk 支持 cli的权限申请功能")
 			_app.WithDingTalk()
 			if !app.App.Config.WithDB.Enable {
 				log.Warnf("dingtalk enable but db not enable, disable dingtalk")
