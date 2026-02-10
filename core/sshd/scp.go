@@ -92,6 +92,10 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 		}
 	}()
 
+	if !app.App.Config.WithDB.Enable || app.App.DBIo == nil {
+		return errors.New("SCP requires database to be enabled")
+	}
+
 	user, err := app.App.DBIo.DescribeUser((*clientSess).User())
 	if err != nil {
 		return err

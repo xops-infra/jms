@@ -55,14 +55,15 @@ var SchedulerCmd = &cobra.Command{
 			_app.Scheduler.RobotClient = dt.NewRobotClient()
 		}
 
-		app.App.WithMcs()
-
-		go func() {
-			for {
-				app.App.Scheduler.InstanceIO.LoadServer() // 加载服务列表
-				time.Sleep(1 * time.Minute)               // 休眠 1 分钟
-			}
-		}()
+		if app.App.Config.WithDB.Enable && app.App.DBIo != nil {
+			app.App.WithMcs()
+			go func() {
+				for {
+					app.App.Scheduler.InstanceIO.LoadServer() // 加载服务列表
+					time.Sleep(1 * time.Minute)               // 休眠 1 分钟
+				}
+			}()
+		}
 
 		startScheduler()
 	},

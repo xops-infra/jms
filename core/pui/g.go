@@ -155,6 +155,10 @@ loopMenu:
 
 		log.Debugf("menuLabels: %s", tea.Prettify(menuLabels))
 		if len(menuLabels) == 0 {
+			// 主菜单会再次进入 inputFilter 阻塞，可 continue；子菜单无可见项时若 continue 会死循环耗 CPU，直接 return 退回上一级
+			if label != MainLabel {
+				return
+			}
 			continue
 		}
 		menuLabels = append(menuLabels, BackOptionLabel) // 添加返回选项
@@ -242,8 +246,12 @@ func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	defer ui.sessionWrite("\033c") // clear
 	// 发送屏幕清理指令
 	// 发送当前时间
+	serverCount := 0
+	if app.App.Config.WithDB.Enable && app.App.DBIo != nil {
+		serverCount = app.App.DBIo.GetServerCount()
+	}
 	ui.sessionWrite(fmt.Sprintf("Last connect time: %s\t OnLineUser: %d\t AllServerCount: %d\n",
-		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Sshd.UserCache.ItemCount(), app.App.DBIo.GetServerCount(),
+		time.Now().Local().Format("2006-01-02 15:04:05"), app.App.Sshd.UserCache.ItemCount(), serverCount,
 	))
 	// 发送欢迎信息
 	if broadcast != nil {
