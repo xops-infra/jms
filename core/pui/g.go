@@ -155,6 +155,10 @@ loopMenu:
 
 		log.Debugf("menuLabels: %s", tea.Prettify(menuLabels))
 		if len(menuLabels) == 0 {
+			// 主菜单会再次进入 inputFilter 阻塞，可 continue；子菜单无可见项时若 continue 会死循环耗 CPU，直接 return 退回上一级
+			if label != MainLabel {
+				return
+			}
 			continue
 		}
 		menuLabels = append(menuLabels, BackOptionLabel) // 添加返回选项
