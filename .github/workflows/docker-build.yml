@@ -31,3 +31,7 @@ jobs:
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/jms:latest
           ${{ secrets.DOCKERHUB_USERNAME }}/jms:${{ github.run_id }}
+
+    - name: Echo docker image tag
+      run: |
+        echo "Docker image tag: ${{ secrets.DOCKERHUB_USERNAME }}/jms:${{ github.run_id }}"
