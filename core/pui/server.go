@@ -34,8 +34,6 @@ func (ui *PUI) getServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
 		return menu, err
 	}
 	// sshd.Info(fmt.Sprintf("servers: %d", len(servers)), sess)
-	serversMap := servers.ToMap()
-
 	user, err := app.App.DBIo.DescribeUser((*sess).User())
 	if err != nil {
 		return nil, err
@@ -63,7 +61,7 @@ func (ui *PUI) getServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
 			Label:        fmt.Sprintf("%s\t[√]\t%s\t%s", server.ID, server.Host, server.Name),
 			Info:         info,
 			SubMenuTitle: fmt.Sprintf("%s '%s'", UserLoginLabel, server.Name),
-			GetSubMenu:   ui.getServerSSHUsersMenu(server, serversMap),
+			GetSubMenu:   ui.getServerSSHUsersMenu(server),
 		}
 		// 判断机器权限进入不同菜单
 		if !app.App.Sshd.SshdIO.MatchPolicy(user, Connect, server, matchPolicies, false) {
@@ -132,39 +130,59 @@ func getApproveSubMenu(policy *Policy) func(int, MenuItem, *ssh.Session, []MenuI
 // }
 
 // 判断权限在这里实现
-func (ui *PUI) getServerSSHUsersMenu(server Server, serversMap map[string]Server) func(int, MenuItem, *ssh.Session, []MenuItem) []MenuItem {
+func (ui *PUI) getServerSSHUsersMenu(server Server) func(int, MenuItem, *ssh.Session, []MenuItem) []MenuItem {
 	return func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) []MenuItem {
 
 		var menu []MenuItem
 
-		// 获取实时 keys
-		keys, err := app.App.DBIo.InternalLoadKey()
+		// 每次进入子菜单都刷新服务器信息和 keys，确保 KeyPairs 最新
+		currentServer := server
+		sshUsers := make([]SSHUser, 0)
+		freshServer, freshUsers, err := app.App.Sshd.SshdIO.GetSSHUsersByHostLive(server.Host)
 		if err != nil {
-			log.Errorf("get keys error: %s", err)
+			log.Errorf("get ssh users by host error: %s", err)
 			sshd.ErrorInfo(err, sess)
 			return menu
 		}
-		// sshd.Info(fmt.Sprintf("all server keys: %d", len(keys)), sess)
-
-		ssh_users, err := app.App.Sshd.SshdIO.GetSSHUsersByHost(server.Host, serversMap, keys)
-		if err != nil {
-			log.Errorf("get ssh users error: %s", err)
-			sshd.ErrorInfo(err, sess)
-			return menu
+		if freshServer != nil {
+			currentServer = *freshServer
+		}
+		sshUsers = freshUsers
+		usingFallbackKeys := false
+		hasKeyUser := false
+		for _, user := range sshUsers {
+			if user.Base64Pem != "" || (user.KeyName != "" && user.KeyName != "manual_passwd") {
+				hasKeyUser = true
+				break
+			}
+		}
+		if !hasKeyUser {
+			keys, err := app.App.DBIo.InternalLoadKey()
+			if err != nil {
+				log.Errorf("load keys error: %s", err)
+				sshd.ErrorInfo(err, sess)
+				return menu
+			}
+			fallbackUsers := buildSSHUsersByProfile(keys, currentServer.Profile)
+			if len(fallbackUsers) > 0 {
+				usingFallbackKeys = true
+				sshUsers = append(sshUsers, fallbackUsers...)
+			}
 		}
 
-		for _, sshUser := range ssh_users {
+		for _, sshUser := range sshUsers {
+			serverSnapshot := currentServer
 			subMenu := MenuItem{}
-			log.Debugf("server:%s user:%s", server.Host, sshUser.UserName)
+			log.Debugf("server:%s user:%s", serverSnapshot.Host, sshUser.UserName)
 			subMenu.SelectedFunc = func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) (bool, error) {
-				if server.Status != model.InstanceStatusRunning {
-					return false, fmt.Errorf("%s status %s, can not login", server.Host, strings.ToLower(string(server.Status)))
+				if serverSnapshot.Status != model.InstanceStatusRunning {
+					return false, fmt.Errorf("%s status %s, can not login", serverSnapshot.Host, strings.ToLower(string(serverSnapshot.Status)))
 				}
 				// 记录登录日志到数据库
 				if app.App.Config.WithDB.Enable {
 					err := app.App.DBIo.AddServerLoginRecord(&AddSshLoginRequest{
-						TargetServer: tea.String(server.Host),
-						InstanceID:   tea.String(server.ID),
+						TargetServer: tea.String(serverSnapshot.Host),
+						InstanceID:   tea.String(serverSnapshot.ID),
 						User:         tea.String((*sess).User()),
 						Client:       tea.String((*sess).RemoteAddr().String()),
 					})
@@ -175,7 +193,7 @@ func (ui *PUI) getServerSSHUsersMenu(server Server, serversMap map[string]Server
 				// 进入的时候标记超时暂停检查
 				ui.pause()
 				defer ui.resume()
-				err := sshd.NewTerminal(server, sshUser, sess)
+				err := sshd.NewTerminal(serverSnapshot, sshUser, sess)
 				if err != nil {
 					return false, err
 				}
@@ -188,14 +206,40 @@ func (ui *PUI) getServerSSHUsersMenu(server Server, serversMap map[string]Server
 
 		if len(menu) == 0 {
 			menu = append(menu, MenuItem{
-				Label: "该机器密钥没有被 JMS 托管，无法登录",
+				Label: "该机器密钥没有被 JMS 托管，尝试使用已注册key登录",
 				SelectedFunc: func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) (bool, error) {
 					return false, errors.New("pls check instance key")
 				},
 			})
+		} else if usingFallbackKeys {
+			if currentServer.Profile != "" {
+				sshd.Info(fmt.Sprintf("该机器密钥没有被 JMS 托管，尝试使用已注册key登录（同环境：%s）", currentServer.Profile), sess)
+			} else {
+				sshd.Info("该机器密钥没有被 JMS 托管，尝试使用已注册key登录", sess)
+			}
 		}
 		return menu
 	}
+}
+
+func buildSSHUsersByProfile(keys []AddKeyRequest, profile string) []SSHUser {
+	sshUsers := make([]SSHUser, 0)
+	for _, key := range keys {
+		if profile != "" {
+			if key.Profile == nil || *key.Profile != profile {
+				continue
+			}
+		}
+		if key.IdentityFile == nil || key.UserName == nil {
+			continue
+		}
+		sshUsers = append(sshUsers, SSHUser{
+			KeyName:   tea.StringValue(key.IdentityFile),
+			UserName:  tea.StringValue(key.UserName),
+			Base64Pem: tea.StringValue(key.PemBase64),
+		})
+	}
+	return sshUsers
 }
 
 func getServerApproveMenu(server Server) func(int, MenuItem, *ssh.Session, []MenuItem) []MenuItem {

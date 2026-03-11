@@ -169,7 +169,8 @@ func (app *Application) WithDB(migrate bool) *Application {
 			&model.SSHLoginRecord{}, &model.ScpRecord{}, // 审计
 			&model.Broadcast{},
 			&model.ShellTask{}, &model.ShellTaskRecord{}, // 定时任务功能
-			&model.Server{}, // 实例
+			&model.Server{},        // 实例
+			&model.SearchHistory{}, // 菜单搜索历史
 		)
 	}
 

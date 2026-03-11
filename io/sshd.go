@@ -87,6 +87,29 @@ func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server,
 	return newSshUsers, nil
 }
 
+// GetSSHUsersByHostLive loads latest server and key data from DB for the given host.
+func (i *SshdIO) GetSSHUsersByHostLive(host string) (*model.Server, []model.SSHUser, error) {
+	if i.db == nil {
+		return nil, nil, fmt.Errorf("db not initialized")
+	}
+	server, err := i.db.GetInstanceByHost(host)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get server by host %s error: %s", host, err.Error())
+	}
+	keys, err := i.db.InternalLoadKey()
+	if err != nil {
+		return server, nil, fmt.Errorf("load key error: %s", err.Error())
+	}
+	serversMap := map[string]model.Server{
+		server.Host: *server,
+	}
+	sshUsers, err := i.GetSSHUsersByHost(server.Host, serversMap, keys)
+	if err != nil {
+		return server, nil, err
+	}
+	return server, sshUsers, nil
+}
+
 // 依据 scp的路径获取 sshuser和服务器
 // 返回 sshuser 和 服务器 remotePath
 func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *model.Server, string, error) {
