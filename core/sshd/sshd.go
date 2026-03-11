@@ -50,6 +50,7 @@ func newAuditLog(user, host string) (*os.File, error) {
 
 // 独立的阻塞远程客户端连接方法
 func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
+	log.Infof("NewTerminal server: %v, sshUser: %v, user: %v", server.Host, sshUser.KeyName, (*sess).User())
 	proxyClient, upstreamClient, err := NewSSHClient((*sess).User(), server, sshUser)
 	if err != nil {
 		log.Errorf("NewSSHClient error: %s", err)

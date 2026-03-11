@@ -172,8 +172,9 @@ func (ui *PUI) getServerSSHUsersMenu(server Server) func(int, MenuItem, *ssh.Ses
 
 		for _, sshUser := range sshUsers {
 			serverSnapshot := currentServer
+			sshUserSnapshot := sshUser
 			subMenu := MenuItem{}
-			log.Debugf("server:%s user:%s", serverSnapshot.Host, sshUser.UserName)
+			log.Debugf("server:%s user:%s", serverSnapshot.Host, sshUserSnapshot.UserName)
 			subMenu.SelectedFunc = func(index int, menuItem MenuItem, sess *ssh.Session, selectedChain []MenuItem) (bool, error) {
 				if serverSnapshot.Status != model.InstanceStatusRunning {
 					return false, fmt.Errorf("%s status %s, can not login", serverSnapshot.Host, strings.ToLower(string(serverSnapshot.Status)))
@@ -193,14 +194,14 @@ func (ui *PUI) getServerSSHUsersMenu(server Server) func(int, MenuItem, *ssh.Ses
 				// 进入的时候标记超时暂停检查
 				ui.pause()
 				defer ui.resume()
-				err := sshd.NewTerminal(serverSnapshot, sshUser, sess)
+				err := sshd.NewTerminal(serverSnapshot, sshUserSnapshot, sess)
 				if err != nil {
 					return false, err
 				}
 				// 登录之后就会阻塞在这里，如果主动退出继续执行后续代码
 				return true, nil
 			}
-			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUser.KeyName, sshUser.UserName)
+			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUserSnapshot.KeyName, sshUserSnapshot.UserName)
 			menu = append(menu, subMenu)
 		}
 
