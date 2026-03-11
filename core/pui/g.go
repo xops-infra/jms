@@ -3,10 +3,13 @@ package pui
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/chzyer/readline"
 	"github.com/elfgzp/ssh"
 	"github.com/manifoldco/promptui"
 	"github.com/xops-infra/noop/log"
@@ -24,16 +27,19 @@ type PUI struct {
 	lastActive       time.Time // 最后活跃时间
 	isLogout         bool      // 主动退出的标记
 	menuItem         []MenuItem
+	historyFile      string
 }
 
 func NewPui(s *ssh.Session, timeout time.Duration) *PUI {
-	return &PUI{
+	ui := &PUI{
 		sess:             s,
 		timeOut:          timeout,
 		lastActive:       time.Now(),
 		isLogout:         false,
 		stopCheckTimeout: false,
 	}
+	ui.initHistory()
+	return ui
 }
 
 func (ui *PUI) sessionWrite(msg string) error {
@@ -56,7 +62,31 @@ func (ui *PUI) resume() {
 func (ui *PUI) exit() {
 	ui.sessionWrite(fmt.Sprintf(BybLabel, time.Now().Local().Format("2006-01-02 15:04:05")))
 	ui.isLogout = true
+	ui.cleanupHistory()
 	(*ui.sess).Close() // 只关闭当前会话
+}
+
+func (ui *PUI) initHistory() {
+	file, err := os.CreateTemp("", "jms_pui_history_*")
+	if err != nil {
+		log.Errorf("create history file error: %s", err)
+		return
+	}
+	ui.historyFile = file.Name()
+	if err := ui.loadHistoryFromDB(file); err != nil {
+		log.Errorf("load history from db error: %s", err)
+	}
+	_ = file.Close()
+}
+
+func (ui *PUI) cleanupHistory() {
+	if ui.historyFile == "" {
+		return
+	}
+	if err := os.Remove(ui.historyFile); err != nil && !os.IsNotExist(err) {
+		log.Errorf("remove history file error: %s", err)
+	}
+	ui.historyFile = ""
 }
 
 // 当用户连接主机的时候这个判断永远不超时
@@ -278,6 +308,83 @@ func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	}
 	log.Debugf("Filter: %s", filter)
 	return filter, nil
+}
+
+func (ui *PUI) loadHistoryFromDB(file *os.File) error {
+	if !app.App.Config.WithDB.Enable || app.App.DBIo == nil {
+		return nil
+	}
+	user := ui.getUsername()
+	if user == "" {
+		return nil
+	}
+	records, err := app.App.DBIo.ListSearchHistory(user, 20)
+	if err != nil {
+		return err
+	}
+	// write from oldest to newest for readline history
+	for i := len(records) - 1; i >= 0; i-- {
+		keyword := strings.TrimSpace(records[i].Keyword)
+		if keyword == "" {
+			continue
+		}
+		if _, err := file.WriteString(keyword + "\n"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ui *PUI) saveSearchHistory(filter string) {
+	filter = strings.TrimSpace(filter)
+	if filter == "" || filter == "^C" {
+		return
+	}
+	if !app.App.Config.WithDB.Enable || app.App.DBIo == nil {
+		return
+	}
+	user := ui.getUsername()
+	if user == "" {
+		return
+	}
+	if err := app.App.DBIo.AddSearchHistory(user, filter, 20); err != nil {
+		log.Errorf("add search history error: %s", err)
+	}
+}
+
+func (ui *PUI) readFilterInput() (string, error) {
+	cfg := &readline.Config{
+		Prompt:         "请输入关键字，回车进行过滤后选择: ",
+		Stdin:          *ui.sess,
+		Stdout:         *ui.sess,
+		HistoryLimit:   100,
+		UniqueEditLine: true,
+	}
+	if ui.historyFile != "" {
+		cfg.HistoryFile = ui.historyFile
+	}
+	if err := cfg.Init(); err != nil {
+		return "", err
+	}
+	rl, err := readline.NewEx(cfg)
+	if err != nil {
+		return "", err
+	}
+	defer rl.Close()
+
+	line, err := rl.Readline()
+	if err != nil {
+		switch err {
+		case readline.ErrInterrupt:
+			return "^C", nil
+		case io.EOF:
+			ui.exit()
+			return "", fmt.Errorf("exit")
+		default:
+			return "", err
+		}
+	}
+	return strings.TrimSpace(line), nil
 }
 
 // ShowMainMenu show main menu
