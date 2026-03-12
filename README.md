@@ -109,9 +109,13 @@
   # 文件传输
   # 上传 scp -P 22222 本地文件  登录用户@jms域名:远端服务器用户@远端服务器IP地址:远端服务器文件路径
   $ scp -P 22222 ./README.md  zhoushoujian@localhost:ec2-user@192.168.1.1:/tmp/README1.md
+  # 指定 key_name（当服务器未绑定 key 时）
+  $ scp -P 22222 ./README.md  zhoushoujian@localhost:ec2-user@192.168.1.1#key_name=aws-us7086-Jumpserver.pem:/tmp/README1.md
   README.md                                     100% 2506     2.9KB/s   00:00
   # 下载 scp -P 22222 登录用户@jms域名:远端服务器用户@远端服务器IP地址:远端服务器文件路径 本地文件
   $ scp -P 22222 zhoushoujian@localhost:ec2-user@192.168.1.1:/tmp/README1.md /tmp/README.md
+  # 指定 key_name（当服务器未绑定 key 时）
+  $ scp -P 22222 zhoushoujian@localhost:ec2-user@192.168.1.1#key_name=aws-us7086-Jumpserver.pem:/tmp/README1.md /tmp/README.md
   README1.md                                    100% 2506     1.8MB/s   00:00
 
   ```

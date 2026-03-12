@@ -26,7 +26,7 @@ func NewSshd(db *db.DBService, localServers map[string]model.ServerManual) *Sshd
 func (i *SshdIO) GetSSHUserByKeyID(keyID string, keys []model.AddKeyRequest) ([]model.SSHUser, error) {
 	var sshUsers []model.SSHUser
 	for _, key := range keys {
-		log.Debugf("keyid: %s key: %s", keyID, tea.Prettify(key))
+		log.Debugf("keyid: %s key: %s", keyID, summarizeKey(key))
 		if key.KeyID == nil || key.UserName == nil {
 			continue
 		}
@@ -38,7 +38,7 @@ func (i *SshdIO) GetSSHUserByKeyID(keyID string, keys []model.AddKeyRequest) ([]
 			})
 		}
 	}
-	log.Debugf("sshUsers: %s", tea.Prettify(sshUsers))
+	log.Debugf("sshUsers: %s", summarizeSSHUsers(sshUsers))
 	if len(sshUsers) == 0 {
 		return nil, fmt.Errorf("key %s not found in jms", keyID)
 	}
@@ -48,6 +48,13 @@ func (i *SshdIO) GetSSHUserByKeyID(keyID string, keys []model.AddKeyRequest) ([]
 // 依据 host获取服务器所有的 sshuser
 // 支持在云上 key，还支持本地配置的 sshuser 通过 IP 匹配；
 func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server, keys []model.AddKeyRequest) ([]model.SSHUser, error) {
+	log.Debugf("GetSSHUsersByHost: %s servers: %d keys: %d", host, len(servers), len(keys))
+	if len(servers) == 0 {
+		return nil, fmt.Errorf("servers is empty")
+	}
+	if len(keys) == 0 {
+		return nil, fmt.Errorf("keys is empty")
+	}
 	var newSshUsers []model.SSHUser
 	if server, ok := servers[host]; ok {
 		// 先组装带 passwd的 sshuser
@@ -83,7 +90,7 @@ func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server,
 	// 		Password: server.Passwd,
 	// 	})
 	// }
-	log.Debugf("newSshUsers for host: %s is %s", host, tea.Prettify(newSshUsers))
+	log.Debugf("newSshUsers for host: %s is %s", host, summarizeSSHUsers(newSshUsers))
 	return newSshUsers, nil
 }
 
@@ -121,6 +128,23 @@ func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *
 	}
 
 	inputServer, remotePath := args[0], args[1]
+	selectorKeyName := ""
+	if strings.Contains(inputServer, "#") {
+		parts := strings.SplitN(inputServer, "#", 2)
+		inputServer = parts[0]
+		selector := parts[1]
+		if selector == "" {
+			return nil, nil, "", fmt.Errorf("scp path %s invalid: empty selector", scpPath)
+		}
+		if strings.HasPrefix(selector, "key_name=") {
+			selectorKeyName = strings.TrimPrefix(selector, "key_name=")
+			if selectorKeyName == "" {
+				return nil, nil, "", fmt.Errorf("scp path %s invalid: key_name empty", scpPath)
+			}
+		} else {
+			return nil, nil, "", fmt.Errorf("scp path %s invalid: unsupported selector %s", scpPath, selector)
+		}
+	}
 	serverArgs := strings.SplitN(inputServer, "@", 2)
 	if len(serverArgs) < 2 {
 		return nil, nil, "", fmt.Errorf("scp path %s invalid", scpPath)
@@ -140,6 +164,28 @@ func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *
 	}
 
 	if server, ok := serversMap[host]; ok {
+		if selectorKeyName != "" {
+			for _, key := range keys {
+				if key.IdentityFile == nil {
+					continue
+				}
+				if *key.IdentityFile != selectorKeyName {
+					continue
+				}
+				if key.UserName == nil || *key.UserName == "" {
+					return nil, nil, "", fmt.Errorf("key_name %s has empty user_name in jms", selectorKeyName)
+				}
+				if *key.UserName != sshUsername {
+					return nil, nil, "", fmt.Errorf("key_name %s belongs to user %s, not %s", selectorKeyName, *key.UserName, sshUsername)
+				}
+				return &model.SSHUser{
+					KeyName:   *key.IdentityFile,
+					UserName:  *key.UserName,
+					Base64Pem: tea.StringValue(key.PemBase64),
+				}, &server, remotePath, nil
+			}
+			return nil, nil, "", fmt.Errorf("key_name %s not found in jms", selectorKeyName)
+		}
 		// 获取机器ssh用户
 		sshusers, err := i.GetSSHUsersByHost(host, serversMap, keys)
 		if err != nil {
@@ -150,7 +196,7 @@ func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *
 				return &sshuser, &server, remotePath, nil
 			}
 		}
-		return nil, nil, "", fmt.Errorf("user %s not found in server %s", sshUsername, host)
+		return nil, nil, "", fmt.Errorf("user %s not found in server %s, check server key pairs or set passwd in db", sshUsername, host)
 	} else {
 		return nil, nil, "", fmt.Errorf("server %s not found", host)
 	}

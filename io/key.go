@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/alibabacloud-go/tea/tea"
-	"github.com/xops-infra/noop/log"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -16,7 +14,7 @@ func (k *SshdIO) GetSignerByKeyID(keyID string) (gossh.Signer, error) {
 		return nil, err
 	}
 	for _, key := range keys {
-		log.Debugf("keyid: %s key: %s", keyID, tea.Prettify(key))
+		// log.Debugf("keyid: %s key: %s", keyID, summarizeKey(key))
 		if *key.KeyID == keyID {
 			return getSignerFromBase64(*key.PemBase64)
 		}

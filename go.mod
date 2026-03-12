@@ -6,6 +6,7 @@ toolchain go1.21.6
 
 require (
 	github.com/alibabacloud-go/tea v1.2.1
+	github.com/chzyer/readline v1.5.1
 	github.com/elfgzp/ssh v0.2.3-0.20191216171309-38f1cb660799
 	github.com/fatih/color v1.15.0
 	github.com/gin-gonic/gin v1.9.1
@@ -54,7 +55,6 @@ require (
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
-	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/clbanning/mxj v1.8.4 // indirect
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
