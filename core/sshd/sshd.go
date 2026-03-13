@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/anmitsu/go-shlex"
 	"github.com/elfgzp/ssh"
 	"github.com/fatih/color"
 	"github.com/helloyi/go-sshclient"
@@ -272,7 +273,16 @@ func getSignerFromBase64(key string) (gossh.Signer, error) {
 
 // ParseRawCommand ParseRawCommand
 func ParseRawCommand(command string) (string, []string, error) {
-	parts := strings.Split(command, " ")
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return "", nil, errors.New("No command in payload: " + command)
+	}
+
+	parts, err := shlex.Split(command, true)
+	if err != nil {
+		return "", nil, err
+	}
+
 	if len(parts) < 1 {
 		return "", nil, errors.New("No command in payload: " + command)
 	}
