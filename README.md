@@ -95,6 +95,13 @@
   # 启动后可以通过 http://localhost:8013/swagger/index.html 查看 API 文档
   ```
 
+  # AD 登录获取 token（需要启用 withLdap 与 withAuth.jwtSecret）
+  $ curl -X POST http://localhost:8013/api/v1/login/ad -d 'user=your_user&password=your_pass'
+  # 返回：{"token":"...","expires_at":...}
+
+  # 下发脚本接口需要管理员 token
+  # Authorization: Bearer <token>
+
 - 客户端连接和使用
 
   ```bash

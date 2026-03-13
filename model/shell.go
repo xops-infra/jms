@@ -19,6 +19,8 @@ type CreateShellTaskRequest struct {
 	Shell   *string         `json:"shell" binding:"required"`   // 脚本内容
 	Corn    *string         `json:"corn"`                       // corn表达式，支持定时执行任务，执行一次可以不传
 	Servers *ServerFilterV1 `json:"servers" binding:"required"` // 执行的机器
+	// SubmitUser 由服务端从 token 中获取并填充
+	SubmitUser *string `json:"submit_user,omitempty"`
 }
 
 type ShellTask struct {

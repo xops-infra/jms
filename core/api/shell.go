@@ -42,6 +42,11 @@ func addShellTask(c *gin.Context) {
 		c.String(400, err.Error())
 		return
 	}
+	if authUser, ok := c.Get("auth_user"); ok {
+		if user, ok := authUser.(model.User); ok && user.Username != nil {
+			req.SubmitUser = user.Username
+		}
+	}
 	id, err := app.App.DBIo.CreateShellTask(req)
 	if err != nil {
 		log.Errorf("create shell task error: %s", err)

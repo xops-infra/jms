@@ -15,6 +15,7 @@ import (
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/api"
 	"github.com/xops-infra/jms/model"
+	"github.com/xops-infra/jms/utils"
 )
 
 var apiPort int
@@ -42,6 +43,15 @@ var apiCmd = &cobra.Command{
 
 		// init app
 		_app := app.NewApplication(debug, logDir, rootCmd.Version, config)
+
+		if app.App.Config.WithLdap.Enable {
+			log.Infof("enable ldap")
+			ldap, err := utils.NewLdap(_app.Config.WithLdap)
+			if err != nil {
+				panic(err)
+			}
+			_app.Sshd.Ldap = ldap
+		}
 
 		if app.App.Config.WithDB.Enable {
 			log.Infof("enable db without automigrate")

@@ -37,6 +37,10 @@ func (d *DBService) CreateShellTask(req CreateShellTaskRequest) (string, error) 
 		Shell:        *req.Shell,
 		ServerFilter: *req.Servers,
 		Status:       StatusPending,
+		SubmitUser:   "",
+	}
+	if req.SubmitUser != nil {
+		task.SubmitUser = *req.SubmitUser
 	}
 	if req.Corn != nil {
 		task.Corn = *req.Corn

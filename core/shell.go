@@ -153,6 +153,13 @@ func runShell(server model.Server, task model.ShellTask, sshUsers []model.SSHUse
 		}
 	}()
 
+	if len(sshUsers) == 0 {
+		err := fmt.Errorf("no ssh user configured for server %s", server.Host)
+		req.IsSuccess = tea.Bool(false)
+		req.Output = tea.String(err.Error())
+		return err
+	}
+
 	for _, sshUser := range sshUsers {
 		// TODO: 支持指定用户执行命令，目前随机选择一个
 		proxyClient, client, err := sshd.NewSSHClient("system_run_shell", server, sshUser)

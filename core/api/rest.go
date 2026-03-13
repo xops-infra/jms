@@ -34,6 +34,7 @@ func NewGin() *gin.Engine {
 
 	api := r.Group("/api/v1")
 	api.POST("/login", login)
+	api.POST("/login/ad", loginAD)
 
 	api.POST("/broadcast", broadcast)
 
@@ -71,7 +72,7 @@ func NewGin() *gin.Engine {
 
 	shell := api.Group("/shell/task")
 	shell.GET("", listShellTask)
-	shell.POST("", addShellTask)
+	shell.POST("", requireAdmin(), addShellTask)
 	shell.PUT("/:uuid", updateShellTask)
 	shell.DELETE("/:uuid", deleteShellTask)
 
