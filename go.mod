@@ -1,8 +1,8 @@
 module github.com/xops-infra/jms
 
-go 1.21
+go 1.25
 
-toolchain go1.21.6
+toolchain go1.25.8
 
 require (
 	github.com/alibabacloud-go/tea v1.2.1

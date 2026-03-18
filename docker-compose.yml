@@ -1,4 +1,7 @@
 version: "3"
+x-jms-build: &jms_build
+  context: .
+  dockerfile: Dockerfile
 services: 
   pg:
     image: postgres
@@ -15,7 +18,8 @@ services:
     depends_on:
       - pg
     restart: always # 支持 always, on-failure, unless-stopped
-    image: zhoushoujian/jms:latest
+    build: *jms_build
+    image: jms:local
     ports: 
       - "22222:22222"
     environment:
@@ -29,7 +33,8 @@ services:
     depends_on:
       - pg
     restart: always
-    image: zhoushoujian/jms:latest
+    build: *jms_build
+    image: jms:local
     ports: 
       - "6060:6060"
     environment:
@@ -43,7 +48,8 @@ services:
     depends_on:
       - pg
     restart: always
-    image: zhoushoujian/jms:latest
+    build: *jms_build
+    image: jms:local
     ports: 
       - "8013:8013"
     environment:
