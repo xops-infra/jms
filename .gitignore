@@ -33,3 +33,5 @@ web/dist/
 web/.env
 web/.env.*
 data/
+
+.gomodcache/

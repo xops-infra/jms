@@ -8,6 +8,7 @@ export type TerminalViewProps = {
   active: boolean
   host: string
   user?: string
+  keyName?: string
   token: string
   sessionId?: string
   onSessionId?: (id: string) => void
@@ -25,6 +26,7 @@ export const TerminalView = ({
   active,
   host,
   user,
+  keyName,
   token,
   sessionId,
   onSessionId,
@@ -85,6 +87,7 @@ export const TerminalView = ({
     const wsUrl = buildWsUrl('/api/v1/terminal/ws', {
       host,
       user,
+      key: keyName,
       cols,
       rows,
       session_id: sessionId,

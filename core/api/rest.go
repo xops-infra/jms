@@ -70,6 +70,10 @@ func NewGin() *gin.Engine {
 	proxy.PUT("/:uuid", updateProxy)
 	proxy.DELETE("/:uuid", deleteProxy)
 
+	servers := api.Group("/servers")
+	servers.GET("", requireUser(), listServers)
+	servers.GET("/:host/ssh-users", requireUser(), listServerSSHUsers)
+
 	shell := api.Group("/shell/task")
 	shell.GET("", listShellTask)
 	shell.POST("", requireAdmin(), addShellTask)

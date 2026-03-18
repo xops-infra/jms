@@ -72,6 +72,7 @@ func terminalWS(c *gin.Context) {
 	}
 
 	sshUserQuery := c.Query("user")
+	sshKeyQuery := c.Query("key")
 	sessionID := c.Query("session_id")
 	cols := parseIntDefault(c.Query("cols"), 120)
 	rows := parseIntDefault(c.Query("rows"), 32)
@@ -88,7 +89,7 @@ func terminalWS(c *gin.Context) {
 		return
 	}
 
-	sshUser, err := selectSSHUser(sshUsers, sshUserQuery)
+	sshUser, err := selectSSHUser(sshUsers, sshUserQuery, sshKeyQuery)
 	if err != nil {
 		c.String(http.StatusBadRequest, err.Error())
 		return
@@ -148,7 +149,16 @@ func terminalWS(c *gin.Context) {
 	}
 	_ = writer.Send(wsMessage{Type: "session", SessionID: sessionID})
 
-	if app.App.Config.Terminal.TmuxEnable == nil || *app.App.Config.Terminal.TmuxEnable {
+	tmuxEnabled := app.App.Config.Terminal.TmuxEnable == nil || *app.App.Config.Terminal.TmuxEnable
+	tmuxAvailable := false
+	if tmuxEnabled {
+		tmuxAvailable = isTmuxAvailable(upstream)
+		if !tmuxAvailable {
+			log.Infof("tmux not found on %s, fallback to shell", server.Host)
+		}
+	}
+
+	if tmuxEnabled && tmuxAvailable {
 		cmd := fmt.Sprintf("tmux new -A -s %s", sessionID)
 		if err := sess.Start(cmd); err != nil {
 			log.Warnf("tmux start failed: %v", err)
@@ -218,17 +228,42 @@ func parseIntDefault(v string, d int) int {
 	return i
 }
 
-func selectSSHUser(users []model.SSHUser, prefer string) (model.SSHUser, error) {
+func selectSSHUser(users []model.SSHUser, preferUser, preferKey string) (model.SSHUser, error) {
 	if len(users) == 0 {
 		return model.SSHUser{}, fmt.Errorf("no ssh users")
 	}
-	if prefer != "" {
+	if preferUser != "" || preferKey != "" {
 		for _, u := range users {
-			if u.UserName == prefer {
-				return u, nil
+			if preferUser != "" && u.UserName != preferUser {
+				continue
 			}
+			if preferKey != "" && u.KeyName != preferKey {
+				continue
+			}
+			return u, nil
 		}
-		return model.SSHUser{}, fmt.Errorf("ssh user %s not found", prefer)
+		if preferUser != "" && preferKey != "" {
+			return model.SSHUser{}, fmt.Errorf("ssh user %s with key %s not found", preferUser, preferKey)
+		}
+		if preferUser != "" {
+			return model.SSHUser{}, fmt.Errorf("ssh user %s not found", preferUser)
+		}
+		if preferKey != "" {
+			return model.SSHUser{}, fmt.Errorf("ssh key %s not found", preferKey)
+		}
 	}
 	return users[0], nil
+}
+
+func isTmuxAvailable(client *gossh.Client) bool {
+	sess, err := client.NewSession()
+	if err != nil {
+		log.Warnf("tmux probe session failed: %v", err)
+		return false
+	}
+	defer sess.Close()
+	if err := sess.Run("command -v tmux >/dev/null 2>&1"); err != nil {
+		return false
+	}
+	return true
 }

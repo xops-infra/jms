@@ -230,7 +230,7 @@ func uploadComplete(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	sshUser, err := selectSSHUser(sshUsers, valueOrEmpty(sess.SSHUser))
+	sshUser, err := selectSSHUser(sshUsers, valueOrEmpty(sess.SSHUser), "")
 	if err != nil {
 		c.String(http.StatusBadRequest, err.Error())
 		return
@@ -360,7 +360,7 @@ func downloadFile(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	sshUser, err := selectSSHUser(sshUsers, sshUserQuery)
+	sshUser, err := selectSSHUser(sshUsers, sshUserQuery, "")
 	if err != nil {
 		c.String(http.StatusBadRequest, err.Error())
 		return

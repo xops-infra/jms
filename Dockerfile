@@ -4,7 +4,7 @@ WORKDIR /build
 
 # Use a CN-friendly Go module proxy to speed up/avoid blocked downloads.
 ENV GOPROXY=https://goproxy.cn,direct \
-    GOSUMDB=sum.golang.google
+    GOSUMDB=goproxy.cn
 
 COPY go.mod go.sum ./
 RUN go mod download

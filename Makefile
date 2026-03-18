@@ -1,4 +1,4 @@
-.PHONY: help proto grpcui run ssh-test
+.PHONY: help proto grpcui run ssh-test web
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
@@ -12,5 +12,13 @@ swagger:
 api:
 	go run main.go api
 
+api:
+	docker compose build jms-api
+	docker compose up -d jms-api
+
 ssh-test:
 	ssh -p 22222 zhoushoujian@localhost
+
+web:
+	docker compose build jms-web
+	docker compose up -d jms-web

@@ -196,9 +196,21 @@ func MatchServerByFilter(filter ServerFilterV1, server Server, onlyIp bool) bool
 	log.Debugf("server:%s", tea.Prettify(server))
 
 	if filter.EnvType == nil && filter.Team == nil &&
-		filter.Name == nil && filter.IpAddr == nil && filter.KV == nil {
+		filter.Name == nil && filter.IpAddr == nil && filter.KV == nil && filter.ID == nil {
 		log.Errorf("filter is empty, return false")
 		return false
+	}
+
+	IsMatchID := false
+	if filter.ID != nil {
+		for _, id := range filter.ID {
+			if stringMatch(server.ID, id) {
+				IsMatchID = true
+				break
+			}
+		}
+	} else {
+		IsMatchID = true
 	}
 
 	IsMatchName := false
@@ -273,7 +285,7 @@ func MatchServerByFilter(filter ServerFilterV1, server Server, onlyIp bool) bool
 			return false
 		}
 	} else {
-		if IsMatchName && IsMatchIP && IsMatchEnvType && IsMatchTeam && IsMatchKV {
+		if IsMatchID && IsMatchName && IsMatchIP && IsMatchEnvType && IsMatchTeam && IsMatchKV {
 			return true
 		}
 
