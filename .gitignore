@@ -28,3 +28,4 @@ configmap.yaml
 database.db
 *.pem
 bin
+data/

@@ -1,7 +1,7 @@
 version: "3"
 services: 
   pg:
-    image: postgres
+    image: postgres:16
     restart: always
     hostname: pg
     environment:
@@ -10,6 +10,8 @@ services:
       - POSTGRES_DB=jms
     ports:
       - "5432:5432"
+    volumes:
+      - "./data/pg:/var/lib/postgresql/data"
 
   jms-sshd:
     depends_on:
@@ -22,8 +24,8 @@ services:
       - TIMEOUT=1800
       - DEBUG=false
     volumes: 
-      - "./config.yaml:/opt/jms/config.yaml"
-      - "/opt/jms/.ssh/:/opt/jms/.ssh/" # 持久化数据
+      - "${JMS_CONFIG_PATH:-/opt/jms/config.yaml}:/opt/jms/config.yaml:ro"
+      - "${JMS_SSH_DIR:-/opt/jms/.ssh}:/opt/jms/.ssh/" # 持久化数据
 
   jms-scheduler:
     depends_on:
@@ -37,7 +39,7 @@ services:
       - SCHEDULER=true
       - JMS_DINGTALK_WEB_HOOK_TOKEN=xxx # 钉钉群机器人 token (可选)
     volumes:
-      - "./config.yaml:/opt/jms/config.yaml"
+      - "${JMS_CONFIG_PATH:-/opt/jms/config.yaml}:/opt/jms/config.yaml:ro"
 
   jms-api:
     depends_on:
@@ -50,5 +52,5 @@ services:
       - DEBUG=false
       - API=true # true为api模式
     volumes: 
-      - "./config.yaml:/opt/jms/config.yaml"
-      - "/opt/jms/.ssh/:/opt/jms/.ssh/" # 持久化数据
+      - "${JMS_CONFIG_PATH:-/opt/jms/config.yaml}:/opt/jms/config.yaml:ro"
+      - "${JMS_SSH_DIR:-/opt/jms/.ssh}:/opt/jms/.ssh/" # 持久化数据
