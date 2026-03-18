@@ -28,3 +28,8 @@ configmap.yaml
 database.db
 *.pem
 bin
+web/node_modules/
+web/dist/
+web/.env
+web/.env.*
+data/

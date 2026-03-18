@@ -73,3 +73,25 @@ withDingTalk:
   processCode: "xxx"
   appKey: "xx"
   appSecret: "xxx"
+
+# 鉴权配置
+auth:
+  jwtSecret: "change-me"
+  jwtTTL: "24h"
+
+# 上传配置
+upload:
+  maxSize: 1073741824   # 1GB
+  chunkSize: 4194304    # 4MB
+  store:
+    type: fs            # fs|s3
+    fsPath: "/opt/jms/upload_tmp"
+    s3:
+      bucket: ""
+      endpoint: ""
+      ak: ""
+      sk: ""
+
+# 终端配置
+terminal:
+  tmuxEnable: true

@@ -21,6 +21,37 @@ type jwtClaims struct {
 	jwt.StandardClaims
 }
 
+// requireUser 校验 JWT 并将用户信息写入 context
+func requireUser() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if app.App.DBIo == nil || !app.App.Config.WithDB.Enable {
+			c.String(http.StatusServiceUnavailable, "db not enabled")
+			c.Abort()
+			return
+		}
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			if token := c.Query("token"); token != "" {
+				authHeader = bearerPrefix + token
+			}
+		}
+		username, err := parseTokenUsername(authHeader, app.App.Config.Auth.JWTSecret)
+		if err != nil {
+			c.String(http.StatusUnauthorized, "unauthorized")
+			c.Abort()
+			return
+		}
+		user, err := app.App.DBIo.DescribeUser(username)
+		if err != nil {
+			c.String(http.StatusUnauthorized, "unauthorized")
+			c.Abort()
+			return
+		}
+		c.Set("auth_user", user)
+		c.Next()
+	}
+}
+
 func requireAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if app.App.DBIo == nil || !app.App.Config.WithDB.Enable {
@@ -29,7 +60,7 @@ func requireAdmin() gin.HandlerFunc {
 			return
 		}
 
-		username, err := parseTokenUsername(c.GetHeader("Authorization"), secret)
+		username, err := parseTokenUsername(c.GetHeader("Authorization"), app.App.Config.Auth.JWTSecret)
 		if err != nil {
 			c.String(http.StatusUnauthorized, "unauthorized")
 			c.Abort()

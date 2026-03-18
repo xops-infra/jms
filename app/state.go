@@ -165,6 +165,7 @@ func (app *Application) WithDB(migrate bool) *Application {
 			&model.ShellTask{}, &model.ShellTaskRecord{}, // 定时任务功能
 			&model.Server{},        // 实例
 			&model.SearchHistory{}, // 菜单搜索历史
+			&model.UploadSession{}, // 上传会话
 		)
 	}
 

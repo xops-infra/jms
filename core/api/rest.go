@@ -20,6 +20,8 @@ func NewGin() *gin.Engine {
 		WithRequestID(hh.XRequestID).
 		WithSecurity().
 		WithMetrics()
+	// static web ui
+	r.Static("/web", "./web/dist")
 	// add swagger
 	r.GET("/swagger/*any", func(c *gin.Context) {
 		c.Next()
@@ -82,6 +84,16 @@ func NewGin() *gin.Engine {
 	audits := api.Group("/audit")
 	audits.GET("/login", listLoginAudit)
 	audits.GET("/scp", listScpAudit)
+
+	terminal := api.Group("/terminal")
+	terminal.GET("/ws", requireUser(), terminalWS)
+
+	files := api.Group("/files")
+	files.POST("/upload/init", requireUser(), uploadInit)
+	files.PUT("/upload/chunk", requireUser(), uploadChunk)
+	files.POST("/upload/complete", requireUser(), uploadComplete)
+	files.POST("/upload/abort", requireUser(), uploadAbort)
+	files.GET("/download", requireUser(), downloadFile)
 
 	return r
 }

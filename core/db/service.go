@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/google/uuid"
@@ -111,6 +112,38 @@ func (d *DBService) CreateUser(req *UserRequest) (string, error) {
 		return "", d.DB.Error
 	}
 	return user.ID, nil
+}
+
+// Upload session operations
+func (d *DBService) CreateUploadSession(sess *UploadSession) error {
+	return d.DB.Create(sess).Error
+}
+
+func (d *DBService) GetUploadSession(id string) (*UploadSession, error) {
+	var sess UploadSession
+	if err := d.DB.Where("id = ?", id).First(&sess).Error; err != nil {
+		return nil, err
+	}
+	return &sess, nil
+}
+
+func (d *DBService) UpdateUploadSession(id string, mut map[string]any) error {
+	return d.DB.Model(&UploadSession{}).Where("id = ?", id).Updates(mut).Error
+}
+
+func (d *DBService) DeleteUploadSession(id string) error {
+	return d.DB.Delete(&UploadSession{}, "id = ?", id).Error
+}
+
+func (d *DBService) GCExpiredUploadSessions(now time.Time) ([]UploadSession, error) {
+	var sessions []UploadSession
+	if err := d.DB.Where("expires_at < ?", now).Find(&sessions).Error; err != nil {
+		return nil, err
+	}
+	if err := d.DB.Where("expires_at < ?", now).Delete(&UploadSession{}).Error; err != nil {
+		return sessions, err
+	}
+	return sessions, nil
 }
 
 // 支持如果没有用户则报错
