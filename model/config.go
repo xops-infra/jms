@@ -24,7 +24,7 @@ type Config struct {
 	WithDingtalk WithDingtalk `mapstructure:"withDingtalk"` // 配置钉钉审批流程
 	Broadcast    string       `mapstructure:"broadcast"`    // 配置广播消息
 	Auth         Auth         `mapstructure:"auth"`
-	Upload       Upload       `mapstructure:"upload"`
+	Upload       UploadConfig `mapstructure:"upload"`
 	Terminal     Terminal     `mapstructure:"terminal"`
 }
 
@@ -34,8 +34,8 @@ type Auth struct {
 	JWTTTL    string `mapstructure:"jwtTTL"` // 兼容 time.ParseDuration，默认 24h
 }
 
-// Upload 上传配置
-type Upload struct {
+// UploadConfig 上传配置
+type UploadConfig struct {
 	MaxSize   int64       `mapstructure:"maxSize"`
 	ChunkSize int64       `mapstructure:"chunkSize"`
 	Store     UploadStore `mapstructure:"store"`

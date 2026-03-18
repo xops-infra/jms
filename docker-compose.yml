@@ -60,3 +60,14 @@ services:
     volumes: 
       - "${JMS_CONFIG_PATH:-/opt/jms/config.yaml}:/opt/jms/config.yaml:ro"
       - "${JMS_SSH_DIR:-/opt/jms/.ssh}:/opt/jms/.ssh/" # 持久化数据
+
+  jms-web:
+    depends_on:
+      - jms-api
+    restart: always
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    image: jms-web:local
+    ports:
+      - "8080:80"

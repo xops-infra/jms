@@ -20,8 +20,6 @@ func NewGin() *gin.Engine {
 		WithRequestID(hh.XRequestID).
 		WithSecurity().
 		WithMetrics()
-	// static web ui
-	r.Static("/web", "./web/dist")
 	// add swagger
 	r.GET("/swagger/*any", func(c *gin.Context) {
 		c.Next()
