@@ -38,7 +38,7 @@ export const Login = () => {
     <div className="page login">
       <div className="card">
         <div className="brand">
-          <div className="logo">PJ</div>
+          <div className="logo">JMS</div>
           <div>
             <h1>PatsnapJMS</h1>
             <p>登录后进入统一终端与文件传输控制台</p>

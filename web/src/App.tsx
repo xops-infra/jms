@@ -12,7 +12,7 @@ const Nav = () => {
   return (
     <header className="topbar">
       <div className="brand">
-        <div className="logo">PJ</div>
+        <div className="logo">JMS</div>
         <div>
           <strong>PatsnapJMS</strong>
           <span>Secure Access Console</span>

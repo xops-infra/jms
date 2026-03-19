@@ -12,6 +12,14 @@ export type TerminalViewProps = {
   token: string
   sessionId?: string
   onSessionId?: (id: string) => void
+  onStateChange?: (event: TerminalStateEvent) => void
+}
+
+export type TerminalStatePhase = 'connecting' | 'live' | 'closed' | 'disconnected'
+
+export type TerminalStateEvent = {
+  phase: TerminalStatePhase
+  reason?: string
 }
 
 type WsMessage = {
@@ -30,12 +38,28 @@ export const TerminalView = ({
   token,
   sessionId,
   onSessionId,
+  onStateChange,
 }: TerminalViewProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const pingRef = useRef<number | null>(null)
+  const sessionIdRef = useRef(sessionId)
+  const onSessionIdRef = useRef(onSessionId)
+  const onStateChangeRef = useRef(onStateChange)
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId
+  }, [sessionId])
+
+  useEffect(() => {
+    onSessionIdRef.current = onSessionId
+  }, [onSessionId])
+
+  useEffect(() => {
+    onStateChangeRef.current = onStateChange
+  }, [onStateChange])
 
   useEffect(() => {
     if (!containerRef.current || termRef.current) return
@@ -90,16 +114,19 @@ export const TerminalView = ({
       key: keyName,
       cols,
       rows,
-      session_id: sessionId,
+      session_id: sessionIdRef.current,
       token,
     })
+    let closedByEffect = false
 
+    onStateChangeRef.current?.({ phase: 'connecting' })
     term.writeln('\u001b[38;5;208mConnecting...\u001b[0m')
 
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
 
     ws.onopen = () => {
+      onStateChangeRef.current?.({ phase: 'live' })
       term.writeln('\u001b[38;5;82mConnected\u001b[0m')
     }
 
@@ -110,9 +137,13 @@ export const TerminalView = ({
           term.write(msg.data)
         }
         if (msg.type === 'session' && msg.session_id) {
-          onSessionId?.(msg.session_id)
+          onSessionIdRef.current?.(msg.session_id)
         }
         if (msg.type === 'exit') {
+          onStateChangeRef.current?.({
+            phase: 'closed',
+            reason: msg.data?.trim(),
+          })
           term.writeln('\r\n\u001b[38;5;208mSession closed\u001b[0m')
         }
       } catch {
@@ -121,7 +152,10 @@ export const TerminalView = ({
     }
 
     ws.onclose = () => {
-      term.writeln('\r\n\u001b[38;5;208mDisconnected\u001b[0m')
+      if (!closedByEffect) {
+        onStateChangeRef.current?.({ phase: 'disconnected' })
+        term.writeln('\r\n\u001b[38;5;208mDisconnected\u001b[0m')
+      }
     }
 
     const dispose = term.onData((data) => {
@@ -137,13 +171,15 @@ export const TerminalView = ({
     }, 20000)
 
     return () => {
+      closedByEffect = true
       dispose.dispose()
       if (pingRef.current) {
         window.clearInterval(pingRef.current)
+        pingRef.current = null
       }
       ws.close()
     }
-  }, [active, host, user, token, sessionId, onSessionId])
+  }, [active, host, user, keyName, token])
 
   return <div className="terminal" ref={containerRef} />
 }

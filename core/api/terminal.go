@@ -149,7 +149,7 @@ func terminalWS(c *gin.Context) {
 	}
 	_ = writer.Send(wsMessage{Type: "session", SessionID: sessionID})
 
-	tmuxEnabled := app.App.Config.Terminal.TmuxEnable == nil || *app.App.Config.Terminal.TmuxEnable
+	tmuxEnabled := app.App.Config.Terminal.TmuxEnable != nil && *app.App.Config.Terminal.TmuxEnable
 	tmuxAvailable := false
 	if tmuxEnabled {
 		tmuxAvailable = isTmuxAvailable(upstream)

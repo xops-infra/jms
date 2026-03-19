@@ -224,7 +224,7 @@ func configCheck(conf *Config) {
 
 	// 终端默认配置
 	if conf.Terminal.TmuxEnable == nil {
-		v := true
+		v := false
 		conf.Terminal.TmuxEnable = &v
 	}
 }

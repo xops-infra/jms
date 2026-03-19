@@ -94,4 +94,4 @@ upload:
 
 # 终端配置
 terminal:
-  tmuxEnable: true
+  tmuxEnable: false

@@ -10,6 +10,7 @@ type FileTransferPanelProps = {
 }
 
 type UploadStatus = 'pending' | 'uploading' | 'done' | 'failed'
+type TransferPage = 'upload' | 'download'
 
 type UploadItem = {
   id: string
@@ -62,12 +63,13 @@ const resolveTargetPath = (input: string, filename: string) => {
 }
 
 export const FileTransferPanel = ({ host, user, token, headerAction }: FileTransferPanelProps) => {
+  const [activePage, setActivePage] = useState<TransferPage>('upload')
   const [uploadPath, setUploadPath] = useState('/data/')
   const [queue, setQueue] = useState<UploadItem[]>([])
   const storageKey = host ? `${remoteKeyBase}:${host}` : `${remoteKeyBase}:default`
   const [remoteFiles, setRemoteFiles] = useState<RemoteFile[]>(() => loadRemoteFiles(storageKey))
   const [remoteInput, setRemoteInput] = useState('')
-  const [status, setStatus] = useState('')
+  const [downloadStatus, setDownloadStatus] = useState('')
   const [dragActive, setDragActive] = useState(false)
   const [autoStart, setAutoStart] = useState(false)
   const uploadingRef = useRef(false)
@@ -81,6 +83,11 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
   }, [remoteFiles, storageKey])
 
   const canOperate = useMemo(() => Boolean(token && host), [token, host])
+  const operationHint = useMemo(() => {
+    if (!token) return '请先登录'
+    if (!host) return '请先在左侧选择机器并连接用户'
+    return ''
+  }, [token, host])
 
   const addFiles = (files: File[]) => {
     const items = files.map((file) => ({
@@ -208,17 +215,17 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
 
   const downloadRemote = async (path: string) => {
     if (!token || !host) {
-      setStatus('请先登录并选择主机')
+      setDownloadStatus('请先登录并选择主机')
       return
     }
-    setStatus('下载中...')
+    setDownloadStatus('下载中...')
     const url = `/api/v1/files/download?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}${user ? `&user=${encodeURIComponent(user)}` : ''}`
     try {
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) {
-        setStatus('下载失败')
+        setDownloadStatus('下载失败')
         return
       }
       const blob = await res.blob()
@@ -228,12 +235,12 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
       a.download = filename
       a.click()
       URL.revokeObjectURL(a.href)
-      setStatus('下载完成')
+      setDownloadStatus('下载完成')
       setRemoteFiles((prev) =>
         prev.map((item) => (item.path === path ? { ...item, lastUsed: Date.now() } : item)),
       )
     } catch (err: any) {
-      setStatus(err?.message || '下载失败')
+      setDownloadStatus(err?.message || '下载失败')
     }
   }
 
@@ -260,115 +267,140 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
         </div>
         {headerAction && <div className="panel-actions">{headerAction}</div>}
       </div>
-      <div className="panel-body">
-        <label>
-          <span>目标路径</span>
-          <input
-            value={uploadPath}
-            onChange={(e) => setUploadPath(e.target.value)}
-            placeholder="/data/ (以 / 结尾表示目录)"
-          />
-        </label>
 
-        <div
-          className={`dropzone ${dragActive ? 'active' : ''}`}
-          onDragOver={(e) => {
-            e.preventDefault()
-            setDragActive(true)
-          }}
-          onDragLeave={() => setDragActive(false)}
-          onDrop={(e) => {
-            e.preventDefault()
-            setDragActive(false)
-            onDropFiles(e.dataTransfer.files)
-          }}
-        >
-          <input
-            type="file"
-            multiple
-            onChange={(e) => onDropFiles(e.target.files)}
-            title="选择文件"
-          />
-          <div>
-            <strong>拖拽文件到此处上传</strong>
-            <p>支持批量上传，路径以 / 结尾将自动拼接文件名</p>
-          </div>
-        </div>
-
-        <div className="row equal">
-          <button className="primary" onClick={startUploadQueue} disabled={!canOperate || !queue.length}>
-            开始上传
+      <div className="panel-body transfer-switcher">
+        <div className="transfer-tabs" role="tablist" aria-label="文件传输页面">
+          <button
+            type="button"
+            className={`transfer-tab ${activePage === 'upload' ? 'active' : ''}`}
+            onClick={() => setActivePage('upload')}
+          >
+            上传
           </button>
-          <button className="ghost" onClick={() => setQueue([])} disabled={!queue.length}>
-            清空队列
+          <button
+            type="button"
+            className={`transfer-tab ${activePage === 'download' ? 'active' : ''}`}
+            onClick={() => setActivePage('download')}
+          >
+            下载
           </button>
         </div>
-
-        <div className="upload-list">
-          {queue.length === 0 ? (
-            <div className="empty-state">暂无上传任务</div>
-          ) : (
-            queue.map((item) => (
-              <div className={`upload-item ${item.status}`} key={item.id}>
-                <div className="file-meta">
-                  <strong>{item.file.name}</strong>
-                  <span>{formatBytes(item.file.size)}</span>
-                </div>
-                <div className="file-status">
-                  <span>{item.detail || item.status}</span>
-                  <div className="mini-progress">
-                    <div style={{ width: `${item.progress}%` }} />
-                  </div>
-                </div>
-                <div className="file-actions">
-                  {item.status === 'failed' && (
-                    <button className="ghost" onClick={() => updateItem(item.id, { status: 'pending', detail: '' })}>
-                      重试
-                    </button>
-                  )}
-                  <button className="ghost" onClick={() => removeItem(item.id)}>
-                    移除
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+        {operationHint && <div className="transfer-hint">{operationHint}</div>}
       </div>
 
       <div className="panel-divider" />
 
-      <div className="panel-body">
-        <div className="section-title">远端文件</div>
-        <div className="row">
-          <input
-            value={remoteInput}
-            onChange={(e) => setRemoteInput(e.target.value)}
-            placeholder="/data/report.zip"
-          />
-          <button className="ghost" onClick={addRemotePath}>
-            添加
-          </button>
-        </div>
-        <div className="remote-list">
-          {remoteFiles.length === 0 ? (
-            <div className="empty-state">暂无文件记录</div>
-          ) : (
-            remoteFiles.map((item) => (
-              <div className="remote-item" key={item.id}>
-                <div>
-                  <strong>{item.path}</strong>
-                  {item.lastUsed && <span>最近下载: {new Date(item.lastUsed).toLocaleString()}</span>}
+      {activePage === 'upload' && (
+        <div className="panel-body">
+          <label>
+            <span>目标路径</span>
+            <input
+              value={uploadPath}
+              onChange={(e) => setUploadPath(e.target.value)}
+              placeholder="/data/ (以 / 结尾表示目录)"
+            />
+          </label>
+
+          <div
+            className={`dropzone ${dragActive ? 'active' : ''}`}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragActive(true)
+            }}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragActive(false)
+              onDropFiles(e.dataTransfer.files)
+            }}
+          >
+            <input
+              type="file"
+              multiple
+              onChange={(e) => onDropFiles(e.target.files)}
+              title="选择文件"
+            />
+            <div>
+              <strong>拖拽文件到此处上传</strong>
+              <p>支持批量上传，路径以 / 结尾将自动拼接文件名</p>
+            </div>
+          </div>
+
+          <div className="row equal">
+            <button className="primary" onClick={startUploadQueue} disabled={!canOperate || !queue.length}>
+              开始上传
+            </button>
+            <button className="ghost" onClick={() => setQueue([])} disabled={!queue.length}>
+              清空队列
+            </button>
+          </div>
+
+          <div className="upload-list">
+            {queue.length === 0 ? (
+              <div className="empty-state">暂无上传任务</div>
+            ) : (
+              queue.map((item) => (
+                <div className={`upload-item ${item.status}`} key={item.id}>
+                  <div className="file-meta">
+                    <strong>{item.file.name}</strong>
+                    <span>{formatBytes(item.file.size)}</span>
+                  </div>
+                  <div className="file-status">
+                    <span>{item.detail || item.status}</span>
+                    <div className="mini-progress">
+                      <div style={{ width: `${item.progress}%` }} />
+                    </div>
+                  </div>
+                  <div className="file-actions">
+                    {item.status === 'failed' && (
+                      <button className="ghost" onClick={() => updateItem(item.id, { status: 'pending', detail: '' })}>
+                        重试
+                      </button>
+                    )}
+                    <button className="ghost" onClick={() => removeItem(item.id)}>
+                      移除
+                    </button>
+                  </div>
                 </div>
-                <button className="ghost" onClick={() => downloadRemote(item.path)}>
-                  下载
-                </button>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
-        {status && <div className="status">{status}</div>}
-      </div>
+      )}
+
+      {activePage === 'download' && (
+        <div className="panel-body">
+          <div className="section-title">远端文件路径</div>
+          <div className="row">
+            <input
+              value={remoteInput}
+              onChange={(e) => setRemoteInput(e.target.value)}
+              placeholder="/data/report.zip"
+            />
+            <button className="ghost" onClick={addRemotePath}>
+              添加
+            </button>
+          </div>
+          <div className="remote-list">
+            {remoteFiles.length === 0 ? (
+              <div className="empty-state">暂无文件记录</div>
+            ) : (
+              remoteFiles.map((item) => (
+                <div className="remote-item" key={item.id}>
+                  <div>
+                    <strong>{item.path}</strong>
+                    {item.lastUsed && <span>最近下载: {new Date(item.lastUsed).toLocaleString()}</span>}
+                  </div>
+                  <button className="ghost" onClick={() => downloadRemote(item.path)}>
+                    下载
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+          {downloadStatus && <div className="status">{downloadStatus}</div>}
+        </div>
+      )}
     </div>
   )
 }
