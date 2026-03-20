@@ -91,12 +91,14 @@ func terminalWS(c *gin.Context) {
 
 	sshUser, err := selectSSHUser(sshUsers, sshUserQuery, sshKeyQuery)
 	if err != nil {
+		logTerminalFailure(c, http.StatusBadRequest, user, host, sessionID, "select_ssh_user", sshUserQuery, sshKeyQuery, nil, err)
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
 
 	_, upstream, err := sshd.NewSSHClient(*user.Username, *server, sshUser)
 	if err != nil {
+		logTerminalFailure(c, http.StatusBadRequest, user, host, sessionID, "connect_upstream", sshUserQuery, sshKeyQuery, &sshUser, err)
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
@@ -104,18 +106,21 @@ func terminalWS(c *gin.Context) {
 
 	sess, err := upstream.NewSession()
 	if err != nil {
+		logTerminalFailure(c, http.StatusInternalServerError, user, host, sessionID, "create_session", sshUserQuery, sshKeyQuery, &sshUser, err)
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 	defer sess.Close()
 
 	if err := sess.RequestPty("xterm-256color", rows, cols, gossh.TerminalModes{}); err != nil {
+		logTerminalFailure(c, http.StatusInternalServerError, user, host, sessionID, "request_pty", sshUserQuery, sshKeyQuery, &sshUser, err)
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	conn, err := terminalUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
+		logTerminalFailure(c, http.StatusBadRequest, user, host, sessionID, "upgrade_websocket", sshUserQuery, sshKeyQuery, &sshUser, err)
 		return
 	}
 	defer conn.Close()
@@ -175,14 +180,16 @@ func terminalWS(c *gin.Context) {
 	if tmuxEnabled && tmuxAvailable {
 		cmd := fmt.Sprintf("tmux new -A -s %s", sessionID)
 		if err := sess.Start(cmd); err != nil {
-			log.Warnf("tmux start failed: %v", err)
+			log.Warnf("tmux start failed: user=%s host=%s ssh_user=%s ssh_key=%s session_id=%s err=%v", valueOrEmpty(user.Username), host, sshUser.UserName, sshUser.KeyName, sessionID, err)
 			if err := sess.Shell(); err != nil {
+				logTerminalFailure(c, http.StatusInternalServerError, user, host, sessionID, "start_shell_after_tmux_fallback", sshUserQuery, sshKeyQuery, &sshUser, err)
 				_ = writer.Send(wsMessage{Type: "exit", Data: err.Error()})
 				return
 			}
 		}
 	} else {
 		if err := sess.Shell(); err != nil {
+			logTerminalFailure(c, http.StatusInternalServerError, user, host, sessionID, "start_shell", sshUserQuery, sshKeyQuery, &sshUser, err)
 			_ = writer.Send(wsMessage{Type: "exit", Data: err.Error()})
 			return
 		}
@@ -229,6 +236,38 @@ func terminalWS(c *gin.Context) {
 	case <-errCh:
 	default:
 	}
+}
+
+func logTerminalFailure(
+	c *gin.Context,
+	status int,
+	user model.User,
+	host, sessionID, stage, requestedUser, requestedKey string,
+	selectedUser *model.SSHUser,
+	err error,
+) {
+	sshUser := requestedUser
+	sshKey := requestedKey
+	if selectedUser != nil {
+		if selectedUser.UserName != "" {
+			sshUser = selectedUser.UserName
+		}
+		if selectedUser.KeyName != "" {
+			sshKey = selectedUser.KeyName
+		}
+	}
+	log.Warnf(
+		"web terminal %s failed: status=%d user=%s client=%s host=%s ssh_user=%s ssh_key=%s session_id=%s err=%v",
+		stage,
+		status,
+		valueOrEmpty(user.Username),
+		c.ClientIP(),
+		host,
+		sshUser,
+		sshKey,
+		sessionID,
+		err,
+	)
 }
 
 func parseIntDefault(v string, d int) int {

@@ -54,6 +54,28 @@ func hasKeySSHUser(users []model.SSHUser) bool {
 	return false
 }
 
+func (i *SshdIO) defaultSSHUsername(server model.Server, keys []model.AddKeyRequest) string {
+	for _, keyID := range server.KeyPairs {
+		sshUsers, err := i.GetSSHUserByKeyID(keyID, keys)
+		if err != nil {
+			continue
+		}
+		for _, sshUser := range sshUsers {
+			if strings.TrimSpace(sshUser.UserName) != "" {
+				return sshUser.UserName
+			}
+		}
+	}
+
+	for _, sshUser := range buildSSHUsersByProfile(keys, server.Profile) {
+		if strings.TrimSpace(sshUser.UserName) != "" {
+			return sshUser.UserName
+		}
+	}
+
+	return ""
+}
+
 func buildSSHUsersByProfile(keys []model.AddKeyRequest, profile string) []model.SSHUser {
 	if strings.TrimSpace(profile) == "" {
 		return nil
@@ -99,14 +121,17 @@ func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server,
 	if server, ok := servers[host]; ok {
 		// 先组装带 passwd的 sshuser
 		if server.Passwd != "" {
-			if server.User == "" {
-				log.Errorf("server %s user is empty, set to root. if not ok, please set user for server %s", host, host)
-				// set user to root
-				server.User = "root"
+			loginUser := strings.TrimSpace(server.User)
+			if loginUser == "" {
+				loginUser = i.defaultSSHUsername(server, keys)
+			}
+			if loginUser == "" {
+				log.Warnf("server %s user is empty and no key username found, fallback to root", host)
+				loginUser = "root"
 			}
 			newSshUsers = append(newSshUsers, model.SSHUser{
 				KeyName:  "manual_passwd",
-				UserName: server.User,
+				UserName: loginUser,
 				Password: server.Passwd,
 			})
 		}

@@ -125,6 +125,80 @@ const extractTagTokens = (tags?: ServerItem['tags']) => {
   return Array.from(tokens)
 }
 
+const highPriorityTagPrefixes = [
+  'product:',
+  'project:',
+  'service:',
+  'app:',
+  'application:',
+  'team:',
+  'owner:',
+  'env:',
+  'environment:',
+  'stage:',
+  'role:',
+  'cluster:',
+  'eks:cluster-name:',
+]
+
+const lowPriorityTagPrefixes = [
+  'aws:',
+  'kubernetes.io/',
+  'k8s.io/',
+  'alpha.eksctl.io/',
+  'eks.amazonaws.com/',
+  'topology.kubernetes.io/',
+  'node.kubernetes.io/',
+  'karpenter.sh/',
+]
+
+const lowPriorityTagHints = ['autoscaling', 'groupname', 'nodegroup', 'fleet-id', ':owned', ':true']
+
+const getTagPriorityScore = (label: string) => {
+  const normalized = label.trim().toLowerCase()
+  let score = 0
+
+  if (highPriorityTagPrefixes.some((prefix) => normalized.startsWith(prefix))) score += 6
+  if (lowPriorityTagPrefixes.some((prefix) => normalized.startsWith(prefix))) score -= 6
+  if (lowPriorityTagHints.some((hint) => normalized.includes(hint))) score -= 4
+
+  if (label.length <= 32) score += 2
+  else if (label.length <= 48) score += 1
+  else if (label.length >= 72) score -= 2
+
+  return score
+}
+
+const splitTagLabels = (tags?: ServerItem['tags']) => {
+  const labels = extractTagLabels(tags).filter(Boolean)
+  if (labels.length === 0) {
+    return { primary: [], secondary: [] }
+  }
+
+  const ranked = labels
+    .map((label, index) => ({
+      label,
+      index,
+      score: getTagPriorityScore(label),
+    }))
+    .sort((left, right) => right.score - left.score || left.label.length - right.label.length || left.index - right.index)
+
+  const primary = ranked
+    .filter((entry) => entry.score > 0)
+    .slice(0, 3)
+    .map((entry) => entry.label)
+
+  if (primary.length === 0) {
+    primary.push(ranked[0].label)
+  }
+
+  const primarySet = new Set(primary)
+  return {
+    primary,
+    secondary: labels.filter((label) => !primarySet.has(label)),
+  }
+}
+
 const getStatusMeta = (status?: string): { label: string; tone: StatusTone; icon: StatusIconKind } => {
   const normalized = (status || '').trim().toLowerCase()
 
@@ -256,7 +330,9 @@ const buildSearchText = (item: ServerItem) => {
 type TerminalWorkspacePromptProps = {
   phase: TerminalPhase
   selectedServer: ServerItem | null
-  selectedTagList: string[]
+  selectedSSHUser: string
+  selectedPrimaryTagList: string[]
+  selectedSecondaryTagList: string[]
   sshOptions: SSHOption[]
   sshLoading: boolean
   sshError: string
@@ -278,7 +354,9 @@ type TerminalWorkspacePromptProps = {
 const TerminalWorkspacePrompt = ({
   phase,
   selectedServer,
-  selectedTagList,
+  selectedSSHUser,
+  selectedPrimaryTagList,
+  selectedSecondaryTagList,
   sshOptions,
   sshLoading,
   sshError,
@@ -311,9 +389,10 @@ const TerminalWorkspacePrompt = ({
     : ['先从左侧列表选择机器', '系统会加载可用登录配置', '确认后即可发起连接']
 
   if (selectedServer) {
+    const defaultSSHUser = selectedSSHUser || selectedServer.user
     eyebrow = selectedServer.allowed ? 'Ready To Connect' : 'Permission Required'
     title = selectedServer.name || selectedServer.host
-    description = `${selectedServer.host}${selectedServer.user ? ` · 默认用户 ${selectedServer.user}` : ''}`
+    description = `${selectedServer.host}${defaultSSHUser ? ` · 默认用户 ${defaultSSHUser}` : ''}`
 
     if (phase === 'connecting' && isSelectedTarget) {
       eyebrow = 'Linking Session'
@@ -361,12 +440,14 @@ const TerminalWorkspacePrompt = ({
                   {selectedServer.allowed ? '可连接' : '需申请权限'}
                 </span>
                 <StatusBadge status={selectedServer.status} prefix="状态: " />
-                {selectedTagList.length > 0 ? (
-                  selectedTagList.map((tag) => (
+                {selectedPrimaryTagList.length > 0 ? (
+                  selectedPrimaryTagList.map((tag) => (
                     <span className="pill" key={tag}>
                       {tag}
                     </span>
                   ))
+                ) : selectedSecondaryTagList.length > 0 ? (
+                  <span className="pill terminal-inline-meta-summary">补充标签 {selectedSecondaryTagList.length}</span>
                 ) : (
                   <span className="pill">无标签</span>
                 )}
@@ -484,6 +565,22 @@ const TerminalWorkspacePrompt = ({
                   </div>
                 </div>
               )}
+
+              {selectedSecondaryTagList.length > 0 && (
+                <div className="terminal-secondary-tags">
+                  <div className="terminal-secondary-tags-header">
+                    <strong>补充标签</strong>
+                    <span>低优先级标签已下沉展示，避免挤占上方连接信息区域。</span>
+                  </div>
+                  <div className="terminal-secondary-tags-list">
+                    {selectedSecondaryTagList.map((tag) => (
+                      <span className="pill" key={tag}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="terminal-inline-panel">
@@ -582,8 +679,8 @@ export const TerminalPage = () => {
     [servers, selectedHost],
   )
 
-  const selectedTagList = useMemo(
-    () => extractTagLabels(selectedServer?.tags).filter(Boolean).slice(0, 8),
+  const selectedTagGroups = useMemo(
+    () => splitTagLabels(selectedServer?.tags),
     [selectedServer],
   )
 
@@ -874,7 +971,9 @@ export const TerminalPage = () => {
                     <TerminalWorkspacePrompt
                       phase={terminalPhase}
                       selectedServer={selectedServer}
-                      selectedTagList={selectedTagList}
+                      selectedSSHUser={sshSelected?.user || ''}
+                      selectedPrimaryTagList={selectedTagGroups.primary}
+                      selectedSecondaryTagList={selectedTagGroups.secondary}
                       sshOptions={sshOptions}
                       sshLoading={sshLoading}
                       sshError={sshError}

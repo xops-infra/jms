@@ -321,7 +321,8 @@ button:disabled {
 .terminal-prompt-card {
   padding: clamp(18px, 1.8vw, 24px);
   color: #e5edf7;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .terminal-prompt-card::before,
@@ -424,6 +425,11 @@ button:disabled {
   color: #dbe7f5;
 }
 
+.terminal-inline-meta .terminal-inline-meta-summary {
+  border-style: dashed;
+  color: rgba(226, 232, 240, 0.78);
+}
+
 .terminal-inline-panel {
   margin-top: 12px;
   padding: 14px;
@@ -500,6 +506,47 @@ button:disabled {
   color: #dbeafe;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.terminal-secondary-tags {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(10, 18, 32, 0.34);
+  display: grid;
+  gap: 10px;
+}
+
+.terminal-secondary-tags-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.terminal-secondary-tags-header strong {
+  color: #dbeafe;
+  font-size: 13px;
+}
+
+.terminal-secondary-tags-header span {
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.terminal-secondary-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.terminal-secondary-tags .pill {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.28);
+  color: #dbe7f5;
 }
 
 .terminal-inline-options {
@@ -1811,6 +1858,10 @@ button:disabled {
   }
 
   .terminal-inline-panel-header {
+    flex-direction: column;
+  }
+
+  .terminal-secondary-tags-header {
     flex-direction: column;
   }
 
