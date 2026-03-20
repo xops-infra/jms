@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiFetch } from '../api/auth'
 import { apiClient } from '../api/client'
 import { useAuthStore } from '../store/auth'
 
@@ -64,7 +65,7 @@ export const FilesPage = () => {
         const blob = file.slice(start, end)
         setStatus(`uploading ${index + 1}/${totalChunks}`)
 
-        const resp = await fetch(
+        const resp = await apiFetch(
           `/api/v1/files/upload/chunk?upload_id=${uploadId}&index=${index}`,
           {
             method: 'PUT',
@@ -72,6 +73,7 @@ export const FilesPage = () => {
             body: blob,
           },
         )
+        if (resp.status === 401) return
         if (!resp.ok) {
           throw new Error(await resp.text())
         }
@@ -102,9 +104,10 @@ export const FilesPage = () => {
     setStatus('downloading')
     const url = `/api/v1/files/download?host=${encodeURIComponent(host)}&path=${encodeURIComponent(downloadPath)}${sshUser ? `&user=${encodeURIComponent(sshUser)}` : ''}`
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       })
+      if (res.status === 401) return
       if (!res.ok) {
         setStatus('download failed')
         return

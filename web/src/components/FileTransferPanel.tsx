@@ -1,15 +1,17 @@
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { apiFetch } from '../api/auth'
 import { apiClient } from '../api/client'
 
 type FileTransferPanelProps = {
   host: string
   user?: string
   token: string | null
+  connected: boolean
   headerAction?: ReactNode
 }
 
-type UploadStatus = 'pending' | 'uploading' | 'done' | 'failed'
+type UploadStatus = 'pending' | 'uploading' | 'done' | 'failed' | 'cancelled'
 type TransferPage = 'upload' | 'download'
 
 type UploadItem = {
@@ -62,7 +64,7 @@ const resolveTargetPath = (input: string, filename: string) => {
   return input
 }
 
-export const FileTransferPanel = ({ host, user, token, headerAction }: FileTransferPanelProps) => {
+export const FileTransferPanel = ({ host, user, token, connected, headerAction }: FileTransferPanelProps) => {
   const [activePage, setActivePage] = useState<TransferPage>('upload')
   const [uploadPath, setUploadPath] = useState('/data/')
   const [queue, setQueue] = useState<UploadItem[]>([])
@@ -71,8 +73,10 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
   const [remoteInput, setRemoteInput] = useState('')
   const [downloadStatus, setDownloadStatus] = useState('')
   const [dragActive, setDragActive] = useState(false)
-  const [autoStart, setAutoStart] = useState(false)
   const uploadingRef = useRef(false)
+  const canOperateRef = useRef(false)
+  const uploadAbortRef = useRef<Record<string, AbortController>>({})
+  const uploadAbortReasonRef = useRef<Record<string, 'cancelled' | 'disconnected'>>({})
 
   useEffect(() => {
     setRemoteFiles(loadRemoteFiles(storageKey))
@@ -82,14 +86,31 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
     localStorage.setItem(storageKey, JSON.stringify(remoteFiles))
   }, [remoteFiles, storageKey])
 
-  const canOperate = useMemo(() => Boolean(token && host), [token, host])
+  const canOperate = useMemo(() => Boolean(token && host && connected), [token, host, connected])
   const operationHint = useMemo(() => {
     if (!token) return '请先登录'
     if (!host) return '请先在左侧选择机器并连接用户'
+    if (!connected) return '请先建立终端连接，断开后文件传输不可用'
     return ''
-  }, [token, host])
+  }, [token, host, connected])
+
+  useEffect(() => {
+    canOperateRef.current = canOperate
+    if (!canOperate) {
+      setDragActive(false)
+    }
+  }, [canOperate])
+
+  useEffect(() => {
+    if (connected) return
+    Object.entries(uploadAbortRef.current).forEach(([id, controller]) => {
+      uploadAbortReasonRef.current[id] = 'disconnected'
+      controller.abort()
+    })
+  }, [connected])
 
   const addFiles = (files: File[]) => {
+    if (!canOperateRef.current) return
     const items = files.map((file) => ({
       id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
       file,
@@ -103,27 +124,33 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
     setQueue((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
   }
 
-  const removeItem = (id: string) => {
-    setQueue((prev) => prev.filter((item) => item.id !== id))
-  }
-
-  const startUploadQueue = async () => {
+  const startUploadQueue = useCallback(async () => {
+    if (!canOperateRef.current) return
     if (uploadingRef.current) return
     uploadingRef.current = true
     try {
       for (const item of queue) {
-        if (item.status !== 'pending' && item.status !== 'failed') continue
+        if (item.status !== 'pending') continue
         await uploadOne(item)
       }
     } finally {
       uploadingRef.current = false
     }
+  }, [queue])
+
+  const isAbortError = (err: unknown) => {
+    const error = err as { name?: string; code?: string }
+    return error?.name === 'AbortError' || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED'
   }
 
   const uploadOne = async (item: UploadItem) => {
+    let uploadKey = ''
+    const controller = new AbortController()
+    uploadAbortRef.current[item.id] = controller
+
     try {
-      if (!token || !host) {
-        updateItem(item.id, { status: 'failed', detail: '请先登录并选择主机' })
+      if (!token || !host || !connected) {
+        updateItem(item.id, { status: 'failed', detail: '请先建立终端连接后再传输文件' })
         return
       }
 
@@ -135,7 +162,7 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
 
       updateItem(item.id, { status: 'uploading', detail: '初始化上传' })
 
-      const uploadKey = `upload:${host}:${user || 'default'}:${path}:${item.file.name}:${item.file.size}`
+      uploadKey = `upload:${host}:${user || 'default'}:${path}:${item.file.name}:${item.file.size}`
 
       let uploadId = ''
       let chunkSize = 0
@@ -153,12 +180,16 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
       }
 
       if (!uploadId) {
-        const res = await apiClient.post<InitResp>('/api/v1/files/upload/init', {
-          host,
-          path,
-          user,
-          size: item.file.size,
-        })
+        const res = await apiClient.post<InitResp>(
+          '/api/v1/files/upload/init',
+          {
+            host,
+            path,
+            user,
+            size: item.file.size,
+          },
+          { signal: controller.signal },
+        )
         uploadId = res.data.upload_id
         chunkSize = res.data.chunk_size
         startIndex = 0
@@ -168,16 +199,22 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
       const totalChunks = Math.ceil(item.file.size / chunkSize)
 
       for (let index = startIndex; index < totalChunks; index += 1) {
+        if (!canOperateRef.current) {
+          updateItem(item.id, { status: 'failed', detail: '连接已断开，上传已停止' })
+          return
+        }
         const start = index * chunkSize
         const end = Math.min(start + chunkSize, item.file.size)
         const blob = item.file.slice(start, end)
         updateItem(item.id, { detail: `上传中 ${index + 1}/${totalChunks}` })
 
-        const resp = await fetch(`/api/v1/files/upload/chunk?upload_id=${uploadId}&index=${index}`, {
+        const resp = await apiFetch(`/api/v1/files/upload/chunk?upload_id=${uploadId}&index=${index}`, {
           method: 'PUT',
           headers: { Authorization: `Bearer ${token}` },
           body: blob,
+          signal: controller.signal,
         })
+        if (resp.status === 401) return
         if (!resp.ok) {
           updateItem(item.id, { status: 'failed', detail: await resp.text() })
           return
@@ -188,20 +225,46 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
         updateItem(item.id, { progress: Math.round((nextIndex / totalChunks) * 100) })
       }
 
+      if (!canOperateRef.current) {
+        updateItem(item.id, { status: 'failed', detail: '连接已断开，上传已停止' })
+        return
+      }
       updateItem(item.id, { detail: '合并中' })
-      await apiClient.post('/api/v1/files/upload/complete', {
-        upload_id: uploadId,
-        total_chunks: totalChunks,
-      })
+      await apiClient.post(
+        '/api/v1/files/upload/complete',
+        {
+          upload_id: uploadId,
+          total_chunks: totalChunks,
+        },
+        { signal: controller.signal },
+      )
 
       localStorage.removeItem(uploadKey)
-      updateItem(item.id, { status: 'done', detail: '完成' })
+      updateItem(item.id, { status: 'done', detail: '上传成功', progress: 100 })
     } catch (err: any) {
+      if (isAbortError(err)) {
+        if (uploadKey) {
+          localStorage.removeItem(uploadKey)
+        }
+        const reason = uploadAbortReasonRef.current[item.id]
+        updateItem(item.id, {
+          status: reason === 'disconnected' ? 'failed' : 'cancelled',
+          detail: reason === 'disconnected' ? '连接已断开，上传已停止' : '传输已取消',
+        })
+        return
+      }
       updateItem(item.id, { status: 'failed', detail: err?.message || '上传失败' })
+    } finally {
+      delete uploadAbortRef.current[item.id]
+      delete uploadAbortReasonRef.current[item.id]
     }
   }
 
   const addRemotePath = () => {
+    if (!canOperateRef.current) {
+      setDownloadStatus('请先建立终端连接后再传输文件')
+      return
+    }
     const path = remoteInput.trim()
     if (!path) return
     const entry: RemoteFile = {
@@ -214,16 +277,17 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
   }
 
   const downloadRemote = async (path: string) => {
-    if (!token || !host) {
-      setDownloadStatus('请先登录并选择主机')
+    if (!token || !host || !connected) {
+      setDownloadStatus('请先建立终端连接后再传输文件')
       return
     }
     setDownloadStatus('下载中...')
     const url = `/api/v1/files/download?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}${user ? `&user=${encodeURIComponent(user)}` : ''}`
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       })
+      if (res.status === 401) return
       if (!res.ok) {
         setDownloadStatus('下载失败')
         return
@@ -245,18 +309,17 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
   }
 
   const onDropFiles = (files: FileList | null) => {
+    if (!canOperateRef.current) return
     if (!files || files.length === 0) return
     addFiles(Array.from(files))
-    if (canOperate && uploadPath.trim()) {
-      setAutoStart(true)
-    }
   }
 
   useEffect(() => {
-    if (!autoStart) return
-    setAutoStart(false)
+    if (!canOperate) return
+    if (!uploadPath.trim()) return
+    if (!queue.some((item) => item.status === 'pending')) return
     void startUploadQueue()
-  }, [autoStart, queue])
+  }, [canOperate, queue, uploadPath, startUploadQueue])
 
   return (
     <div className="panel transfer-panel">
@@ -292,23 +355,31 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
 
       {activePage === 'upload' && (
         <div className="panel-body">
+          <div className="transfer-auto-note">
+            <strong>选择文件后会自动开始上传</strong>
+            <span>暂不支持目录上传，如需上传目录请先在本地打包为 zip 或 tar.gz 后再上传。</span>
+          </div>
+
           <label>
             <span>目标路径</span>
             <input
               value={uploadPath}
               onChange={(e) => setUploadPath(e.target.value)}
               placeholder="/data/ (以 / 结尾表示目录)"
+              disabled={!canOperate}
             />
           </label>
 
           <div
-            className={`dropzone ${dragActive ? 'active' : ''}`}
+            className={`dropzone ${dragActive ? 'active' : ''} ${canOperate ? '' : 'disabled'}`}
             onDragOver={(e) => {
+              if (!canOperate) return
               e.preventDefault()
               setDragActive(true)
             }}
             onDragLeave={() => setDragActive(false)}
             onDrop={(e) => {
+              if (!canOperate) return
               e.preventDefault()
               setDragActive(false)
               onDropFiles(e.dataTransfer.files)
@@ -317,20 +388,31 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
             <input
               type="file"
               multiple
-              onChange={(e) => onDropFiles(e.target.files)}
+              onChange={(e) => {
+                onDropFiles(e.target.files)
+                e.currentTarget.value = ''
+              }}
               title="选择文件"
+              disabled={!canOperate}
             />
             <div>
-              <strong>拖拽文件到此处上传</strong>
-              <p>支持批量上传，路径以 / 结尾将自动拼接文件名</p>
+              <strong>拖拽或选择文件后自动上传</strong>
+              <p>支持批量文件上传，不支持目录；路径以 / 结尾时会自动拼接文件名</p>
             </div>
           </div>
 
-          <div className="row equal">
-            <button className="primary" onClick={startUploadQueue} disabled={!canOperate || !queue.length}>
-              开始上传
-            </button>
-            <button className="ghost" onClick={() => setQueue([])} disabled={!queue.length}>
+          <div className="row">
+            <button
+              className="ghost"
+              onClick={() => {
+                Object.entries(uploadAbortRef.current).forEach(([id, controller]) => {
+                  uploadAbortReasonRef.current[id] = 'cancelled'
+                  controller.abort()
+                })
+                setQueue([])
+              }}
+              disabled={!queue.length}
+            >
               清空队列
             </button>
           </div>
@@ -343,7 +425,20 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
                 <div className={`upload-item ${item.status}`} key={item.id}>
                   <div className="file-meta">
                     <strong>{item.file.name}</strong>
-                    <span>{formatBytes(item.file.size)}</span>
+                    <div className="file-meta-side">
+                      <span>{formatBytes(item.file.size)}</span>
+                      <em className={`upload-status-pill ${item.status}`}>
+                        {item.status === 'done'
+                          ? '成功'
+                          : item.status === 'uploading'
+                            ? '传输中'
+                            : item.status === 'failed'
+                              ? '失败'
+                              : item.status === 'cancelled'
+                                ? '已取消'
+                                : '排队中'}
+                      </em>
+                    </div>
                   </div>
                   <div className="file-status">
                     <span>{item.detail || item.status}</span>
@@ -352,14 +447,27 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
                     </div>
                   </div>
                   <div className="file-actions">
-                    {item.status === 'failed' && (
-                      <button className="ghost" onClick={() => updateItem(item.id, { status: 'pending', detail: '' })}>
+                    {(item.status === 'failed' || item.status === 'cancelled') && (
+                      <button
+                        className="ghost"
+                        onClick={() => updateItem(item.id, { status: 'pending', detail: '', progress: 0 })}
+                      >
                         重试
                       </button>
                     )}
-                    <button className="ghost" onClick={() => removeItem(item.id)}>
-                      移除
-                    </button>
+                    {item.status === 'uploading' && (
+                      <button
+                        className="ghost"
+                        onClick={() => {
+                          const controller = uploadAbortRef.current[item.id]
+                          if (!controller) return
+                          uploadAbortReasonRef.current[item.id] = 'cancelled'
+                          controller.abort()
+                        }}
+                      >
+                        取消传输
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -376,8 +484,9 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
               value={remoteInput}
               onChange={(e) => setRemoteInput(e.target.value)}
               placeholder="/data/report.zip"
+              disabled={!canOperate}
             />
-            <button className="ghost" onClick={addRemotePath}>
+            <button className="ghost" onClick={addRemotePath} disabled={!canOperate || !remoteInput.trim()}>
               添加
             </button>
           </div>
@@ -391,7 +500,7 @@ export const FileTransferPanel = ({ host, user, token, headerAction }: FileTrans
                     <strong>{item.path}</strong>
                     {item.lastUsed && <span>最近下载: {new Date(item.lastUsed).toLocaleString()}</span>}
                   </div>
-                  <button className="ghost" onClick={() => downloadRemote(item.path)}>
+                  <button className="ghost" onClick={() => downloadRemote(item.path)} disabled={!canOperate}>
                     下载
                   </button>
                 </div>

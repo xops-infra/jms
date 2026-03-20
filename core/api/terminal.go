@@ -120,6 +120,20 @@ func terminalWS(c *gin.Context) {
 	}
 	defer conn.Close()
 
+	if app.App.Config.WithDB.Enable && app.App.DBIo != nil {
+		client := c.ClientIP()
+		if err := app.App.DBIo.AddServerLoginRecord(&model.AddSshLoginRequest{
+			User:         user.Username,
+			Client:       &client,
+			TargetServer: &server.Host,
+			InstanceID:   &server.ID,
+		}); err != nil {
+			log.Warnf("create web terminal login record failed: %v", err)
+		} else {
+			log.Infof("web terminal login audit recorded: user=%s target=%s client=%s instance_id=%s", *user.Username, server.Host, client, server.ID)
+		}
+	}
+
 	writer := &wsWriter{conn: conn}
 	var outWriter io.Writer = writer
 	var auditFile io.Closer

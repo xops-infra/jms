@@ -14,6 +14,7 @@ type serverListItem struct {
 	Name    string      `json:"name"`
 	Host    string      `json:"host"`
 	User    string      `json:"user,omitempty"`
+	Profile string      `json:"profile,omitempty"`
 	Status  string      `json:"status,omitempty"`
 	Tags    interface{} `json:"tags,omitempty"`
 	Allowed bool        `json:"allowed"`
@@ -56,6 +57,7 @@ func listServers(c *gin.Context) {
 			Name:    server.Name,
 			Host:    server.Host,
 			User:    server.User,
+			Profile: server.Profile,
 			Status:  string(server.Status),
 			Tags:    server.Tags,
 			Allowed: allowed,
@@ -69,6 +71,7 @@ type sshUserItem struct {
 	User     string `json:"user"`
 	KeyName  string `json:"key_name,omitempty"`
 	AuthType string `json:"auth_type"`
+	Source   string `json:"source,omitempty"`
 }
 
 // listServerSSHUsers returns ssh user options for the given host (permission required).
@@ -90,7 +93,7 @@ func listServerSSHUsers(c *gin.Context) {
 		return
 	}
 
-	server, sshUsers, err := app.App.Sshd.SshdIO.GetSSHUsersByHostLive(host)
+	server, sshUsers, fallbackUsers, err := app.App.Sshd.SshdIO.GetSSHUsersByHostResolvedLive(host)
 	if err != nil {
 		c.String(http.StatusNotFound, err.Error())
 		return
@@ -103,15 +106,25 @@ func listServerSSHUsers(c *gin.Context) {
 	}
 
 	items := make([]sshUserItem, 0, len(sshUsers))
+	fallbackIndex := make(map[string]struct{}, len(fallbackUsers))
+	for _, u := range fallbackUsers {
+		fallbackIndex[u.UserName+"|"+u.KeyName+"|"+u.Password] = struct{}{}
+	}
 	for _, u := range sshUsers {
 		authType := "key"
+		source := "managed_key"
 		if u.Password != "" {
 			authType = "password"
+			source = "password"
+		}
+		if _, ok := fallbackIndex[u.UserName+"|"+u.KeyName+"|"+u.Password]; ok {
+			source = "profile_fallback"
 		}
 		items = append(items, sshUserItem{
 			User:     u.UserName,
 			KeyName:  u.KeyName,
 			AuthType: authType,
+			Source:   source,
 		})
 	}
 

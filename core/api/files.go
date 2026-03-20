@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/pkg/sftp"
+	"github.com/xops-infra/noop/log"
 	"gorm.io/gorm"
 
 	"github.com/xops-infra/jms/app"
@@ -302,13 +303,17 @@ func uploadComplete(c *gin.Context) {
 		from := sess.ID
 		to := fmt.Sprintf("%s:%s", sess.Host, sess.Path)
 		client := c.ClientIP()
-		_ = app.App.DBIo.AddScpRecord(&model.AddScpRecordRequest{
+		if err := app.App.DBIo.AddScpRecord(&model.AddScpRecordRequest{
 			Action: &action,
 			From:   &from,
 			To:     &to,
 			User:   authUser.Username,
 			Client: &client,
-		})
+		}); err != nil {
+			log.Warnf("create web file upload audit failed: %v", err)
+		} else {
+			log.Infof("web file audit recorded: action=%s user=%s from=%s to=%s client=%s", action, *authUser.Username, from, to, client)
+		}
 	}
 
 	c.String(http.StatusOK, "ok")
@@ -430,13 +435,17 @@ func downloadFile(c *gin.Context) {
 		from := fmt.Sprintf("%s:%s", host, path)
 		to := "browser"
 		client := c.ClientIP()
-		_ = app.App.DBIo.AddScpRecord(&model.AddScpRecordRequest{
+		if err := app.App.DBIo.AddScpRecord(&model.AddScpRecordRequest{
 			Action: &action,
 			From:   &from,
 			To:     &to,
 			User:   authUser.Username,
 			Client: &client,
-		})
+		}); err != nil {
+			log.Warnf("create web file download audit failed: %v", err)
+		} else {
+			log.Infof("web file audit recorded: action=%s user=%s from=%s to=%s client=%s", action, *authUser.Username, from, to, client)
+		}
 	}
 }
 

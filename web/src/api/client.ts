@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { handleUnauthorizedStatus } from './auth'
 import { useAuthStore } from '../store/auth'
 
 const baseURL = import.meta.env.VITE_API_BASE || window.location.origin
@@ -16,3 +17,10 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    handleUnauthorizedStatus(error?.response?.status)
+    return Promise.reject(error)
+  },
+)

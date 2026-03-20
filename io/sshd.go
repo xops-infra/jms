@@ -45,6 +45,53 @@ func (i *SshdIO) GetSSHUserByKeyID(keyID string, keys []model.AddKeyRequest) ([]
 	return sshUsers, nil
 }
 
+func hasKeySSHUser(users []model.SSHUser) bool {
+	for _, user := range users {
+		if user.Base64Pem != "" || (user.KeyName != "" && user.KeyName != "manual_passwd") {
+			return true
+		}
+	}
+	return false
+}
+
+func buildSSHUsersByProfile(keys []model.AddKeyRequest, profile string) []model.SSHUser {
+	if strings.TrimSpace(profile) == "" {
+		return nil
+	}
+	sshUsers := make([]model.SSHUser, 0)
+	for _, key := range keys {
+		if key.Profile == nil || *key.Profile != profile {
+			continue
+		}
+		if key.IdentityFile == nil || key.UserName == nil {
+			continue
+		}
+		sshUsers = append(sshUsers, model.SSHUser{
+			KeyName:   *key.IdentityFile,
+			UserName:  *key.UserName,
+			Base64Pem: tea.StringValue(key.PemBase64),
+		})
+	}
+	return sshUsers
+}
+
+func mergeSSHUsers(primary []model.SSHUser, additions []model.SSHUser) []model.SSHUser {
+	merged := append([]model.SSHUser{}, primary...)
+	seen := make(map[string]struct{}, len(merged))
+	for _, user := range merged {
+		seen[fmt.Sprintf("%s|%s|%s|%s", user.UserName, user.KeyName, user.Base64Pem, user.Password)] = struct{}{}
+	}
+	for _, user := range additions {
+		key := fmt.Sprintf("%s|%s|%s|%s", user.UserName, user.KeyName, user.Base64Pem, user.Password)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		merged = append(merged, user)
+	}
+	return merged
+}
+
 // 依据 host获取服务器所有的 sshuser
 // 支持在云上 key，还支持本地配置的 sshuser 通过 IP 匹配；
 func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server, keys []model.AddKeyRequest) ([]model.SSHUser, error) {
@@ -89,25 +136,38 @@ func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server,
 
 // GetSSHUsersByHostLive loads latest server and key data from DB for the given host.
 func (i *SshdIO) GetSSHUsersByHostLive(host string) (*model.Server, []model.SSHUser, error) {
+	server, sshUsers, _, err := i.GetSSHUsersByHostResolvedLive(host)
+	if err != nil {
+		return nil, nil, err
+	}
+	return server, sshUsers, nil
+}
+
+// GetSSHUsersByHostResolvedLive returns direct ssh users and optional same-profile fallback users.
+func (i *SshdIO) GetSSHUsersByHostResolvedLive(host string) (*model.Server, []model.SSHUser, []model.SSHUser, error) {
 	if i.db == nil {
-		return nil, nil, fmt.Errorf("db not initialized")
+		return nil, nil, nil, fmt.Errorf("db not initialized")
 	}
 	server, err := i.db.GetInstanceByHost(host)
 	if err != nil {
-		return nil, nil, fmt.Errorf("get server by host %s error: %s", host, err.Error())
+		return nil, nil, nil, fmt.Errorf("get server by host %s error: %s", host, err.Error())
 	}
 	keys, err := i.db.InternalLoadKey()
 	if err != nil {
-		return server, nil, fmt.Errorf("load key error: %s", err.Error())
+		return server, nil, nil, fmt.Errorf("load key error: %s", err.Error())
 	}
 	serversMap := map[string]model.Server{
 		server.Host: *server,
 	}
 	sshUsers, err := i.GetSSHUsersByHost(server.Host, serversMap, keys)
 	if err != nil {
-		return server, nil, err
+		return server, nil, nil, err
 	}
-	return server, sshUsers, nil
+	fallbackUsers := make([]model.SSHUser, 0)
+	if !hasKeySSHUser(sshUsers) {
+		fallbackUsers = buildSSHUsersByProfile(keys, server.Profile)
+	}
+	return server, mergeSSHUsers(sshUsers, fallbackUsers), fallbackUsers, nil
 }
 
 // 依据 scp的路径获取 sshuser和服务器
