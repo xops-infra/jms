@@ -8,7 +8,9 @@ import (
 	"math"
 	"net/http"
 	"os"
+	pathpkg "path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -24,7 +26,11 @@ import (
 	"github.com/xops-infra/jms/model"
 )
 
-const uploadSessionTTL = 24 * time.Hour
+const (
+	uploadSessionTTL   = 24 * time.Hour
+	browseDefaultLimit = 200
+	browseMaxLimit     = 500
+)
 
 func uploadInit(c *gin.Context) {
 	var req model.UploadInitRequest
@@ -336,6 +342,102 @@ func uploadAbort(c *gin.Context) {
 	c.String(http.StatusOK, "ok")
 }
 
+func browseFiles(c *gin.Context) {
+	host := c.Query("host")
+	browsePath := c.DefaultQuery("path", "/")
+	sshUserQuery := c.Query("user")
+	search := strings.TrimSpace(c.Query("search"))
+	if host == "" {
+		c.String(http.StatusBadRequest, "host required")
+		return
+	}
+
+	limit := browseDefaultLimit
+	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value <= 0 {
+			c.String(http.StatusBadRequest, "invalid limit")
+			return
+		}
+		limit = value
+	}
+	if limit > browseMaxLimit {
+		limit = browseMaxLimit
+	}
+
+	browsePath = cleanRemotePath(browsePath)
+	if err := validateRemotePath(browsePath); err != nil {
+		c.String(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	v, ok := c.Get("auth_user")
+	if !ok {
+		c.String(http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	authUser := v.(model.User)
+	if authUser.Username == nil {
+		c.String(http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	server, sshUsers, err := app.App.Sshd.SshdIO.GetSSHUsersByHostLive(host)
+	if err != nil {
+		c.String(http.StatusBadRequest, err.Error())
+		return
+	}
+	sshUser, err := selectSSHUser(sshUsers, sshUserQuery, "")
+	if err != nil {
+		c.String(http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := app.App.Sshd.SshdIO.CheckPermission(fmt.Sprintf("%s@%s:%s", sshUser.UserName, host, browsePath), authUser, model.Download); err != nil {
+		c.String(http.StatusForbidden, err.Error())
+		return
+	}
+
+	_, upstream, err := sshd.NewSSHClient(*authUser.Username, *server, sshUser)
+	if err != nil {
+		c.String(http.StatusBadRequest, err.Error())
+		return
+	}
+	defer upstream.Close()
+
+	sftpClient, err := sftp.NewClient(upstream)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer sftpClient.Close()
+
+	info, err := sftpClient.Stat(browsePath)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	if !info.IsDir() {
+		c.String(http.StatusBadRequest, "path is not directory")
+		return
+	}
+
+	entries, err := sftpClient.ReadDir(browsePath)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	items, truncated := buildBrowseItems(entries, browsePath, search, limit)
+	c.JSON(http.StatusOK, model.BrowseFilesResponse{
+		Path:       browsePath,
+		ParentPath: parentRemotePath(browsePath),
+		Search:     search,
+		Limit:      limit,
+		Truncated:  truncated,
+		Items:      items,
+	})
+}
+
 func downloadFile(c *gin.Context) {
 	host := c.Query("host")
 	path := c.Query("path")
@@ -399,6 +501,10 @@ func downloadFile(c *gin.Context) {
 	info, err := remoteFile.Stat()
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	if info.IsDir() {
+		c.String(http.StatusBadRequest, "path is directory")
 		return
 	}
 
@@ -467,6 +573,49 @@ func missingChunks(uploadID string, total int) []int {
 	return missing
 }
 
+func buildBrowseItems(entries []os.FileInfo, browsePath, search string, limit int) ([]model.BrowseFileItem, bool) {
+	normalizedSearch := strings.ToLower(strings.TrimSpace(search))
+	items := make([]model.BrowseFileItem, 0, len(entries))
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if name == "." || name == ".." {
+			continue
+		}
+		if normalizedSearch != "" && !strings.Contains(strings.ToLower(name), normalizedSearch) {
+			continue
+		}
+
+		item := model.BrowseFileItem{
+			Name:      name,
+			Path:      joinRemotePath(browsePath, name),
+			IsDir:     entry.IsDir(),
+			UpdatedAt: entry.ModTime().Unix(),
+		}
+		if !entry.IsDir() {
+			item.Size = entry.Size()
+		}
+		items = append(items, item)
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].IsDir != items[j].IsDir {
+			return items[i].IsDir && !items[j].IsDir
+		}
+		left := strings.ToLower(items[i].Name)
+		right := strings.ToLower(items[j].Name)
+		if left == right {
+			return items[i].Name < items[j].Name
+		}
+		return left < right
+	})
+
+	if limit > 0 && len(items) > limit {
+		return items[:limit], true
+	}
+	return items, false
+}
+
 func parseRange(h string, size int64) (int64, int64, bool) {
 	if !strings.HasPrefix(h, "bytes=") {
 		return 0, 0, false
@@ -500,6 +649,33 @@ func valueOrEmpty(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+func cleanRemotePath(value string) string {
+	if value == "" {
+		return "/"
+	}
+	cleaned := pathpkg.Clean(value)
+	if cleaned == "." || cleaned == "" {
+		return "/"
+	}
+	return cleaned
+}
+
+func parentRemotePath(value string) *string {
+	cleaned := cleanRemotePath(value)
+	if cleaned == "/" {
+		return nil
+	}
+	parent := pathpkg.Dir(cleaned)
+	if parent == "." || parent == "" {
+		parent = "/"
+	}
+	return &parent
+}
+
+func joinRemotePath(dirPath, name string) string {
+	return pathpkg.Join(cleanRemotePath(dirPath), name)
 }
 
 func validateRemotePath(path string) error {

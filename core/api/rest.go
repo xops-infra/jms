@@ -96,6 +96,7 @@ func NewGin() *gin.Engine {
 	files.PUT("/upload/chunk", requireUser(), uploadChunk)
 	files.POST("/upload/complete", requireUser(), uploadComplete)
 	files.POST("/upload/abort", requireUser(), uploadAbort)
+	files.GET("/browse", requireUser(), browseFiles)
 	files.GET("/download", requireUser(), downloadFile)
 
 	return r
