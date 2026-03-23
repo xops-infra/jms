@@ -160,7 +160,7 @@ func (app *Application) WithDB(migrate bool) *Application {
 		err = rdb.AutoMigrate(
 			&model.Policy{}, &model.User{}, &model.AuthorizedKey{},
 			&model.Key{}, &model.Profile{}, &model.Proxy{}, // 配置
-			&model.SSHLoginRecord{}, &model.ScpRecord{}, // 审计
+			&model.SSHLoginRecord{}, &model.ScpRecord{}, &model.ShellTaskAuditRecord{}, // 审计
 			&model.Broadcast{},
 			&model.ShellTask{}, &model.ShellTaskRecord{}, // 定时任务功能
 			&model.Server{},        // 实例

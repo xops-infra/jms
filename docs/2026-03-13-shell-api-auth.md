@@ -52,14 +52,32 @@ If `jwtSecret` is empty, login and token validation will fail.
 
 ## Admin Authorization Rule
 
-Only the shell task creation API is protected:
+Shell task management APIs are protected and require an admin JWT:
 
 ```
-POST /api/v1/shell/task
+GET    /api/v1/shell/task
+POST   /api/v1/shell/task
+PUT    /api/v1/shell/task/:uuid
+PATCH  /api/v1/shell/task/:uuid/enabled
+DELETE /api/v1/shell/task/:uuid
+GET    /api/v1/shell/record
 ```
 
 The token subject must be a user in the database whose `groups` contains `"admin"`.
 LDAP is used for authentication only and does not set admin groups automatically.
+
+Successful admin operations are audited into table `record_shell_task_admin`.
+You can query them via:
+
+```
+GET /api/v1/audit/shell-task
+```
+
+`ShellTask` now includes `is_enabled` for scheduler control:
+
+- `is_enabled=true`: scheduler may execute the task when status/cron matches.
+- `is_enabled=false`: scheduler skips the task; running tasks are not force-stopped.
+- running tasks cannot be deleted.
 
 Example call:
 

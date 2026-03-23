@@ -7,6 +7,7 @@ type UploadSession struct {
 	ID              string     `json:"id" gorm:"column:id;primary_key;not null"`
 	Host            string     `json:"host" gorm:"column:host;not null"`
 	SSHUser         *string    `json:"ssh_user" gorm:"column:ssh_user"`
+	SSHKey          *string    `json:"ssh_key" gorm:"column:ssh_key"`
 	Path            string     `json:"path" gorm:"column:path;not null"`
 	Size            int64      `json:"size" gorm:"column:size;not null"`
 	ChunkSize       int64      `json:"chunk_size" gorm:"column:chunk_size;not null"`
@@ -26,6 +27,7 @@ func (UploadSession) TableName() string {
 type UploadInitRequest struct {
 	Host      string  `json:"host" binding:"required"`
 	User      *string `json:"user"`
+	Key       *string `json:"key"`
 	Path      string  `json:"path" binding:"required"`
 	Size      int64   `json:"size" binding:"required"`
 	SHA256    *string `json:"sha256"`

@@ -15,12 +15,17 @@ const (
 )
 
 type CreateShellTaskRequest struct {
-	Name    *string         `json:"name" binding:"required"`    // 任务名称，唯一
-	Shell   *string         `json:"shell" binding:"required"`   // 脚本内容
-	Corn    *string         `json:"corn"`                       // corn表达式，支持定时执行任务，执行一次可以不传
-	Servers *ServerFilterV1 `json:"servers" binding:"required"` // 执行的机器
+	Name      *string         `json:"name" binding:"required"`    // 任务名称，唯一
+	Shell     *string         `json:"shell" binding:"required"`   // 脚本内容
+	Corn      *string         `json:"corn"`                       // corn表达式，支持定时执行任务，执行一次可以不传
+	Servers   *ServerFilterV1 `json:"servers" binding:"required"` // 执行的机器
+	IsEnabled *bool           `json:"is_enabled"`                 // 是否启用
 	// SubmitUser 由服务端从 token 中获取并填充
 	SubmitUser *string `json:"submit_user,omitempty"`
+}
+
+type UpdateShellTaskEnabledRequest struct {
+	IsEnabled *bool `json:"is_enabled" binding:"required"`
 }
 
 type ShellTask struct {
@@ -31,6 +36,7 @@ type ShellTask struct {
 	Shell        string         `json:"shell" gorm:"column:shell;not null"`
 	Corn         string         `json:"corn" gorm:"column:cron;not null;default:''"`
 	ExecTimes    int            `json:"exec_times" gorm:"column:exec_times;not null;default:0"` // 任务执行次数
+	IsEnabled    bool           `json:"is_enabled" gorm:"column:is_enabled;not null;default:true"`
 	Status       Status         `json:"status" gorm:"column:status;not null"`
 	ExecResult   string         `json:"exec_result" gorm:"column:exec_result;type:text;not null;default:''"` // 任务执行结果信息
 	ServerFilter ServerFilterV1 `json:"servers" gorm:"column:servers;type:json;not null"`

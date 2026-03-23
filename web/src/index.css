@@ -59,6 +59,38 @@ a {
   align-items: center;
 }
 
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  margin-right: 12px;
+}
+
+.topnav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.topnav-link:hover {
+  color: var(--ink);
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.topnav-link.active {
+  color: var(--ink);
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.12);
+}
+
 .logo {
   width: 48px;
   height: 48px;
@@ -182,6 +214,12 @@ button.ghost {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--ink);
+}
+
+button.ghost.danger {
+  color: #b42318;
+  border-color: rgba(244, 63, 94, 0.28);
+  background: rgba(244, 63, 94, 0.08);
 }
 
 button.ghost.small {
@@ -1065,6 +1103,230 @@ button:disabled {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.admin-shell-page {
+  display: grid;
+  gap: 20px;
+}
+
+.admin-shell-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 420px);
+  gap: 20px;
+  padding: 22px 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background:
+    radial-gradient(680px 260px at 16% 8%, rgba(245, 158, 11, 0.16), transparent 62%),
+    radial-gradient(620px 240px at 92% 18%, rgba(59, 130, 246, 0.16), transparent 58%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(244, 247, 251, 0.94));
+  box-shadow: var(--shadow);
+}
+
+.admin-shell-hero h1 {
+  margin: 12px 0 8px;
+  font-size: clamp(28px, 3vw, 40px);
+}
+
+.admin-shell-hero p {
+  margin: 0;
+  max-width: 760px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.admin-shell-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-shell-stat {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.admin-shell-stat span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.admin-shell-stat strong {
+  display: block;
+  font-size: 28px;
+  color: var(--ink);
+}
+
+.admin-shell-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.admin-shell-panel {
+  min-width: 0;
+}
+
+.admin-shell-detail {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.admin-shell-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 12px;
+}
+
+.admin-shell-task-list,
+.admin-shell-record-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-shell-task-list {
+  max-height: calc(100vh - 360px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.admin-shell-task-card,
+.admin-shell-record-card {
+  width: 100%;
+  text-align: left;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: #fff;
+  display: grid;
+  gap: 10px;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.admin-shell-task-card:hover,
+.admin-shell-record-card:hover {
+  border-color: rgba(11, 110, 79, 0.3);
+  background: rgba(11, 110, 79, 0.04);
+}
+
+.admin-shell-task-card.active,
+.admin-shell-record-card.active {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.12);
+  transform: translateY(-1px);
+}
+
+.admin-shell-task-card-head,
+.admin-shell-record-card-head,
+.admin-shell-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.admin-shell-task-card-head strong,
+.admin-shell-record-card-head strong,
+.admin-shell-section-header strong {
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.admin-shell-task-card-badges,
+.admin-shell-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-shell-task-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-shell-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-shell-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.admin-shell-metric {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(248, 250, 252, 0.8);
+}
+
+.admin-shell-metric span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.admin-shell-metric strong {
+  display: block;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.admin-shell-section {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-shell-section-header span,
+.admin-shell-record-time {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-shell-code,
+.admin-shell-output {
+  margin: 0;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #0b1220;
+  color: #e5edf7;
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.admin-shell-record-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.admin-shell-log-viewer {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 
 .panel {
@@ -2254,12 +2516,32 @@ button:disabled {
     align-items: flex-start;
   }
 
+  .topnav {
+    width: 100%;
+    margin: 0;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
   .console-layout {
     grid-template-columns: 1fr;
   }
 
   .workspace-layout {
     grid-template-columns: 1fr;
+  }
+
+  .admin-shell-hero,
+  .admin-shell-layout,
+  .admin-shell-record-layout,
+  .admin-shell-summary,
+  .admin-shell-controls,
+  .admin-shell-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-shell-task-list {
+    max-height: none;
   }
 
   .console-main {

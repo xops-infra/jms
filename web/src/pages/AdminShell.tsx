@@ -22,6 +22,7 @@ type ShellTask = {
   shell: string
   corn: string
   exec_times: number
+  is_enabled: boolean
   status: ShellTaskStatus
   exec_result: string
   servers: ShellTaskFilter
@@ -113,6 +114,9 @@ export const AdminShellPage = () => {
   const [recordLoading, setRecordLoading] = useState(false)
   const [taskError, setTaskError] = useState('')
   const [recordError, setRecordError] = useState('')
+  const [taskActionLoading, setTaskActionLoading] = useState(false)
+  const [taskActionMessage, setTaskActionMessage] = useState('')
+  const [taskActionError, setTaskActionError] = useState('')
 
   const loadTasks = useCallback(async () => {
     setTaskLoading(true)
@@ -133,6 +137,21 @@ export const AdminShellPage = () => {
       setTaskLoading(false)
     }
   }, [])
+
+  const runTaskAction = useCallback(async (action: () => Promise<void>, message: string) => {
+    setTaskActionLoading(true)
+    setTaskActionError('')
+    setTaskActionMessage('')
+    try {
+      await action()
+      setTaskActionMessage(message)
+      await loadTasks()
+    } catch (err: any) {
+      setTaskActionError(err?.response?.data || err?.message || '任务操作失败')
+    } finally {
+      setTaskActionLoading(false)
+    }
+  }, [loadTasks])
 
   const loadRecords = useCallback(async (taskId: string) => {
     if (!taskId) {
@@ -220,6 +239,37 @@ export const AdminShellPage = () => {
     })
     return base
   }, [tasks])
+
+  const handleToggleEnabled = useCallback(() => {
+    if (!selectedTask) return
+    const nextEnabled = !selectedTask.is_enabled
+    void runTaskAction(
+      async () => {
+        await apiClient.patch(`/api/v1/shell/task/${encodeURIComponent(selectedTask.uuid)}/enabled`, {
+          is_enabled: nextEnabled,
+        })
+      },
+      nextEnabled ? `已启用任务 ${selectedTask.name}` : `已禁用任务 ${selectedTask.name}`,
+    )
+  }, [runTaskAction, selectedTask])
+
+  const handleDeleteTask = useCallback(() => {
+    if (!selectedTask) return
+    if (selectedTask.status === 'Running') {
+      setTaskActionError('运行中的任务不能删除，请先等待执行结束。')
+      setTaskActionMessage('')
+      return
+    }
+    if (!window.confirm(`确认删除任务 ${selectedTask.name} 吗？`)) return
+    void runTaskAction(
+      async () => {
+        await apiClient.delete(`/api/v1/shell/task/${encodeURIComponent(selectedTask.uuid)}`)
+        setRecords([])
+        setSelectedRecordId('')
+      },
+      `已删除任务 ${selectedTask.name}`,
+    )
+  }, [runTaskAction, selectedTask])
 
   return (
     <div className="page console-page admin-shell-page">
@@ -311,7 +361,12 @@ export const AdminShellPage = () => {
                     >
                       <div className="admin-shell-task-card-head">
                         <strong>{task.name}</strong>
-                        <span className={status.className}>{status.label}</span>
+                        <div className="admin-shell-task-card-badges">
+                          <span className={task.is_enabled ? 'badge live' : 'badge warning'}>
+                            {task.is_enabled ? 'ENABLED' : 'DISABLED'}
+                          </span>
+                          <span className={status.className}>{status.label}</span>
+                        </div>
                       </div>
                       <div className="admin-shell-task-card-meta">
                         <span>{task.submit_user || 'system'}</span>
@@ -342,7 +397,20 @@ export const AdminShellPage = () => {
                 <h3>{selectedTask?.name || '任务详情'}</h3>
                 <p>{selectedTask ? `UUID: ${selectedTask.uuid}` : '从左侧选择一个 ShellTask 查看详情。'}</p>
               </div>
-              {selectedTask && <span className={taskStatusMeta(selectedTask.status).className}>{taskStatusMeta(selectedTask.status).label}</span>}
+              {selectedTask && (
+                <div className="admin-shell-detail-actions">
+                  <span className={selectedTask.is_enabled ? 'badge live' : 'badge warning'}>
+                    {selectedTask.is_enabled ? '已启用' : '已禁用'}
+                  </span>
+                  <span className={taskStatusMeta(selectedTask.status).className}>{taskStatusMeta(selectedTask.status).label}</span>
+                  <button className="ghost small" onClick={handleToggleEnabled} disabled={taskActionLoading}>
+                    {selectedTask.is_enabled ? '禁用任务' : '启用任务'}
+                  </button>
+                  <button className="ghost small danger" onClick={handleDeleteTask} disabled={taskActionLoading}>
+                    删除任务
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="panel-body">
@@ -350,6 +418,8 @@ export const AdminShellPage = () => {
                 <div className="empty-state">暂无任务详情</div>
               ) : (
                 <>
+                  {taskActionError && <div className="error">{taskActionError}</div>}
+                  {taskActionMessage && <div className="status">{taskActionMessage}</div>}
                   <div className="admin-shell-metrics">
                     <div className="admin-shell-metric">
                       <span>提交人</span>
@@ -362,6 +432,10 @@ export const AdminShellPage = () => {
                     <div className="admin-shell-metric">
                       <span>执行次数</span>
                       <strong>{selectedTask.exec_times}</strong>
+                    </div>
+                    <div className="admin-shell-metric">
+                      <span>启用状态</span>
+                      <strong>{selectedTask.is_enabled ? '已启用' : '已禁用'}</strong>
                     </div>
                     <div className="admin-shell-metric">
                       <span>最近更新</span>

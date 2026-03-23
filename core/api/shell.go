@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +16,7 @@ type shellTaskResponse struct {
 	Shell      string               `json:"shell"`
 	Corn       string               `json:"corn"`
 	ExecTimes  int                  `json:"exec_times"`
+	IsEnabled  bool                 `json:"is_enabled"`
 	Status     model.Status         `json:"status"`
 	ExecResult string               `json:"exec_result"`
 	Servers    model.ServerFilterV1 `json:"servers"`
@@ -47,6 +49,7 @@ func buildShellTaskResponses(tasks []model.ShellTask) []shellTaskResponse {
 			Shell:      task.Shell,
 			Corn:       task.Corn,
 			ExecTimes:  task.ExecTimes,
+			IsEnabled:  task.IsEnabled,
 			Status:     task.Status,
 			ExecResult: task.ExecResult,
 			Servers:    task.ServerFilter,
@@ -79,6 +82,34 @@ func buildShellTaskRecordResponses(records []model.ShellTaskRecord) []shellTaskR
 	return res
 }
 
+func writeShellTaskAdminAudit(c *gin.Context, action string, taskID, taskName *string, detail map[string]any) {
+	authUser, ok := c.Get("auth_user")
+	if !ok || app.App.DBIo == nil {
+		return
+	}
+	user, ok := authUser.(model.User)
+	if !ok || user.Username == nil {
+		return
+	}
+	client := c.ClientIP()
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		log.Warnf("marshal shell task audit detail failed: %v", err)
+		return
+	}
+	detailText := string(raw)
+	if err := app.App.DBIo.AddShellTaskAuditRecord(&model.AddShellTaskAuditRequest{
+		Action:   &action,
+		TaskID:   taskID,
+		TaskName: taskName,
+		User:     user.Username,
+		Client:   &client,
+		Detail:   &detailText,
+	}); err != nil {
+		log.Warnf("create shell task admin audit failed: %v", err)
+	}
+}
+
 /*
 Shell API 提供了一个接口让用户能够对管理的机器执行脚本的操作。并支持查看执行的日志。
 */
@@ -96,6 +127,9 @@ func listShellTask(c *gin.Context) {
 		c.String(500, err.Error())
 		return
 	}
+	writeShellTaskAdminAudit(c, "list_task", nil, nil, map[string]any{
+		"count": len(tasks),
+	})
 	c.JSON(200, buildShellTaskResponses(tasks))
 }
 
@@ -125,6 +159,12 @@ func addShellTask(c *gin.Context) {
 		c.String(500, err.Error())
 		return
 	}
+	writeShellTaskAdminAudit(c, "create_task", &id, req.Name, map[string]any{
+		"cron":        req.Corn,
+		"is_enabled":  req.IsEnabled,
+		"submit_user": req.SubmitUser,
+		"servers":     req.Servers,
+	})
 	c.String(200, id)
 }
 
@@ -142,10 +182,61 @@ func updateShellTask(c *gin.Context) {
 		c.String(400, err.Error())
 		return
 	}
-	err := app.App.DBIo.UpdateShellTask(c.Param("uuid"), &req)
+	taskID := c.Param("uuid")
+	err := app.App.DBIo.UpdateShellTask(taskID, &req)
 	if err != nil {
 		c.String(500, err.Error())
 		return
+	}
+	task, taskErr := app.App.DBIo.GetShellTask(taskID)
+	if taskErr != nil {
+		log.Warnf("get shell task after update failed: %v", taskErr)
+	} else {
+		writeShellTaskAdminAudit(c, "update_task", &task.UUID, &task.Name, map[string]any{
+			"is_enabled": task.IsEnabled,
+			"cron":       task.Corn,
+			"status":     task.Status,
+			"exec_times": task.ExecTimes,
+			"servers":    task.ServerFilter,
+		})
+	}
+	c.String(200, "success")
+}
+
+// @Summary UpdateShellTaskEnabled
+// @Description enable or disable shell task
+// @Tags shell
+// @Accept json
+// @Produce json
+// @Param shell body UpdateShellTaskEnabledRequest true "shell"
+// @Success 200 {string} success
+// @Router /api/v1/shell/task/:uuid/enabled [patch]
+func updateShellTaskEnabled(c *gin.Context) {
+	var req model.UpdateShellTaskEnabledRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.String(400, err.Error())
+		return
+	}
+	taskID := c.Param("uuid")
+	err := app.App.DBIo.UpdateShellTaskEnabled(taskID, *req.IsEnabled)
+	if err != nil {
+		c.String(500, err.Error())
+		return
+	}
+	task, taskErr := app.App.DBIo.GetShellTask(taskID)
+	if taskErr != nil {
+		log.Warnf("get shell task after enabled update failed: %v", taskErr)
+	} else {
+		action := "disable_task"
+		if task.IsEnabled {
+			action = "enable_task"
+		}
+		writeShellTaskAdminAudit(c, action, &task.UUID, &task.Name, map[string]any{
+			"is_enabled": task.IsEnabled,
+			"status":     task.Status,
+			"exec_times": task.ExecTimes,
+			"cron":       task.Corn,
+		})
 	}
 	c.String(200, "success")
 }
@@ -159,10 +250,22 @@ func updateShellTask(c *gin.Context) {
 // @Success 200 {string} success
 // @Router /api/v1/shell/task/:uuid [delete]
 func deleteShellTask(c *gin.Context) {
-	err := app.App.DBIo.DeleteShellTask(c.Param("uuid"))
+	taskID := c.Param("uuid")
+	task, taskErr := app.App.DBIo.GetShellTask(taskID)
+	err := app.App.DBIo.DeleteShellTask(taskID)
 	if err != nil {
 		c.String(500, err.Error())
 		return
+	}
+	if taskErr != nil {
+		log.Warnf("get shell task before delete failed: %v", taskErr)
+	} else {
+		writeShellTaskAdminAudit(c, "delete_task", &task.UUID, &task.Name, map[string]any{
+			"is_enabled": task.IsEnabled,
+			"cron":       task.Corn,
+			"status":     task.Status,
+			"exec_times": task.ExecTimes,
+		})
 	}
 	c.String(200, "success")
 }
@@ -191,5 +294,10 @@ func listShellRecord(c *gin.Context) {
 		c.String(500, err.Error())
 		return
 	}
+	writeShellTaskAdminAudit(c, "list_record", req.TaskID, nil, map[string]any{
+		"task_id":   taskid,
+		"server_ip": serverIP,
+		"count":     len(records),
+	})
 	c.JSON(200, buildShellTaskRecordResponses(records))
 }

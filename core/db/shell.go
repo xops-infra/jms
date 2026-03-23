@@ -36,6 +36,7 @@ func (d *DBService) CreateShellTask(req CreateShellTaskRequest) (string, error) 
 		Name:         *req.Name,
 		Shell:        *req.Shell,
 		ServerFilter: *req.Servers,
+		IsEnabled:    true,
 		Status:       StatusPending,
 		SubmitUser:   "",
 	}
@@ -44,6 +45,9 @@ func (d *DBService) CreateShellTask(req CreateShellTaskRequest) (string, error) 
 	}
 	if req.Corn != nil {
 		task.Corn = *req.Corn
+	}
+	if req.IsEnabled != nil {
+		task.IsEnabled = *req.IsEnabled
 	}
 	err = d.DB.Create(&task).Error
 	return task.UUID, err
@@ -81,8 +85,21 @@ func (d *DBService) UpdateShellTask(uuid string, req *CreateShellTaskRequest) er
 	if req.Corn != nil {
 		task.Corn = *req.Corn
 	}
+	if req.IsEnabled != nil {
+		task.IsEnabled = *req.IsEnabled
+	}
 	err = d.DB.Save(&task).Error
 	return err
+}
+
+func (d *DBService) UpdateShellTaskEnabled(uuid string, enabled bool) error {
+	var task ShellTask
+	err := d.DB.Where("uuid = ? and is_deleted is false", uuid).First(&task).Error
+	if err != nil {
+		return err
+	}
+	task.IsEnabled = enabled
+	return d.DB.Save(&task).Error
 }
 
 func (d *DBService) UpdateShellTaskStatus(uuid string, status Status, output string) error {
@@ -105,6 +122,9 @@ func (d *DBService) DeleteShellTask(uuid string) error {
 	err := d.DB.Where("uuid = ? and is_deleted is false", uuid).First(&task).Error
 	if err != nil {
 		return err
+	}
+	if task.Status == StatusRunning {
+		return fmt.Errorf("running task %s can not be deleted", task.Name)
 	}
 	task.IsDeleted = true
 	return d.DB.Save(&task).Error

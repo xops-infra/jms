@@ -7,6 +7,7 @@ import { apiClient } from '../api/client'
 type FileTransferPanelProps = {
   host: string
   user?: string
+  keyName?: string
   token: string | null
   connected: boolean
   headerAction?: ReactNode
@@ -124,11 +125,11 @@ const isAbortError = (err: unknown) => {
   return error?.name === 'AbortError' || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED'
 }
 
-export const FileTransferPanel = ({ host, user, token, connected, headerAction }: FileTransferPanelProps) => {
+export const FileTransferPanel = ({ host, user, keyName, token, connected, headerAction }: FileTransferPanelProps) => {
   const [activePage, setActivePage] = useState<TransferPage>('upload')
   const [uploadPath, setUploadPath] = useState('/data/')
   const [queue, setQueue] = useState<UploadItem[]>([])
-  const storageKey = host ? `${remoteKeyBase}:${host}:${user || 'default'}` : `${remoteKeyBase}:default`
+  const storageKey = host ? `${remoteKeyBase}:${host}:${user || 'default'}:${keyName || 'default'}` : `${remoteKeyBase}:default`
   const [remoteFiles, setRemoteFiles] = useState<RemoteFile[]>(() => loadRemoteFiles(storageKey))
   const [downloadStatus, setDownloadStatus] = useState('')
   const [dragActive, setDragActive] = useState(false)
@@ -254,7 +255,7 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
 
       updateItem(item.id, { status: 'uploading', detail: '初始化上传' })
 
-      uploadKey = `upload:${host}:${user || 'default'}:${path}:${item.file.name}:${item.file.size}`
+      uploadKey = `upload:${host}:${user || 'default'}:${keyName || 'default'}:${path}:${item.file.name}:${item.file.size}`
 
       let uploadId = ''
       let chunkSize = 0
@@ -278,6 +279,7 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
             host,
             path,
             user,
+            key: keyName,
             size: item.file.size,
           },
           { signal: controller.signal },
@@ -361,7 +363,7 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
 
       setDownloadBusy(true)
       setDownloadStatus('下载中...')
-      const url = `/api/v1/files/download?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}${user ? `&user=${encodeURIComponent(user)}` : ''}`
+      const url = `/api/v1/files/download?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}${user ? `&user=${encodeURIComponent(user)}` : ''}${keyName ? `&key=${encodeURIComponent(keyName)}` : ''}`
 
       try {
         const res = await apiFetch(url, {
@@ -391,7 +393,7 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
         setDownloadBusy(false)
       }
     },
-    [connected, host, rememberRemoteFile, token, user],
+    [connected, host, keyName, rememberRemoteFile, token, user],
   )
 
   const openDownloadBrowser = () => {
@@ -445,6 +447,7 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
           host,
           path: browsePath,
           user,
+          key: keyName,
           search: deferredBrowseSearch || undefined,
           limit: browseLimit,
         },
@@ -482,7 +485,7 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
       })
 
     return () => controller.abort()
-  }, [browseOpen, browsePath, browseReloadToken, canOperate, deferredBrowseSearch, host, user])
+  }, [browseOpen, browsePath, browseReloadToken, canOperate, deferredBrowseSearch, host, keyName, user])
 
   const onDropFiles = (files: FileList | null) => {
     if (!canOperateRef.current) return

@@ -79,6 +79,7 @@ func NewGin() *gin.Engine {
 	shell.GET("", requireAdmin(), listShellTask)
 	shell.POST("", requireAdmin(), addShellTask)
 	shell.PUT("/:uuid", requireAdmin(), updateShellTask)
+	shell.PATCH("/:uuid/enabled", requireAdmin(), updateShellTaskEnabled)
 	shell.DELETE("/:uuid", requireAdmin(), deleteShellTask)
 
 	shellRecord := api.Group("/shell/record")
@@ -87,6 +88,7 @@ func NewGin() *gin.Engine {
 	audits := api.Group("/audit")
 	audits.GET("/login", listLoginAudit)
 	audits.GET("/scp", listScpAudit)
+	audits.GET("/shell-task", requireAdmin(), listShellTaskAudit)
 
 	terminal := api.Group("/terminal")
 	terminal.GET("/ws", requireUser(), terminalWS)

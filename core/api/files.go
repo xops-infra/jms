@@ -72,6 +72,7 @@ func uploadInit(c *gin.Context) {
 		ID:              uploadID,
 		Host:            req.Host,
 		SSHUser:         req.User,
+		SSHKey:          req.Key,
 		Path:            req.Path,
 		Size:            req.Size,
 		ChunkSize:       chunkSize,
@@ -237,7 +238,7 @@ func uploadComplete(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	sshUser, err := selectSSHUser(sshUsers, valueOrEmpty(sess.SSHUser), "")
+	sshUser, err := selectSSHUser(sshUsers, valueOrEmpty(sess.SSHUser), valueOrEmpty(sess.SSHKey))
 	if err != nil {
 		c.String(http.StatusBadRequest, err.Error())
 		return
@@ -346,6 +347,7 @@ func browseFiles(c *gin.Context) {
 	host := c.Query("host")
 	browsePath := c.DefaultQuery("path", "/")
 	sshUserQuery := c.Query("user")
+	sshKeyQuery := c.Query("key")
 	search := strings.TrimSpace(c.Query("search"))
 	if host == "" {
 		c.String(http.StatusBadRequest, "host required")
@@ -387,7 +389,7 @@ func browseFiles(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	sshUser, err := selectSSHUser(sshUsers, sshUserQuery, "")
+	sshUser, err := selectSSHUser(sshUsers, sshUserQuery, sshKeyQuery)
 	if err != nil {
 		c.String(http.StatusBadRequest, err.Error())
 		return
@@ -442,6 +444,7 @@ func downloadFile(c *gin.Context) {
 	host := c.Query("host")
 	path := c.Query("path")
 	sshUserQuery := c.Query("user")
+	sshKeyQuery := c.Query("key")
 	if host == "" || path == "" {
 		c.String(http.StatusBadRequest, "host and path required")
 		return
@@ -467,7 +470,7 @@ func downloadFile(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	sshUser, err := selectSSHUser(sshUsers, sshUserQuery, "")
+	sshUser, err := selectSSHUser(sshUsers, sshUserQuery, sshKeyQuery)
 	if err != nil {
 		c.String(http.StatusBadRequest, err.Error())
 		return

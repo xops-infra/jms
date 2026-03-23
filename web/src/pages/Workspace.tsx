@@ -458,6 +458,7 @@ export const WorkspacePage = () => {
             <FileTransferPanel
               host={host}
               user={sshUser || undefined}
+              keyName={sshKey || undefined}
               token={token}
               connected={terminalPhase === 'live'}
               headerAction={
