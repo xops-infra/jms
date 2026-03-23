@@ -343,8 +343,8 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
 
   return (
     <div className="panel transfer-panel">
-      <div className="panel-header">
-        <div>
+      <div className="panel-header transfer-panel-header">
+        <div className="transfer-panel-heading">
           <h3>文件传输</h3>
           <p>{host ? `当前主机: ${host}${user ? ` · ${user}` : ''}` : '选择主机后可开始传输'}</p>
         </div>
@@ -373,142 +373,146 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
 
       <div className="panel-divider" />
 
-      {activePage === 'upload' && (
-        <div className="panel-body">
-          <div className="transfer-auto-note">
-            <strong>选择文件后会自动开始上传</strong>
-            <span>暂不支持目录上传，如需上传目录请先在本地打包为 zip 或 tar.gz 后再上传。</span>
-          </div>
+      <div className="panel-body transfer-content">
+        {activePage === 'upload' && (
+          <div className="transfer-section">
+            <div className="transfer-auto-note">
+              <strong>选择文件后会自动开始上传</strong>
+              <span>暂不支持目录上传，如需上传目录请先在本地打包为 zip 或 tar.gz 后再上传。</span>
+            </div>
 
-          <label>
-            <span>目标路径</span>
-            <input
-              value={uploadPath}
-              onChange={(e) => setUploadPath(e.target.value)}
-              placeholder="/data/ (以 / 结尾表示目录)"
-              disabled={!canOperate}
-            />
-          </label>
+            <label className="transfer-path-label">
+              <span>目标路径</span>
+              <input
+                value={uploadPath}
+                onChange={(e) => setUploadPath(e.target.value)}
+                placeholder="/data/ (以 / 结尾表示目录)"
+                disabled={!canOperate}
+              />
+            </label>
 
-          <div
-            className={`dropzone ${dragActive ? 'active' : ''} ${canOperate ? '' : 'disabled'}`}
-            onDragOver={(e) => {
-              if (!canOperate) return
-              e.preventDefault()
-              setDragActive(true)
-            }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={(e) => {
-              if (!canOperate) return
-              e.preventDefault()
-              setDragActive(false)
-              onDropFiles(e.dataTransfer.files)
-            }}
-          >
-            <input
-              type="file"
-              multiple
-              onChange={(e) => {
-                onDropFiles(e.target.files)
-                e.currentTarget.value = ''
+            <div
+              className={`dropzone ${dragActive ? 'active' : ''} ${canOperate ? '' : 'disabled'}`}
+              onDragOver={(e) => {
+                if (!canOperate) return
+                e.preventDefault()
+                setDragActive(true)
               }}
-              title="选择文件"
-              disabled={!canOperate}
-            />
-            <div>
-              <strong>拖拽或选择文件后自动上传</strong>
-              <p>支持批量文件上传，不支持目录；路径以 / 结尾时会自动拼接文件名</p>
+              onDragLeave={() => setDragActive(false)}
+              onDrop={(e) => {
+                if (!canOperate) return
+                e.preventDefault()
+                setDragActive(false)
+                onDropFiles(e.dataTransfer.files)
+              }}
+            >
+              <input
+                type="file"
+                multiple
+                onChange={(e) => {
+                  onDropFiles(e.target.files)
+                  e.currentTarget.value = ''
+                }}
+                title="选择文件"
+                disabled={!canOperate}
+              />
+              <div>
+                <strong>拖拽或选择文件后自动上传</strong>
+                <p>支持批量文件上传，不支持目录；路径以 / 结尾时会自动拼接文件名</p>
+              </div>
             </div>
-          </div>
 
-          {visibleUploadItem && (
-            <div className={`transfer-upload-status ${visibleUploadItem.status}`}>
-              <div className="transfer-upload-status-header">
-                <strong>{visibleUploadLabel}</strong>
-                <em className={`upload-status-pill ${visibleUploadItem.status}`}>
-                  {visibleUploadItem.status === 'done'
-                    ? '成功'
-                    : visibleUploadItem.status === 'uploading'
-                      ? '传输中'
-                      : visibleUploadItem.status === 'failed'
-                        ? '失败'
-                        : visibleUploadItem.status === 'cancelled'
-                          ? '已取消'
-                          : '准备中'}
-                </em>
-              </div>
-              <div className="transfer-upload-status-meta">
-                <strong>{visibleUploadItem.file.name}</strong>
-                <span>{formatBytes(visibleUploadItem.file.size)}</span>
-              </div>
-              <div className="file-status">
-                <span>{visibleUploadItem.detail || visibleUploadLabel}</span>
-                <div className="mini-progress">
-                  <div style={{ width: `${visibleUploadItem.progress}%` }} />
+            {visibleUploadItem && (
+              <div className={`transfer-upload-status ${visibleUploadItem.status}`}>
+                <div className="transfer-upload-status-header">
+                  <strong>{visibleUploadLabel}</strong>
+                  <em className={`upload-status-pill ${visibleUploadItem.status}`}>
+                    {visibleUploadItem.status === 'done'
+                      ? '成功'
+                      : visibleUploadItem.status === 'uploading'
+                        ? '传输中'
+                        : visibleUploadItem.status === 'failed'
+                          ? '失败'
+                          : visibleUploadItem.status === 'cancelled'
+                            ? '已取消'
+                            : '准备中'}
+                  </em>
                 </div>
-              </div>
-              <div className="transfer-upload-status-actions">
-                {(visibleUploadItem.status === 'failed' || visibleUploadItem.status === 'cancelled') && (
-                  <button
-                    className="ghost"
-                    onClick={() => updateItem(visibleUploadItem.id, { status: 'pending', detail: '', progress: 0 })}
-                  >
-                    重新上传
-                  </button>
-                )}
-                {visibleUploadItem.status === 'uploading' && (
-                  <button
-                    className="ghost"
-                    onClick={() => {
-                      const controller = uploadAbortRef.current[visibleUploadItem.id]
-                      if (!controller) return
-                      uploadAbortReasonRef.current[visibleUploadItem.id] = 'cancelled'
-                      controller.abort()
-                    }}
-                  >
-                    取消当前传输
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {activePage === 'download' && (
-        <div className="panel-body">
-          <div className="section-title">远端文件路径</div>
-          <div className="row">
-            <input
-              value={remoteInput}
-              onChange={(e) => setRemoteInput(e.target.value)}
-              placeholder="/data/report.zip"
-              disabled={!canOperate}
-            />
-            <button className="ghost" onClick={addRemotePath} disabled={!canOperate || !remoteInput.trim()}>
-              添加
-            </button>
-          </div>
-          <div className="remote-list">
-            {remoteFiles.length === 0 ? (
-              <div className="empty-state">暂无文件记录</div>
-            ) : (
-              remoteFiles.map((item) => (
-                <div className="remote-item" key={item.id}>
-                  <div>
-                    <strong>{item.path}</strong>
-                    {item.lastUsed && <span>最近下载: {new Date(item.lastUsed).toLocaleString()}</span>}
+                <div className="transfer-upload-status-meta">
+                  <strong>{visibleUploadItem.file.name}</strong>
+                  <span>{formatBytes(visibleUploadItem.file.size)}</span>
+                </div>
+                <div className="file-status">
+                  <span>{visibleUploadItem.detail || visibleUploadLabel}</span>
+                  <div className="mini-progress">
+                    <div style={{ width: `${visibleUploadItem.progress}%` }} />
                   </div>
-                  <button className="ghost" onClick={() => downloadRemote(item.path)} disabled={!canOperate}>
-                    下载
-                  </button>
                 </div>
-              ))
+                <div className="transfer-upload-status-actions">
+                  {(visibleUploadItem.status === 'failed' || visibleUploadItem.status === 'cancelled') && (
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => updateItem(visibleUploadItem.id, { status: 'pending', detail: '', progress: 0 })}
+                    >
+                      重新上传
+                    </button>
+                  )}
+                  {visibleUploadItem.status === 'uploading' && (
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => {
+                        const controller = uploadAbortRef.current[visibleUploadItem.id]
+                        if (!controller) return
+                        uploadAbortReasonRef.current[visibleUploadItem.id] = 'cancelled'
+                        controller.abort()
+                      }}
+                    >
+                      取消当前传输
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
-          {downloadStatus && <div className="status">{downloadStatus}</div>}
-        </div>
-      )}
+        )}
+
+        {activePage === 'download' && (
+          <div className="transfer-section">
+            <div className="section-title">远端文件路径</div>
+            <div className="row transfer-download-row">
+              <input
+                value={remoteInput}
+                onChange={(e) => setRemoteInput(e.target.value)}
+                placeholder="/data/report.zip"
+                disabled={!canOperate}
+              />
+              <button type="button" className="ghost" onClick={addRemotePath} disabled={!canOperate || !remoteInput.trim()}>
+                添加
+              </button>
+            </div>
+            <div className="remote-list">
+              {remoteFiles.length === 0 ? (
+                <div className="empty-state">暂无文件记录</div>
+              ) : (
+                remoteFiles.map((item) => (
+                  <div className="remote-item" key={item.id}>
+                    <div className="remote-item-main">
+                      <strong>{item.path}</strong>
+                      {item.lastUsed && <span>最近下载: {new Date(item.lastUsed).toLocaleString()}</span>}
+                    </div>
+                    <button type="button" className="ghost" onClick={() => downloadRemote(item.path)} disabled={!canOperate}>
+                      下载
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            {downloadStatus && <div className="status">{downloadStatus}</div>}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

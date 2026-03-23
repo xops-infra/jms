@@ -953,7 +953,7 @@ button:disabled {
 }
 
 .workspace-layout.drawer-open {
-  --drawer-width: 360px;
+  --drawer-width: 384px;
 }
 
 .console-sidebar {
@@ -972,7 +972,8 @@ button:disabled {
   position: sticky;
   top: 96px;
   align-self: start;
-  height: calc(100vh - 160px);
+  min-height: clamp(680px, calc(100vh - 160px), 920px);
+  height: clamp(680px, calc(100vh - 160px), 920px);
   display: flex;
   border-radius: 18px;
   border: 1px solid var(--border);
@@ -986,6 +987,11 @@ button:disabled {
   border: none;
   box-shadow: none;
   border-radius: 0;
+  min-width: 0;
+  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .drawer-rail {
@@ -1023,6 +1029,9 @@ button:disabled {
 
 .drawer-panel {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
   overflow: auto;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -1416,6 +1425,8 @@ button:disabled {
   padding: 18px 16px;
   display: grid;
   gap: 10px;
+  min-height: 148px;
+  align-content: center;
   text-align: center;
   background:
     linear-gradient(180deg, rgba(248, 250, 252, 0.94), rgba(248, 250, 252, 0.72));
@@ -1460,9 +1471,48 @@ button:disabled {
   gap: 10px;
 }
 
+.transfer-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100%;
+  height: 100%;
+}
+
+.transfer-panel-header {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.transfer-panel-heading {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.transfer-panel .panel-actions {
+  align-self: flex-start;
+}
+
+.transfer-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  padding-top: 16px;
+}
+
+.transfer-section {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
 .transfer-tabs {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+  width: 100%;
   padding: 4px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -1473,9 +1523,20 @@ button:disabled {
   border: none;
   border-radius: 999px;
   padding: 8px 16px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 13px;
+  font-weight: 600;
   color: var(--muted);
   background: transparent;
+  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.transfer-tab:hover:not(.active) {
+  color: var(--ink);
+  background: rgba(15, 23, 42, 0.04);
 }
 
 .transfer-tab.active {
@@ -1496,6 +1557,10 @@ button:disabled {
   border-radius: 14px;
   border: 1px solid rgba(11, 110, 79, 0.14);
   background: linear-gradient(135deg, rgba(11, 110, 79, 0.08), rgba(255, 255, 255, 0.78));
+}
+
+.transfer-path-label {
+  gap: 6px;
 }
 
 .transfer-auto-note strong {
@@ -1573,6 +1638,7 @@ button:disabled {
 .transfer-upload-status-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1580,6 +1646,7 @@ button:disabled {
 .remote-list {
   display: grid;
   gap: 12px;
+  align-content: start;
 }
 
 .upload-item {
@@ -1720,15 +1787,39 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
   background: #fff;
+}
+
+.remote-item-main {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+
+.remote-item strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.remote-item button {
+  min-width: 84px;
+  align-self: center;
 }
 
 .remote-item span {
   display: block;
   font-size: 12px;
   color: var(--muted);
-  margin-top: 4px;
+}
+
+.transfer-download-row {
+  align-items: stretch;
+}
+
+.transfer-download-row > button {
+  min-width: 88px;
 }
 
 .section-title {
@@ -1946,6 +2037,7 @@ button:disabled {
     position: relative;
     top: auto;
     height: auto;
+    min-height: 0;
     order: 3;
   }
 
