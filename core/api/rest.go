@@ -39,6 +39,7 @@ func NewGin() *gin.Engine {
 	api.POST("/broadcast", broadcast)
 
 	u := api.Group("/user")
+	u.GET("/me", requireUser(), getCurrentUser)
 	u.GET("", listUser)
 	u.POST("", addUser)
 	u.PATCH("/:id", updateUserGroup)
@@ -75,13 +76,13 @@ func NewGin() *gin.Engine {
 	servers.GET("/:host/ssh-users", requireUser(), listServerSSHUsers)
 
 	shell := api.Group("/shell/task")
-	shell.GET("", listShellTask)
+	shell.GET("", requireAdmin(), listShellTask)
 	shell.POST("", requireAdmin(), addShellTask)
-	shell.PUT("/:uuid", updateShellTask)
-	shell.DELETE("/:uuid", deleteShellTask)
+	shell.PUT("/:uuid", requireAdmin(), updateShellTask)
+	shell.DELETE("/:uuid", requireAdmin(), deleteShellTask)
 
 	shellRecord := api.Group("/shell/record")
-	shellRecord.GET("", listShellRecord)
+	shellRecord.GET("", requireAdmin(), listShellRecord)
 
 	audits := api.Group("/audit")
 	audits.GET("/login", listLoginAudit)

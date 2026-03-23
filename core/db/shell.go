@@ -52,7 +52,7 @@ func (d *DBService) CreateShellTask(req CreateShellTaskRequest) (string, error) 
 // TODO: 支持条件查询
 func (d *DBService) ListShellTask() ([]ShellTask, error) {
 	var tasks []ShellTask
-	err := d.DB.Where("is_deleted is false").Find(&tasks).Order("created_at").Error
+	err := d.DB.Where("is_deleted is false").Order("created_at desc").Find(&tasks).Error
 	return tasks, err
 }
 
@@ -143,6 +143,6 @@ func (d *DBService) QueryShellTaskRecord(query *QueryRecordRequest) ([]ShellTask
 	if query.ServerIP != nil {
 		sql = sql.Where("server_ip = ?", *query.ServerIP)
 	}
-	err := sql.Order("created_at").Find(&records).Error
+	err := sql.Order("created_at desc").Find(&records).Error
 	return records, err
 }

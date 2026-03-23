@@ -6,7 +6,9 @@ type AuthState = {
   token: string | null
   user: string | null
   mode: AuthMode | null
+  groups: string[] | null
   setSession: (token: string, user: string, mode: AuthMode) => void
+  setGroups: (groups: string[] | null) => void
   clear: () => void
 }
 
@@ -22,17 +24,21 @@ const readStoredSession = () => ({
 
 export const useAuthStore = create<AuthState>((set) => ({
   ...readStoredSession(),
+  groups: null,
   setSession: (token, user, mode) => {
     localStorage.setItem(tokenKey, token)
     localStorage.setItem(userKey, user)
     localStorage.setItem(modeKey, mode)
-    set({ token, user, mode })
+    set({ token, user, mode, groups: null })
+  },
+  setGroups: (groups) => {
+    set({ groups })
   },
   clear: () => {
     localStorage.removeItem(tokenKey)
     localStorage.removeItem(userKey)
     localStorage.removeItem(modeKey)
-    set({ token: null, user: null, mode: null })
+    set({ token: null, user: null, mode: null, groups: null })
   },
 }))
 
@@ -43,6 +49,6 @@ export const setupAuthStoreSync = () => {
   syncBound = true
   window.addEventListener('storage', (event) => {
     if (event.key && ![tokenKey, userKey, modeKey].includes(event.key)) return
-    useAuthStore.setState(readStoredSession())
+    useAuthStore.setState({ ...readStoredSession(), groups: null })
   })
 }

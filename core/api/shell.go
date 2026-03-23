@@ -1,11 +1,83 @@
 package api
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/model"
 	"github.com/xops-infra/noop/log"
 )
+
+type shellTaskResponse struct {
+	UUID       string               `json:"uuid"`
+	Name       string               `json:"name"`
+	Shell      string               `json:"shell"`
+	Corn       string               `json:"corn"`
+	ExecTimes  int                  `json:"exec_times"`
+	Status     model.Status         `json:"status"`
+	ExecResult string               `json:"exec_result"`
+	Servers    model.ServerFilterV1 `json:"servers"`
+	SubmitUser string               `json:"submit_user"`
+	CreatedAt  time.Time            `json:"created_at"`
+	UpdatedAt  time.Time            `json:"updated_at"`
+}
+
+type shellTaskRecordResponse struct {
+	UUID       string    `json:"uuid"`
+	ExecTimes  int       `json:"exec_times"`
+	TaskID     string    `json:"task_id"`
+	TaskName   string    `json:"task_name"`
+	Shell      string    `json:"shell"`
+	ServerIP   string    `json:"server_ip"`
+	ServerName string    `json:"server_name"`
+	CostTime   string    `json:"cost_time"`
+	Output     string    `json:"output"`
+	IsSuccess  bool      `json:"is_success"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+func buildShellTaskResponses(tasks []model.ShellTask) []shellTaskResponse {
+	res := make([]shellTaskResponse, 0, len(tasks))
+	for _, task := range tasks {
+		res = append(res, shellTaskResponse{
+			UUID:       task.UUID,
+			Name:       task.Name,
+			Shell:      task.Shell,
+			Corn:       task.Corn,
+			ExecTimes:  task.ExecTimes,
+			Status:     task.Status,
+			ExecResult: task.ExecResult,
+			Servers:    task.ServerFilter,
+			SubmitUser: task.SubmitUser,
+			CreatedAt:  task.CreatedAt,
+			UpdatedAt:  task.UpdatedAt,
+		})
+	}
+	return res
+}
+
+func buildShellTaskRecordResponses(records []model.ShellTaskRecord) []shellTaskRecordResponse {
+	res := make([]shellTaskRecordResponse, 0, len(records))
+	for _, record := range records {
+		res = append(res, shellTaskRecordResponse{
+			UUID:       record.UUID,
+			ExecTimes:  record.ExecTimes,
+			TaskID:     record.TaskID,
+			TaskName:   record.TaskName,
+			Shell:      record.Shell,
+			ServerIP:   record.ServerIP,
+			ServerName: record.ServerName,
+			CostTime:   record.CostTime,
+			Output:     record.Output,
+			IsSuccess:  record.IsSuccess,
+			CreatedAt:  record.CreatedAt,
+			UpdatedAt:  record.UpdatedAt,
+		})
+	}
+	return res
+}
 
 /*
 Shell API 提供了一个接口让用户能够对管理的机器执行脚本的操作。并支持查看执行的日志。
@@ -24,7 +96,7 @@ func listShellTask(c *gin.Context) {
 		c.String(500, err.Error())
 		return
 	}
-	c.JSON(200, tasks)
+	c.JSON(200, buildShellTaskResponses(tasks))
 }
 
 // @Summary AddShellTask
@@ -119,5 +191,5 @@ func listShellRecord(c *gin.Context) {
 		c.String(500, err.Error())
 		return
 	}
-	c.JSON(200, records)
+	c.JSON(200, buildShellTaskRecordResponses(records))
 }

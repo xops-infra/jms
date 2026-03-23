@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { apiFetch } from '../api/auth'
 import { apiClient } from '../api/client'
 
@@ -518,6 +519,162 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
     void startUploadQueue()
   }, [canOperate, queue, uploadPath, startUploadQueue])
 
+  const browseModal =
+    browseOpen && typeof document !== 'undefined'
+      ? createPortal(
+          <div className="modal-backdrop" onClick={closeDownloadBrowser}>
+            <div className="modal file-browser-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <h3>选择服务器文件</h3>
+                  <p>{host ? `${host}${user ? ` · ${user}` : ''}` : '当前未连接目标机器'}</p>
+                </div>
+                <button type="button" className="ghost small" onClick={closeDownloadBrowser} disabled={downloadBusy}>
+                  关闭
+                </button>
+              </div>
+
+              <div className="modal-body file-browser-body">
+                <div className="file-browser-toolbar">
+                  <div className="file-browser-breadcrumbs" aria-label="当前目录">
+                    {browseBreadcrumbs.map((crumb, index) => (
+                      <button
+                        type="button"
+                        className={`file-browser-crumb ${crumb.path === browsePath ? 'active' : ''}`}
+                        key={crumb.path}
+                        onClick={() => navigateBrowsePath(crumb.path)}
+                        disabled={browseLoading && crumb.path === browsePath}
+                      >
+                        {index > 0 && <span className="file-browser-crumb-sep">/</span>}
+                        <span>{crumb.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="file-browser-toolbar-actions">
+                    <button
+                      type="button"
+                      className="ghost small"
+                      onClick={() => {
+                        if (!browseParentPath) return
+                        navigateBrowsePath(browseParentPath)
+                      }}
+                      disabled={!browseParentPath || browseLoading}
+                    >
+                      上一级
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost small"
+                      onClick={() => setBrowseReloadToken((prev) => prev + 1)}
+                      disabled={browseLoading}
+                    >
+                      刷新
+                    </button>
+                  </div>
+                </div>
+
+                <label className="file-browser-search">
+                  <span>搜索当前目录</span>
+                  <input
+                    value={browseSearchInput}
+                    onChange={(e) => setBrowseSearchInput(e.target.value)}
+                    placeholder="输入文件名或目录名"
+                    disabled={browseLoading && !browseItems.length}
+                  />
+                </label>
+
+                <div className="file-browser-summary">
+                  <span>当前目录: {browsePath}</span>
+                  {browseTruncated && <strong>结果过多，仅展示前 {browseLimit} 项，请继续搜索</strong>}
+                </div>
+
+                {browseError && <div className="error">{browseError}</div>}
+
+                <div className="file-browser-list" role="listbox" aria-label="服务器文件列表">
+                  {browseItems.length > 0 && (
+                    <div className="file-browser-list-head" aria-hidden="true">
+                      <span>名称</span>
+                      <span>大小</span>
+                      <span>修改时间</span>
+                    </div>
+                  )}
+                  {browseLoading && browseItems.length === 0 ? (
+                    <div className="empty-state file-browser-empty">目录读取中...</div>
+                  ) : browseItems.length === 0 ? (
+                    <div className="empty-state file-browser-empty">
+                      {deferredBrowseSearch ? '当前搜索没有匹配项' : '当前目录没有可显示的文件'}
+                    </div>
+                  ) : (
+                    browseItems.map((item) => {
+                      const selected = selectedDownloadPath === item.path
+                      return (
+                        <div
+                          className={`file-browser-row ${selected ? 'active' : ''} ${item.is_dir ? 'dir' : 'file'}`}
+                          key={item.path}
+                          role="option"
+                          aria-selected={selected}
+                          tabIndex={0}
+                          onClick={() => {
+                            if (item.is_dir) {
+                              navigateBrowsePath(item.path)
+                              return
+                            }
+                            setSelectedDownloadPath(item.path)
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key !== 'Enter' && event.key !== ' ') return
+                            event.preventDefault()
+                            if (item.is_dir) {
+                              navigateBrowsePath(item.path)
+                              return
+                            }
+                            setSelectedDownloadPath(item.path)
+                          }}
+                        >
+                          <div className="file-browser-row-main">
+                            <div className="file-browser-row-name">
+                              <span className={`file-browser-kind ${item.is_dir ? 'dir' : 'file'}`}>
+                                {item.is_dir ? 'DIR' : 'FILE'}
+                              </span>
+                              <div className="file-browser-row-copy">
+                                <strong>{item.name}</strong>
+                                <span>{item.path}</span>
+                              </div>
+                            </div>
+                            <span className="file-browser-row-size">{item.is_dir ? '-' : formatBytes(item.size)}</span>
+                            <span className="file-browser-row-time">
+                              {item.is_dir ? '点击进入目录' : formatTime(item.updated_at) || '-'}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="modal-actions file-browser-actions">
+                <div className="file-browser-selection">
+                  {selectedDownloadPath ? (
+                    <span>已选择: {selectedDownloadPath}</span>
+                  ) : (
+                    <span>请选择一个文件后再下载</span>
+                  )}
+                </div>
+                <button type="button" className="ghost" onClick={closeDownloadBrowser} disabled={downloadBusy}>
+                  取消
+                </button>
+                <button type="button" className="primary" onClick={confirmDownload} disabled={!selectedDownloadPath || downloadBusy}>
+                  {downloadBusy ? '下载中...' : '确认下载'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null
+
   return (
     <>
       <div className="panel transfer-panel">
@@ -700,157 +857,7 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
         </div>
       </div>
 
-      {browseOpen && (
-        <div className="modal-backdrop" onClick={closeDownloadBrowser}>
-          <div className="modal file-browser-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <h3>选择服务器文件</h3>
-                <p>{host ? `${host}${user ? ` · ${user}` : ''}` : '当前未连接目标机器'}</p>
-              </div>
-              <button type="button" className="ghost small" onClick={closeDownloadBrowser} disabled={downloadBusy}>
-                关闭
-              </button>
-            </div>
-
-            <div className="modal-body file-browser-body">
-              <div className="file-browser-toolbar">
-                <div className="file-browser-breadcrumbs" aria-label="当前目录">
-                  {browseBreadcrumbs.map((crumb, index) => (
-                    <button
-                      type="button"
-                      className={`file-browser-crumb ${crumb.path === browsePath ? 'active' : ''}`}
-                      key={crumb.path}
-                      onClick={() => navigateBrowsePath(crumb.path)}
-                      disabled={browseLoading && crumb.path === browsePath}
-                    >
-                      {index > 0 && <span className="file-browser-crumb-sep">/</span>}
-                      <span>{crumb.label}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="file-browser-toolbar-actions">
-                  <button
-                    type="button"
-                    className="ghost small"
-                    onClick={() => {
-                      if (!browseParentPath) return
-                      navigateBrowsePath(browseParentPath)
-                    }}
-                    disabled={!browseParentPath || browseLoading}
-                  >
-                    上一级
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost small"
-                    onClick={() => setBrowseReloadToken((prev) => prev + 1)}
-                    disabled={browseLoading}
-                  >
-                    刷新
-                  </button>
-                </div>
-              </div>
-
-              <label className="file-browser-search">
-                <span>搜索当前目录</span>
-                <input
-                  value={browseSearchInput}
-                  onChange={(e) => setBrowseSearchInput(e.target.value)}
-                  placeholder="输入文件名或目录名"
-                  disabled={browseLoading && !browseItems.length}
-                />
-              </label>
-
-              <div className="file-browser-summary">
-                <span>当前目录: {browsePath}</span>
-                {browseTruncated && <strong>结果过多，仅展示前 {browseLimit} 项，请继续搜索</strong>}
-              </div>
-
-              {browseError && <div className="error">{browseError}</div>}
-
-              <div className="file-browser-list" role="listbox" aria-label="服务器文件列表">
-                {browseItems.length > 0 && (
-                  <div className="file-browser-list-head" aria-hidden="true">
-                    <span>名称</span>
-                    <span>大小</span>
-                    <span>修改时间</span>
-                  </div>
-                )}
-                {browseLoading && browseItems.length === 0 ? (
-                  <div className="empty-state file-browser-empty">目录读取中...</div>
-                ) : browseItems.length === 0 ? (
-                  <div className="empty-state file-browser-empty">
-                    {deferredBrowseSearch ? '当前搜索没有匹配项' : '当前目录没有可显示的文件'}
-                  </div>
-                ) : (
-                  browseItems.map((item) => {
-                    const selected = selectedDownloadPath === item.path
-                    return (
-                      <div
-                        className={`file-browser-row ${selected ? 'active' : ''} ${item.is_dir ? 'dir' : 'file'}`}
-                        key={item.path}
-                        role="option"
-                        aria-selected={selected}
-                        tabIndex={0}
-                        onClick={() => {
-                          if (item.is_dir) {
-                            navigateBrowsePath(item.path)
-                            return
-                          }
-                          setSelectedDownloadPath(item.path)
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key !== 'Enter' && event.key !== ' ') return
-                          event.preventDefault()
-                          if (item.is_dir) {
-                            navigateBrowsePath(item.path)
-                            return
-                          }
-                          setSelectedDownloadPath(item.path)
-                        }}
-                      >
-                        <div className="file-browser-row-main">
-                          <div className="file-browser-row-name">
-                            <span className={`file-browser-kind ${item.is_dir ? 'dir' : 'file'}`}>
-                              {item.is_dir ? 'DIR' : 'FILE'}
-                            </span>
-                            <div className="file-browser-row-copy">
-                              <strong>{item.name}</strong>
-                              <span>{item.path}</span>
-                            </div>
-                          </div>
-                          <span className="file-browser-row-size">{item.is_dir ? '-' : formatBytes(item.size)}</span>
-                          <span className="file-browser-row-time">
-                            {item.is_dir ? '点击进入目录' : formatTime(item.updated_at) || '-'}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </div>
-
-            <div className="modal-actions file-browser-actions">
-              <div className="file-browser-selection">
-                {selectedDownloadPath ? (
-                  <span>已选择: {selectedDownloadPath}</span>
-                ) : (
-                  <span>请选择一个文件后再下载</span>
-                )}
-              </div>
-              <button type="button" className="ghost" onClick={closeDownloadBrowser} disabled={downloadBusy}>
-                取消
-              </button>
-              <button type="button" className="primary" onClick={confirmDownload} disabled={!selectedDownloadPath || downloadBusy}>
-                {downloadBusy ? '下载中...' : '确认下载'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {browseModal}
     </>
   )
 }
