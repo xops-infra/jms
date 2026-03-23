@@ -68,7 +68,7 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
   const [activePage, setActivePage] = useState<TransferPage>('upload')
   const [uploadPath, setUploadPath] = useState('/data/')
   const [queue, setQueue] = useState<UploadItem[]>([])
-  const storageKey = host ? `${remoteKeyBase}:${host}` : `${remoteKeyBase}:default`
+  const storageKey = host ? `${remoteKeyBase}:${host}:${user || 'default'}` : `${remoteKeyBase}:default`
   const [remoteFiles, setRemoteFiles] = useState<RemoteFile[]>(() => loadRemoteFiles(storageKey))
   const [remoteInput, setRemoteInput] = useState('')
   const [downloadStatus, setDownloadStatus] = useState('')
@@ -314,6 +314,26 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
     addFiles(Array.from(files))
   }
 
+  const visibleUploadItem = useMemo(() => {
+    return (
+      queue.find((item) => item.status === 'uploading') ||
+      queue.find((item) => item.status === 'pending') ||
+      queue.find((item) => item.status === 'failed') ||
+      queue.find((item) => item.status === 'cancelled') ||
+      queue.find((item) => item.status === 'done') ||
+      null
+    )
+  }, [queue])
+
+  const visibleUploadLabel = useMemo(() => {
+    if (!visibleUploadItem) return ''
+    if (visibleUploadItem.status === 'uploading') return '正在自动上传'
+    if (visibleUploadItem.status === 'failed') return '上传失败'
+    if (visibleUploadItem.status === 'cancelled') return '上传已取消'
+    if (visibleUploadItem.status === 'done') return '上传完成'
+    return '准备上传'
+  }, [visibleUploadItem])
+
   useEffect(() => {
     if (!canOperate) return
     if (!uploadPath.trim()) return
@@ -401,78 +421,57 @@ export const FileTransferPanel = ({ host, user, token, connected, headerAction }
             </div>
           </div>
 
-          <div className="row">
-            <button
-              className="ghost"
-              onClick={() => {
-                Object.entries(uploadAbortRef.current).forEach(([id, controller]) => {
-                  uploadAbortReasonRef.current[id] = 'cancelled'
-                  controller.abort()
-                })
-                setQueue([])
-              }}
-              disabled={!queue.length}
-            >
-              清空队列
-            </button>
-          </div>
-
-          <div className="upload-list">
-            {queue.length === 0 ? (
-              <div className="empty-state">暂无上传任务</div>
-            ) : (
-              queue.map((item) => (
-                <div className={`upload-item ${item.status}`} key={item.id}>
-                  <div className="file-meta">
-                    <strong>{item.file.name}</strong>
-                    <div className="file-meta-side">
-                      <span>{formatBytes(item.file.size)}</span>
-                      <em className={`upload-status-pill ${item.status}`}>
-                        {item.status === 'done'
-                          ? '成功'
-                          : item.status === 'uploading'
-                            ? '传输中'
-                            : item.status === 'failed'
-                              ? '失败'
-                              : item.status === 'cancelled'
-                                ? '已取消'
-                                : '排队中'}
-                      </em>
-                    </div>
-                  </div>
-                  <div className="file-status">
-                    <span>{item.detail || item.status}</span>
-                    <div className="mini-progress">
-                      <div style={{ width: `${item.progress}%` }} />
-                    </div>
-                  </div>
-                  <div className="file-actions">
-                    {(item.status === 'failed' || item.status === 'cancelled') && (
-                      <button
-                        className="ghost"
-                        onClick={() => updateItem(item.id, { status: 'pending', detail: '', progress: 0 })}
-                      >
-                        重试
-                      </button>
-                    )}
-                    {item.status === 'uploading' && (
-                      <button
-                        className="ghost"
-                        onClick={() => {
-                          const controller = uploadAbortRef.current[item.id]
-                          if (!controller) return
-                          uploadAbortReasonRef.current[item.id] = 'cancelled'
-                          controller.abort()
-                        }}
-                      >
-                        取消传输
-                      </button>
-                    )}
-                  </div>
+          {visibleUploadItem && (
+            <div className={`transfer-upload-status ${visibleUploadItem.status}`}>
+              <div className="transfer-upload-status-header">
+                <strong>{visibleUploadLabel}</strong>
+                <em className={`upload-status-pill ${visibleUploadItem.status}`}>
+                  {visibleUploadItem.status === 'done'
+                    ? '成功'
+                    : visibleUploadItem.status === 'uploading'
+                      ? '传输中'
+                      : visibleUploadItem.status === 'failed'
+                        ? '失败'
+                        : visibleUploadItem.status === 'cancelled'
+                          ? '已取消'
+                          : '准备中'}
+                </em>
+              </div>
+              <div className="transfer-upload-status-meta">
+                <strong>{visibleUploadItem.file.name}</strong>
+                <span>{formatBytes(visibleUploadItem.file.size)}</span>
+              </div>
+              <div className="file-status">
+                <span>{visibleUploadItem.detail || visibleUploadLabel}</span>
+                <div className="mini-progress">
+                  <div style={{ width: `${visibleUploadItem.progress}%` }} />
                 </div>
-              ))
-            )}
-          </div>
+              </div>
+              <div className="transfer-upload-status-actions">
+                {(visibleUploadItem.status === 'failed' || visibleUploadItem.status === 'cancelled') && (
+                  <button
+                    className="ghost"
+                    onClick={() => updateItem(visibleUploadItem.id, { status: 'pending', detail: '', progress: 0 })}
+                  >
+                    重新上传
+                  </button>
+                )}
+                {visibleUploadItem.status === 'uploading' && (
+                  <button
+                    className="ghost"
+                    onClick={() => {
+                      const controller = uploadAbortRef.current[visibleUploadItem.id]
+                      if (!controller) return
+                      uploadAbortReasonRef.current[visibleUploadItem.id] = 'cancelled'
+                      controller.abort()
+                    }}
+                  >
+                    取消当前传输
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

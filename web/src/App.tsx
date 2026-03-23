@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Login } from './pages/Login'
 import { TerminalPage } from './pages/Terminal'
+import { WorkspacePage } from './pages/Workspace'
 import { useAuthStore } from './store/auth'
 
 const Nav = () => {
@@ -60,6 +61,14 @@ function App() {
           element={
             <RequireAuth>
               <TerminalPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/workspace"
+          element={
+            <RequireAuth>
+              <WorkspacePage />
             </RequireAuth>
           }
         />

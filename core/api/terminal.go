@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -27,9 +28,24 @@ type wsMessage struct {
 	SessionID string `json:"session_id"`
 }
 
+type terminalAttemptFailure struct {
+	User      string    `json:"-"`
+	Host      string    `json:"host"`
+	SSHUser   string    `json:"ssh_user"`
+	SSHKey    string    `json:"ssh_key,omitempty"`
+	Stage     string    `json:"stage"`
+	Status    int       `json:"status"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 var terminalUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
+
+var terminalAttemptFailures sync.Map
+
+const terminalAttemptFailureTTL = 10 * time.Minute
 
 type wsWriter struct {
 	conn *websocket.Conn
@@ -230,12 +246,51 @@ func terminalWS(c *gin.Context) {
 	waitErr := sess.Wait()
 	if waitErr != nil {
 		log.Warnf("terminal session ended: %v", waitErr)
+		_ = writer.Send(wsMessage{Type: "exit", Data: waitErr.Error()})
+	} else {
+		_ = writer.Send(wsMessage{Type: "exit"})
 	}
-	_ = writer.Send(wsMessage{Type: "exit"})
 	select {
 	case <-errCh:
 	default:
 	}
+}
+
+func getTerminalAttemptFailure(c *gin.Context) {
+	v, ok := c.Get("auth_user")
+	if !ok {
+		c.String(http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	user := v.(model.User)
+	if user.Username == nil {
+		c.String(http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	attemptID := c.Param("attemptID")
+	if attemptID == "" {
+		c.String(http.StatusBadRequest, "attempt id required")
+		return
+	}
+
+	raw, ok := terminalAttemptFailures.Load(attemptID)
+	if !ok {
+		c.String(http.StatusNotFound, "terminal failure not found")
+		return
+	}
+	failure := raw.(terminalAttemptFailure)
+	if time.Since(failure.CreatedAt) > terminalAttemptFailureTTL {
+		terminalAttemptFailures.Delete(attemptID)
+		c.String(http.StatusNotFound, "terminal failure expired")
+		return
+	}
+	if failure.User != valueOrEmpty(user.Username) {
+		c.String(http.StatusForbidden, "forbidden")
+		return
+	}
+
+	c.JSON(http.StatusOK, failure)
 }
 
 func logTerminalFailure(
@@ -246,6 +301,7 @@ func logTerminalFailure(
 	selectedUser *model.SSHUser,
 	err error,
 ) {
+	attemptID := c.Query("attempt_id")
 	sshUser := requestedUser
 	sshKey := requestedKey
 	if selectedUser != nil {
@@ -255,6 +311,18 @@ func logTerminalFailure(
 		if selectedUser.KeyName != "" {
 			sshKey = selectedUser.KeyName
 		}
+	}
+	if attemptID != "" {
+		terminalAttemptFailures.Store(attemptID, terminalAttemptFailure{
+			User:      valueOrEmpty(user.Username),
+			Host:      host,
+			SSHUser:   sshUser,
+			SSHKey:    sshKey,
+			Stage:     stage,
+			Status:    status,
+			Message:   err.Error(),
+			CreatedAt: time.Now(),
+		})
 	}
 	log.Warnf(
 		"web terminal %s failed: status=%d user=%s client=%s host=%s ssh_user=%s ssh_key=%s session_id=%s err=%v",

@@ -89,6 +89,7 @@ func NewGin() *gin.Engine {
 
 	terminal := api.Group("/terminal")
 	terminal.GET("/ws", requireUser(), terminalWS)
+	terminal.GET("/errors/:attemptID", requireUser(), getTerminalAttemptFailure)
 
 	files := api.Group("/files")
 	files.POST("/upload/init", requireUser(), uploadInit)

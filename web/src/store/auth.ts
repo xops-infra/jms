@@ -14,10 +14,14 @@ const tokenKey = 'jms_token'
 const userKey = 'jms_user'
 const modeKey = 'jms_mode'
 
-export const useAuthStore = create<AuthState>((set) => ({
+const readStoredSession = () => ({
   token: localStorage.getItem(tokenKey),
   user: localStorage.getItem(userKey),
   mode: (localStorage.getItem(modeKey) as AuthMode | null) || null,
+})
+
+export const useAuthStore = create<AuthState>((set) => ({
+  ...readStoredSession(),
   setSession: (token, user, mode) => {
     localStorage.setItem(tokenKey, token)
     localStorage.setItem(userKey, user)
@@ -31,3 +35,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ token: null, user: null, mode: null })
   },
 }))
+
+let syncBound = false
+
+export const setupAuthStoreSync = () => {
+  if (syncBound || typeof window === 'undefined') return
+  syncBound = true
+  window.addEventListener('storage', (event) => {
+    if (event.key && ![tokenKey, userKey, modeKey].includes(event.key)) return
+    useAuthStore.setState(readStoredSession())
+  })
+}

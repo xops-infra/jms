@@ -935,7 +935,24 @@ button:disabled {
   min-height: calc(100vh - 160px);
 }
 
+.console-layout.terminal-home-layout {
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+
 .console-layout.drawer-open {
+  --drawer-width: 360px;
+}
+
+.workspace-layout {
+  --drawer-width: 56px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--drawer-width);
+  gap: 20px;
+  align-items: start;
+  min-height: calc(100vh - 160px);
+}
+
+.workspace-layout.drawer-open {
   --drawer-width: 360px;
 }
 
@@ -1019,6 +1036,26 @@ button:disabled {
 .console-drawer.open .drawer-panel {
   opacity: 1;
   transform: translateX(0);
+}
+
+.workspace-state-shell {
+  width: min(760px, 100%);
+  margin: 20px auto 0;
+}
+
+.workspace-state-card {
+  overflow: hidden;
+}
+
+.workspace-state-message {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.workspace-state-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .panel {
@@ -1221,6 +1258,14 @@ button:disabled {
   margin: 0;
   font-size: 13px;
   color: var(--muted);
+}
+
+.workspace-header-copy {
+  min-width: 0;
+}
+
+.workspace-header-meta {
+  justify-content: flex-end;
 }
 
 .terminal-meta {
@@ -1462,6 +1507,73 @@ button:disabled {
   font-size: 12px;
   color: var(--muted);
   line-height: 1.5;
+}
+
+.transfer-upload-status {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.92));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.transfer-upload-status.uploading {
+  border-color: rgba(59, 130, 246, 0.28);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.96), rgba(255, 255, 255, 0.94));
+}
+
+.transfer-upload-status.failed {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(254, 226, 226, 0.5);
+}
+
+.transfer-upload-status.cancelled {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(241, 245, 249, 0.72);
+}
+
+.transfer-upload-status.done {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: linear-gradient(180deg, rgba(236, 253, 245, 0.98), rgba(220, 252, 231, 0.7));
+}
+
+.transfer-upload-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.transfer-upload-status-header strong {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.transfer-upload-status-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.transfer-upload-status-meta strong {
+  min-width: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.transfer-upload-status-meta span {
+  color: var(--muted);
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
+.transfer-upload-status-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .upload-list,
@@ -1817,6 +1929,10 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .workspace-layout {
+    grid-template-columns: 1fr;
+  }
+
   .console-main {
     order: 1;
     min-height: 0;
@@ -1831,6 +1947,10 @@ button:disabled {
     top: auto;
     height: auto;
     order: 3;
+  }
+
+  .workspace-state-shell {
+    margin-top: 0;
   }
 
   .terminal-card {

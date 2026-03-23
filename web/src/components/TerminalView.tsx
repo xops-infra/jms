@@ -3,6 +3,7 @@ import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import { buildWsUrl } from '../api/ws'
+import { apiClient } from '../api/client'
 
 export type TerminalViewProps = {
   active: boolean
@@ -28,6 +29,24 @@ type WsMessage = {
   cols?: number
   rows?: number
   session_id?: string
+}
+
+type TerminalAttemptFailure = {
+  stage: string
+  status: number
+  message: string
+}
+
+const createAttemptId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+const formatFailureReason = (failure?: TerminalAttemptFailure | null) => {
+  if (!failure?.message) return ''
+  return `连接失败（${failure.stage}）: ${failure.message}`
 }
 
 export const TerminalView = ({
@@ -108,6 +127,7 @@ export const TerminalView = ({
 
     const cols = term.cols || 120
     const rows = term.rows || 32
+    const attemptId = createAttemptId()
     const wsUrl = buildWsUrl('/api/v1/terminal/ws', {
       host,
       user,
@@ -115,9 +135,12 @@ export const TerminalView = ({
       cols,
       rows,
       session_id: sessionIdRef.current,
+      attempt_id: attemptId,
       token,
     })
     let closedByEffect = false
+    let receivedExit = false
+    let opened = false
 
     onStateChangeRef.current?.({ phase: 'connecting' })
     term.writeln('\u001b[38;5;208mConnecting...\u001b[0m')
@@ -126,6 +149,7 @@ export const TerminalView = ({
     wsRef.current = ws
 
     ws.onopen = () => {
+      opened = true
       onStateChangeRef.current?.({ phase: 'live' })
       term.writeln('\u001b[38;5;82mConnected\u001b[0m')
     }
@@ -140,9 +164,10 @@ export const TerminalView = ({
           onSessionIdRef.current?.(msg.session_id)
         }
         if (msg.type === 'exit') {
+          receivedExit = true
           onStateChangeRef.current?.({
             phase: 'closed',
-            reason: msg.data?.trim(),
+            reason: msg.data?.trim() || '远端 shell 已退出。',
           })
           term.writeln('\r\n\u001b[38;5;208mSession closed\u001b[0m')
         }
@@ -151,11 +176,26 @@ export const TerminalView = ({
       }
     }
 
-    ws.onclose = () => {
-      if (!closedByEffect) {
-        onStateChangeRef.current?.({ phase: 'disconnected' })
-        term.writeln('\r\n\u001b[38;5;208mDisconnected\u001b[0m')
+    ws.onclose = async (event) => {
+      if (closedByEffect || receivedExit) return
+
+      let reason = event.reason?.trim() || ''
+      if (!opened) {
+        try {
+          const res = await apiClient.get<TerminalAttemptFailure>(`/api/v1/terminal/errors/${encodeURIComponent(attemptId)}`)
+          reason = formatFailureReason(res.data) || reason
+        } catch {
+          // Keep fallback below when server has no recorded detail.
+        }
       }
+      if (!reason) {
+        reason = opened
+          ? '终端链路已关闭，可重新连接继续操作。'
+          : '终端连接建立失败，请检查网络、代理和目标主机配置。'
+      }
+
+      onStateChangeRef.current?.({ phase: 'disconnected', reason })
+      term.writeln(`\r\n\u001b[38;5;208m${reason}\u001b[0m`)
     }
 
     const dispose = term.onData((data) => {
