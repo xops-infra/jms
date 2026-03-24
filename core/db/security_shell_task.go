@@ -6,7 +6,20 @@ import (
 	"github.com/xops-infra/jms/model"
 )
 
+func (d *DBService) ensureShellTaskAuditSchema() error {
+	d.shellTaskAuditSchemaOnce.Do(func() {
+		if d.DB == nil {
+			return
+		}
+		d.shellTaskAuditSchemaErr = d.DB.AutoMigrate(&model.ShellTaskAuditRecord{})
+	})
+	return d.shellTaskAuditSchemaErr
+}
+
 func (d *DBService) AddShellTaskAuditRecord(req *model.AddShellTaskAuditRequest) error {
+	if err := d.ensureShellTaskAuditSchema(); err != nil {
+		return err
+	}
 	record := &model.ShellTaskAuditRecord{
 		Action: *req.Action,
 		User:   *req.User,
@@ -26,6 +39,9 @@ func (d *DBService) AddShellTaskAuditRecord(req *model.AddShellTaskAuditRequest)
 }
 
 func (d *DBService) ListShellTaskAuditRecord(req model.QueryShellTaskAuditRequest) (records []model.ShellTaskAuditRecord, err error) {
+	if err := d.ensureShellTaskAuditSchema(); err != nil {
+		return nil, err
+	}
 	sql := d.DB.Model(&model.ShellTaskAuditRecord{})
 	if req.Duration != nil {
 		sql = sql.Where("created_at >= ?", time.Now().Add(-time.Hour*time.Duration(*req.Duration)))

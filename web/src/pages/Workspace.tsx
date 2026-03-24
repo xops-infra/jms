@@ -306,6 +306,11 @@ export const WorkspacePage = () => {
                   </span>
                 ))}
                 {sessionId && <span className="pill">Session: {sessionId}</span>}
+                {sshSelected && (
+                  <span className="pill">
+                    {sshSelected.user} · {sshSelected.key_name || sshSelected.auth_type}
+                  </span>
+                )}
                 <span className={terminalBadge.className}>{terminalBadge.label}</span>
                 <button
                   className="icon-button"
@@ -318,6 +323,11 @@ export const WorkspacePage = () => {
                 >
                   <RefreshIcon />
                 </button>
+                {terminalPhase !== 'live' && (
+                  <button className="primary small" onClick={reconnect} disabled={sshLoading || terminalPhase === 'connecting'}>
+                    {connectLabel}
+                  </button>
+                )}
                 <button className="ghost small" onClick={() => { window.location.hash = '#/terminal' }}>
                   返回首页
                 </button>
@@ -344,51 +354,28 @@ export const WorkspacePage = () => {
                 {terminalPhase !== 'live' && (
                   <div className="terminal-overlay terminal-overlay-static">
                     <div className="terminal-overlay-grid">
+                      <div className="terminal-overlay-bg" aria-hidden="true">
+                        <div className="terminal-signal terminal-signal-background">
+                          <span className="terminal-signal-ring ring-a" />
+                          <span className="terminal-signal-ring ring-b" />
+                          <span className="terminal-signal-ring ring-c" />
+                          <span className="terminal-signal-core" />
+                          <span className="terminal-signal-dot dot-a" />
+                          <span className="terminal-signal-dot dot-b" />
+                          <span className="terminal-signal-dot dot-c" />
+                        </div>
+                      </div>
                       <section className="terminal-prompt-card">
                         <span className="terminal-prompt-eyebrow">{overlayEyebrow}</span>
                         <h3>{overlayTitle}</h3>
                         <p>{overlayDescription}</p>
 
-                        <div className="terminal-usage-tips" aria-label="工作区说明">
-                          <strong>当前工作区</strong>
-                          <div className="terminal-usage-list">
-                            <div className="terminal-usage-item">
-                              <span>1</span>
-                              <em>该页签已固定到当前机器与登录配置，不会切换到其他用户或密钥。</em>
-                            </div>
-                            <div className="terminal-usage-item">
-                              <span>2</span>
-                              <em>终端连通后，右侧文件传输面板会同步启用；断开后会立即禁用。</em>
-                            </div>
-                            <div className="terminal-usage-item">
-                              <span>3</span>
-                              <em>刷新当前页签会复用本页签保存的会话标识，优先恢复已有 tmux 工作区。</em>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="terminal-inline-meta">
-                          <span className="badge live">已锁定配置</span>
-                          {selectedServer?.status && <StatusBadge status={selectedServer.status} prefix="状态: " />}
-                          {sshSelected && (
-                            <span className="pill">
-                              {sshSelected.user} · {sshSelected.key_name || sshSelected.auth_type}
-                            </span>
-                          )}
-                          {selectedTagGroups.secondary.length > 0 && (
-                            <span className="pill terminal-inline-meta-summary">补充标签 {selectedTagGroups.secondary.length}</span>
-                          )}
-                        </div>
-
                         <div className="terminal-inline-panel">
                           <div className="terminal-inline-panel-header">
                             <div>
                               <strong>连接快照</strong>
-                              <span>工作区不会回退到其他登录配置；如果当前配置失效，请返回首页重新选择。</span>
+                              <span>当前页签已固定到这组连接参数，文件传输状态会随终端联动。</span>
                             </div>
-                            <button className="ghost small" onClick={() => { void validateWorkspace(false) }} disabled={sshLoading}>
-                              重新校验
-                            </button>
                           </div>
 
                           <div className="terminal-snapshot">
@@ -409,32 +396,9 @@ export const WorkspacePage = () => {
                               <strong>{fileTransferStatus}</strong>
                             </div>
                           </div>
-
-                          <div className="terminal-inline-actions">
-                            <button className="primary" onClick={reconnect} disabled={sshLoading || terminalPhase === 'connecting'}>
-                              {connectLabel}
-                            </button>
-                            <button className="ghost" onClick={() => { window.location.hash = '#/terminal' }}>
-                              返回首页重新选择
-                            </button>
-                          </div>
                         </div>
 
                         {(terminalReason || validationError) && <div className="terminal-reason">{terminalReason || validationError}</div>}
-                      </section>
-
-                      <section className="terminal-visual-card" aria-hidden="true">
-                        <div className="terminal-visual-stage">
-                          <div className="terminal-signal">
-                            <span className="terminal-signal-ring ring-a" />
-                            <span className="terminal-signal-ring ring-b" />
-                            <span className="terminal-signal-ring ring-c" />
-                            <span className="terminal-signal-core" />
-                            <span className="terminal-signal-dot dot-a" />
-                            <span className="terminal-signal-dot dot-b" />
-                            <span className="terminal-signal-dot dot-c" />
-                          </div>
-                        </div>
                       </section>
                     </div>
                   </div>

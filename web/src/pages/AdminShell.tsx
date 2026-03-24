@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { apiClient } from '../api/client'
+import { useAlertStore } from '../store/alert'
 import { RefreshIcon } from './terminalShared'
 
 type ShellTaskStatus = 'Pending' | 'Running' | 'Success' | 'Failed' | 'NotAllSuccess' | 'Cancelled' | string
@@ -104,6 +105,7 @@ const buildTaskSearchText = (task: ShellTask) =>
     .toLowerCase()
 
 export const AdminShellPage = () => {
+  const showConfirm = useAlertStore((s) => s.showConfirm)
   const [tasks, setTasks] = useState<ShellTask[]>([])
   const [records, setRecords] = useState<ShellTaskRecord[]>([])
   const [selectedTaskId, setSelectedTaskId] = useState('')
@@ -254,22 +256,32 @@ export const AdminShellPage = () => {
   }, [runTaskAction, selectedTask])
 
   const handleDeleteTask = useCallback(() => {
-    if (!selectedTask) return
-    if (selectedTask.status === 'Running') {
-      setTaskActionError('运行中的任务不能删除，请先等待执行结束。')
-      setTaskActionMessage('')
-      return
+    const run = async () => {
+      if (!selectedTask) return
+      if (selectedTask.status === 'Running') {
+        setTaskActionError('运行中的任务不能删除，请先等待执行结束。')
+        setTaskActionMessage('')
+        return
+      }
+      const accepted = await showConfirm({
+        title: '删除任务',
+        message: `确认删除任务 ${selectedTask.name} 吗？删除后将不再显示在任务列表中。`,
+        tone: 'danger',
+        confirmText: '删除',
+        cancelText: '取消',
+      })
+      if (!accepted) return
+      await runTaskAction(
+        async () => {
+          await apiClient.delete(`/api/v1/shell/task/${encodeURIComponent(selectedTask.uuid)}`)
+          setRecords([])
+          setSelectedRecordId('')
+        },
+        `已删除任务 ${selectedTask.name}`,
+      )
     }
-    if (!window.confirm(`确认删除任务 ${selectedTask.name} 吗？`)) return
-    void runTaskAction(
-      async () => {
-        await apiClient.delete(`/api/v1/shell/task/${encodeURIComponent(selectedTask.uuid)}`)
-        setRecords([])
-        setSelectedRecordId('')
-      },
-      `已删除任务 ${selectedTask.name}`,
-    )
-  }, [runTaskAction, selectedTask])
+    void run()
+  }, [runTaskAction, selectedTask, showConfirm])
 
   return (
     <div className="page console-page admin-shell-page">

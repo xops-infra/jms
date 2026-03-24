@@ -16,8 +16,6 @@ import {
 type HomeSelectionPanelProps = {
   selectedServer: ServerItem | null
   selectedSSHUser: string
-  selectedPrimaryTagList: string[]
-  selectedSecondaryTagList: string[]
   sshOptions: SSHOption[]
   sshLoading: boolean
   sshError: string
@@ -25,21 +23,15 @@ type HomeSelectionPanelProps = {
   approvalName: string
   approvalPeriod: string
   approvalStatus: string
-  approvalSubmitting: boolean
   launchStatus: string
   onSelectSSH: (option: SSHOption) => void
-  onConnect: () => void
-  onRefreshSSH: () => void
   onApprovalNameChange: (value: string) => void
   onApprovalPeriodChange: (value: string) => void
-  onSubmitApproval: () => void
 }
 
 const HomeSelectionPanel = ({
   selectedServer,
   selectedSSHUser,
-  selectedPrimaryTagList,
-  selectedSecondaryTagList,
   sshOptions,
   sshLoading,
   sshError,
@@ -47,27 +39,17 @@ const HomeSelectionPanel = ({
   approvalName,
   approvalPeriod,
   approvalStatus,
-  approvalSubmitting,
   launchStatus,
   onSelectSSH,
-  onConnect,
-  onRefreshSSH,
   onApprovalNameChange,
   onApprovalPeriodChange,
-  onSubmitApproval,
 }: HomeSelectionPanelProps) => {
-  const canConnect = Boolean(selectedServer?.allowed && sshSelected && !sshLoading)
   const fallbackOnly = sshOptions.length > 0 && sshOptions.every((opt) => opt.source === 'profile_fallback')
   const compactSSHPicker = fallbackOnly || sshOptions.length > 4
 
   let eyebrow = 'Workspace Launchpad'
   let title = '选择一台机器准备独立工作区'
   let description = '首页只负责机器列表和连接信息展示，终端与文件传输会在新的页签中完成。'
-  const usageTips = selectedServer
-    ? selectedServer.allowed
-      ? ['左侧选择目标机器', '确认登录用户或密钥', '点击“在新页签连接”打开独立工作区']
-      : ['左侧选择目标机器', '填写申请名称与有效期', '提交申请后等待权限开通']
-    : ['先从左侧列表选择机器', '系统会加载可用登录配置', '确认后即可打开新的工作区页签']
 
   if (selectedServer) {
     const defaultSSHUser = selectedSSHUser || selectedServer.user
@@ -81,43 +63,24 @@ const HomeSelectionPanel = ({
   return (
     <div className="terminal-overlay terminal-overlay-static">
       <div className="terminal-overlay-grid">
+        <div className="terminal-overlay-bg" aria-hidden="true">
+          <div className="terminal-signal terminal-signal-background">
+            <span className="terminal-signal-ring ring-a" />
+            <span className="terminal-signal-ring ring-b" />
+            <span className="terminal-signal-ring ring-c" />
+            <span className="terminal-signal-core" />
+            <span className="terminal-signal-dot dot-a" />
+            <span className="terminal-signal-dot dot-b" />
+            <span className="terminal-signal-dot dot-c" />
+          </div>
+        </div>
         <section className="terminal-prompt-card">
           <span className="terminal-prompt-eyebrow">{eyebrow}</span>
           <h3>{title}</h3>
           <p>{description}</p>
 
-          <div className="terminal-usage-tips" aria-label="使用提示">
-            <strong>如何使用</strong>
-            <div className="terminal-usage-list">
-              {usageTips.map((tip, index) => (
-                <div className="terminal-usage-item" key={tip}>
-                  <span>{index + 1}</span>
-                  <em>{tip}</em>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {selectedServer ? (
             <>
-              <div className="terminal-inline-meta">
-                <span className={`badge ${selectedServer.allowed ? 'live' : 'warning'}`}>
-                  {selectedServer.allowed ? '可连接' : '需申请权限'}
-                </span>
-                <StatusBadge status={selectedServer.status} prefix="状态: " />
-                {selectedPrimaryTagList.length > 0 ? (
-                  selectedPrimaryTagList.map((tag) => (
-                    <span className="pill" key={tag}>
-                      {tag}
-                    </span>
-                  ))
-                ) : selectedSecondaryTagList.length > 0 ? (
-                  <span className="pill terminal-inline-meta-summary">补充标签 {selectedSecondaryTagList.length}</span>
-                ) : (
-                  <span className="pill">无标签</span>
-                )}
-              </div>
-
               {selectedServer.allowed ? (
                 <div className="terminal-inline-panel">
                   <div className="terminal-inline-panel-header">
@@ -125,9 +88,6 @@ const HomeSelectionPanel = ({
                       <strong>登录用户与密钥</strong>
                       <span>确认当前配置后，会以新页签方式自动进入终端与文件传输工作区。</span>
                     </div>
-                    <button className="ghost small" onClick={onRefreshSSH} disabled={sshLoading}>
-                      刷新选项
-                    </button>
                   </div>
 
                   {sshLoading ? (
@@ -186,12 +146,6 @@ const HomeSelectionPanel = ({
                       })}
                     </div>
                   )}
-
-                  <div className="terminal-inline-actions">
-                    <button className="primary" onClick={onConnect} disabled={!canConnect}>
-                      在新页签连接
-                    </button>
-                  </div>
                 </div>
               ) : (
                 <div className="terminal-inline-panel">
@@ -222,28 +176,6 @@ const HomeSelectionPanel = ({
                   </label>
 
                   {approvalStatus && <div className="status">{approvalStatus}</div>}
-
-                  <div className="terminal-inline-actions">
-                    <button className="primary" onClick={onSubmitApproval} disabled={approvalSubmitting}>
-                      {approvalSubmitting ? '提交中...' : '提交申请'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {selectedSecondaryTagList.length > 0 && (
-                <div className="terminal-secondary-tags">
-                  <div className="terminal-secondary-tags-header">
-                    <strong>补充标签</strong>
-                    <span>低优先级标签已下沉展示，避免挤占上方连接信息区域。</span>
-                  </div>
-                  <div className="terminal-secondary-tags-list">
-                    {selectedSecondaryTagList.map((tag) => (
-                      <span className="pill" key={tag}>
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
                 </div>
               )}
             </>
@@ -254,20 +186,6 @@ const HomeSelectionPanel = ({
           )}
 
           {launchStatus && <div className="terminal-reason">{launchStatus}</div>}
-        </section>
-
-        <section className="terminal-visual-card" aria-hidden="true">
-          <div className="terminal-visual-stage">
-            <div className="terminal-signal">
-              <span className="terminal-signal-ring ring-a" />
-              <span className="terminal-signal-ring ring-b" />
-              <span className="terminal-signal-ring ring-c" />
-              <span className="terminal-signal-core" />
-              <span className="terminal-signal-dot dot-a" />
-              <span className="terminal-signal-dot dot-b" />
-              <span className="terminal-signal-dot dot-c" />
-            </div>
-          </div>
         </section>
       </div>
     </div>
@@ -358,6 +276,7 @@ export const TerminalPage = () => {
     () => splitTagLabels(selectedServer?.tags),
     [selectedServer],
   )
+  const canConnect = Boolean(selectedServer?.allowed && sshSelected && !sshLoading)
 
   const loadSshOptions = useCallback(async (item: ServerItem) => {
     if (!token) return
@@ -549,14 +468,54 @@ export const TerminalPage = () => {
                 <h2>Workspace Launchpad</h2>
                 <p>首页只保留列表与展示，点击后以新页签方式同时连接多个服务器。</p>
               </div>
+              <div className="terminal-meta">
+                {selectedServer ? (
+                  <>
+                    <span className={`badge ${selectedServer.allowed ? 'live' : 'warning'}`}>
+                      {selectedServer.allowed ? '可连接' : '需申请权限'}
+                    </span>
+                    {selectedServer.status && <StatusBadge status={selectedServer.status} prefix="状态: " />}
+                    {selectedTagGroups.primary.map((tag) => (
+                      <span className="pill" key={tag}>
+                        {tag}
+                      </span>
+                    ))}
+                    {selectedServer.allowed && sshSelected && (
+                      <span className="pill">
+                        {sshSelected.user} · {sshSelected.key_name || sshSelected.auth_type}
+                      </span>
+                    )}
+                    {selectedServer.allowed && (
+                      <button
+                        className="ghost small"
+                        onClick={() => {
+                          void loadSshOptions(selectedServer)
+                        }}
+                        disabled={sshLoading}
+                      >
+                        刷新选项
+                      </button>
+                    )}
+                    {selectedServer.allowed ? (
+                      <button className="primary small" onClick={openWorkspace} disabled={!canConnect}>
+                        在新页签连接
+                      </button>
+                    ) : (
+                      <button className="primary small" onClick={submitApproval} disabled={approvalSubmitting}>
+                        {approvalSubmitting ? '提交中...' : '提交申请'}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <span className="badge">未选择机器</span>
+                )}
+              </div>
             </div>
             <div className="terminal-wrap">
               <div className="terminal-stage">
                 <HomeSelectionPanel
                   selectedServer={selectedServer}
                   selectedSSHUser={sshSelected?.user || ''}
-                  selectedPrimaryTagList={selectedTagGroups.primary}
-                  selectedSecondaryTagList={selectedTagGroups.secondary}
                   sshOptions={sshOptions}
                   sshLoading={sshLoading}
                   sshError={sshError}
@@ -564,17 +523,10 @@ export const TerminalPage = () => {
                   approvalName={approvalName}
                   approvalPeriod={approvalPeriod}
                   approvalStatus={approvalStatus}
-                  approvalSubmitting={approvalSubmitting}
                   launchStatus={launchStatus}
                   onSelectSSH={setSshSelected}
-                  onConnect={openWorkspace}
-                  onRefreshSSH={() => {
-                    if (!selectedServer?.allowed) return
-                    void loadSshOptions(selectedServer)
-                  }}
                   onApprovalNameChange={setApprovalName}
                   onApprovalPeriodChange={setApprovalPeriod}
-                  onSubmitApproval={submitApproval}
                 />
               </div>
             </div>

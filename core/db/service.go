@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -13,7 +14,11 @@ import (
 )
 
 type DBService struct {
-	DB *gorm.DB
+	DB                       *gorm.DB
+	shellTaskSchemaOnce      sync.Once
+	shellTaskSchemaErr       error
+	shellTaskAuditSchemaOnce sync.Once
+	shellTaskAuditSchemaErr  error
 }
 
 func NewJmsDbService(db *gorm.DB) *DBService {
