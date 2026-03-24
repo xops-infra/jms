@@ -1,4 +1,7 @@
 version: "3"
+x-jms-build: &jms_build
+  context: .
+  dockerfile: Dockerfile
 services: 
   pg:
     image: postgres:16
@@ -17,7 +20,8 @@ services:
     depends_on:
       - pg
     restart: always # 支持 always, on-failure, unless-stopped
-    image: zhoushoujian/jms:latest
+    build: *jms_build
+    image: jms:local
     ports: 
       - "22222:22222"
     environment:
@@ -31,7 +35,8 @@ services:
     depends_on:
       - pg
     restart: always
-    image: zhoushoujian/jms:latest
+    build: *jms_build
+    image: jms:local
     ports: 
       - "6060:6060"
     environment:
@@ -45,7 +50,8 @@ services:
     depends_on:
       - pg
     restart: always
-    image: zhoushoujian/jms:latest
+    build: *jms_build
+    image: jms:local
     ports: 
       - "8013:8013"
     environment:
@@ -54,3 +60,14 @@ services:
     volumes: 
       - "${JMS_CONFIG_PATH:-/opt/jms/config.yaml}:/opt/jms/config.yaml:ro"
       - "${JMS_SSH_DIR:-/opt/jms/.ssh}:/opt/jms/.ssh/" # 持久化数据
+
+  jms-web:
+    depends_on:
+      - jms-api
+    restart: always
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    image: jms-web:local
+    ports:
+      - "8080:80"

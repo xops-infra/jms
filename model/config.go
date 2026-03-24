@@ -23,6 +23,39 @@ type Config struct {
 	WithDB       WithPolicy   `mapstructure:"withDB"`       // 需要进行权限管理则启用该配置，启用后会使用数据库进行权限管理
 	WithDingtalk WithDingtalk `mapstructure:"withDingtalk"` // 配置钉钉审批流程
 	Broadcast    string       `mapstructure:"broadcast"`    // 配置广播消息
+	Auth         Auth         `mapstructure:"auth"`
+	Upload       UploadConfig `mapstructure:"upload"`
+	Terminal     Terminal     `mapstructure:"terminal"`
+}
+
+// Auth 配置 JWT
+type Auth struct {
+	JWTSecret string `mapstructure:"jwtSecret"`
+	JWTTTL    string `mapstructure:"jwtTTL"` // 兼容 time.ParseDuration，默认 24h
+}
+
+// UploadConfig 上传配置
+type UploadConfig struct {
+	MaxSize   int64       `mapstructure:"maxSize"`
+	ChunkSize int64       `mapstructure:"chunkSize"`
+	Store     UploadStore `mapstructure:"store"`
+}
+
+type UploadStore struct {
+	Type   string        `mapstructure:"type"` // fs|s3
+	FSPath string        `mapstructure:"fsPath"`
+	S3     UploadStoreS3 `mapstructure:"s3"`
+}
+
+type UploadStoreS3 struct {
+	Bucket   string `mapstructure:"bucket"`
+	Endpoint string `mapstructure:"endpoint"`
+	AK       string `mapstructure:"ak"`
+	SK       string `mapstructure:"sk"`
+}
+
+type Terminal struct {
+	TmuxEnable *bool `mapstructure:"tmuxEnable"`
 }
 
 type LocalServers []ServerManual
@@ -160,6 +193,39 @@ func configCheck(conf *Config) {
 		if err != nil {
 			panic(err)
 		}
+	}
+
+	// 默认 JWT 配置
+	if conf.Auth.JWTSecret == "" {
+		conf.Auth.JWTSecret = "jms_secret"
+	}
+	if conf.Auth.JWTTTL == "" {
+		conf.Auth.JWTTTL = "24h"
+	}
+
+	// 上传默认配置
+	if conf.Upload.ChunkSize == 0 {
+		conf.Upload.ChunkSize = 4 * 1024 * 1024 // 4MB
+	}
+	if conf.Upload.MaxSize == 0 {
+		conf.Upload.MaxSize = 1 * 1024 * 1024 * 1024 // 1GB
+	}
+	if conf.Upload.Store.Type == "" {
+		conf.Upload.Store.Type = "fs"
+	}
+	if conf.Upload.Store.FSPath == "" {
+		conf.Upload.Store.FSPath = "/opt/jms/upload_tmp"
+	}
+	if conf.Upload.Store.Type == "fs" {
+		if err := os.MkdirAll(conf.Upload.Store.FSPath, 0755); err != nil {
+			panic(err)
+		}
+	}
+
+	// 终端默认配置
+	if conf.Terminal.TmuxEnable == nil {
+		v := false
+		conf.Terminal.TmuxEnable = &v
 	}
 }
 

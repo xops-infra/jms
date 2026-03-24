@@ -8,11 +8,6 @@ import (
 	"github.com/xops-infra/jms/app"
 )
 
-const (
-	secret = "jms_secret"
-	ttl    = 24 * time.Hour
-)
-
 // @Summary 登录
 // @Description 登录接口可以换token使用。
 // @Tags
@@ -22,7 +17,36 @@ const (
 // @Param password formData string true "密码"
 // @Router /api/v1/login [post]
 func login(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBind(&req); err != nil {
+		c.String(http.StatusBadRequest, err.Error())
+		return
+	}
 
+	secret := app.App.Config.Auth.JWTSecret
+	ttl := parseTTL(app.App.Config.Auth.JWTTTL)
+
+	// 优先 DB 验证
+	if app.App.Config.WithDB.Enable && app.App.DBIo != nil {
+		ok, err := app.App.DBIo.Login(req.User, req.Password)
+		if err != nil || !ok {
+			c.String(http.StatusUnauthorized, "invalid credentials")
+			return
+		}
+	} else {
+		// 默认账号
+		if !(req.User == "jms" && req.Password == "jms") {
+			c.String(http.StatusUnauthorized, "invalid credentials")
+			return
+		}
+	}
+
+	token, exp, err := buildJWTToken(req.User, secret, ttl)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, LoginResponse{Token: token, ExpiresAt: exp})
 }
 
 type LoginRequest struct {
@@ -59,7 +83,9 @@ func loginAD(c *gin.Context) {
 		c.String(http.StatusUnauthorized, err.Error())
 		return
 	}
-	token, exp, err := buildJWTToken(req.User, secret, 24*time.Hour)
+	secret := app.App.Config.Auth.JWTSecret
+	ttl := parseTTL(app.App.Config.Auth.JWTTTL)
+	token, exp, err := buildJWTToken(req.User, secret, ttl)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
@@ -68,4 +94,16 @@ func loginAD(c *gin.Context) {
 		Token:     token,
 		ExpiresAt: exp,
 	})
+}
+
+// parseTTL safe parse duration with fallback
+func parseTTL(raw string) time.Duration {
+	if raw == "" {
+		return 24 * time.Hour
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return 24 * time.Hour
+	}
+	return d
 }

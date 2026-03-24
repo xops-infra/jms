@@ -37,6 +37,10 @@ func ServerShellRun() error {
 	wg := sync.WaitGroup{}
 	for _, task := range tasks {
 		log.Debugf("shell task: %s", tea.Prettify(task))
+		if !task.IsEnabled {
+			log.Debugf("shell task %s disabled, skip", task.UUID)
+			continue
+		}
 		if task.Status == model.StatusPending {
 			// 状态更新
 			err = app.App.DBIo.UpdateShellTaskStatus(task.UUID, model.StatusRunning, "")
@@ -197,7 +201,7 @@ func serverCronRun() {
 		log.Errorf("list shell task error: %s", err)
 	}
 	for _, task := range tasks {
-		if task.Corn == "" || task.Status == model.StatusRunning {
+		if !task.IsEnabled || task.Corn == "" || task.Status == model.StatusRunning {
 			continue
 		}
 		// 校验时间

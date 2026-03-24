@@ -71,3 +71,36 @@ func listScpAudit(c *gin.Context) {
 	c.JSON(200, records)
 
 }
+
+// @Summary listShellTaskAudit
+// @Description shell task 管理操作审计查询，支持按用户、动作、任务ID、时间范围查询
+// @Tags audit
+// @Accept json
+// @Produce json
+// @Param duration query int false "duration hours 24 = 1 day, 默认查 1 天的记录"
+// @Param user query string false "user"
+// @Param action query string false "action"
+// @Param task_id query string false "task_id"
+// @Success 200 {object} []model.ShellTaskAuditRecord
+// @Router /api/v1/audit/shell-task [get]
+func listShellTaskAudit(c *gin.Context) {
+	req := model.QueryShellTaskAuditRequest{}
+	if c.Query("duration") != "" {
+		req.Duration = tea.Int(cast.ToInt(c.Query("duration")))
+	}
+	if c.Query("user") != "" {
+		req.User = tea.String(c.Query("user"))
+	}
+	if c.Query("action") != "" {
+		req.Action = tea.String(c.Query("action"))
+	}
+	if c.Query("task_id") != "" {
+		req.TaskID = tea.String(c.Query("task_id"))
+	}
+	records, err := app.App.DBIo.ListShellTaskAuditRecord(req)
+	if err != nil {
+		c.JSON(500, err.Error())
+		return
+	}
+	c.JSON(200, records)
+}

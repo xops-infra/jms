@@ -43,6 +43,7 @@ func (Policy) TableName() string {
 
 // 可以预定义一些资产用来快速分配给其他策略c
 type ServerFilterV1 struct {
+	ID      []string `json:"id"`       // 机器 ID，支持* 匹配所有
 	Name    []string `json:"name"`     // 名字完全匹配，支持*
 	IpAddr  []string `json:"ip_addr"`  // IP 地址完全匹配，支持* 匹配所有
 	EnvType []string `json:"env_type"` // 机器 Tags 中的 EnvType，支持* 匹配所有

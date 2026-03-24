@@ -95,7 +95,7 @@ func fmtServer(localServers []ServerManual, instances map[string]model.Instance)
 		// 支持一个机器多个 key
 		var keyName []string
 		if instance.KeyIDs == nil {
-			log.Warnf("instance:%s key is nil", *instance.Name)
+			log.Debugf("instance:%s key is nil", *instance.Name)
 		} else {
 			for _, key := range instance.KeyIDs {
 				if key == nil {

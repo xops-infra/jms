@@ -39,15 +39,17 @@ func NewGin() *gin.Engine {
 	api.POST("/broadcast", broadcast)
 
 	u := api.Group("/user")
+	u.GET("/me", requireUser(), getCurrentUser)
 	u.GET("", listUser)
 	u.POST("", addUser)
 	u.PATCH("/:id", updateUserGroup)
 	u.PUT("/:id", updateUser)
 
 	p := api.Group("/policy")
-	p.GET("", listPolicy)
-	p.PUT("/:id", updatePolicy)
-	p.DELETE("/:id", deletePolicy)
+	p.GET("", requireAdmin(), listPolicy)
+	p.POST("", requireAdmin(), createPolicy)
+	p.PUT("/:id", requireAdmin(), updatePolicy)
+	p.DELETE("/:id", requireAdmin(), deletePolicy)
 
 	a := api.Group("/approval")
 	a.POST("", createApproval)
@@ -70,18 +72,36 @@ func NewGin() *gin.Engine {
 	proxy.PUT("/:uuid", updateProxy)
 	proxy.DELETE("/:uuid", deleteProxy)
 
+	servers := api.Group("/servers")
+	servers.GET("", requireUser(), listServers)
+	servers.GET("/:host/ssh-users", requireUser(), listServerSSHUsers)
+
 	shell := api.Group("/shell/task")
-	shell.GET("", listShellTask)
+	shell.GET("", requireAdmin(), listShellTask)
 	shell.POST("", requireAdmin(), addShellTask)
-	shell.PUT("/:uuid", updateShellTask)
-	shell.DELETE("/:uuid", deleteShellTask)
+	shell.PUT("/:uuid", requireAdmin(), updateShellTask)
+	shell.PATCH("/:uuid/enabled", requireAdmin(), updateShellTaskEnabled)
+	shell.DELETE("/:uuid", requireAdmin(), deleteShellTask)
 
 	shellRecord := api.Group("/shell/record")
-	shellRecord.GET("", listShellRecord)
+	shellRecord.GET("", requireAdmin(), listShellRecord)
 
 	audits := api.Group("/audit")
 	audits.GET("/login", listLoginAudit)
 	audits.GET("/scp", listScpAudit)
+	audits.GET("/shell-task", requireAdmin(), listShellTaskAudit)
+
+	terminal := api.Group("/terminal")
+	terminal.GET("/ws", requireUser(), terminalWS)
+	terminal.GET("/errors/:attemptID", requireUser(), getTerminalAttemptFailure)
+
+	files := api.Group("/files")
+	files.POST("/upload/init", requireUser(), uploadInit)
+	files.PUT("/upload/chunk", requireUser(), uploadChunk)
+	files.POST("/upload/complete", requireUser(), uploadComplete)
+	files.POST("/upload/abort", requireUser(), uploadAbort)
+	files.GET("/browse", requireUser(), browseFiles)
+	files.GET("/download", requireUser(), downloadFile)
 
 	return r
 }

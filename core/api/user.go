@@ -8,6 +8,20 @@ import (
 	"github.com/xops-infra/jms/model"
 )
 
+func getCurrentUser(c *gin.Context) {
+	authUser, ok := c.Get("auth_user")
+	if !ok {
+		c.JSON(401, gin.H{"error": "unauthorized"})
+		return
+	}
+	user, ok := authUser.(model.User)
+	if !ok {
+		c.JSON(500, gin.H{"error": "invalid auth user"})
+		return
+	}
+	c.JSON(200, user)
+}
+
 // @Summary 获取用户列表
 // @Description 获取用户列表
 // @Tags User

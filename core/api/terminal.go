@@ -1,0 +1,390 @@
+package api
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"sync"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+	"github.com/xops-infra/noop/log"
+	gossh "golang.org/x/crypto/ssh"
+
+	"github.com/xops-infra/jms/app"
+	"github.com/xops-infra/jms/core/sshd"
+	"github.com/xops-infra/jms/model"
+)
+
+type wsMessage struct {
+	Type      string `json:"type"`
+	Data      string `json:"data"`
+	Cols      int    `json:"cols"`
+	Rows      int    `json:"rows"`
+	SessionID string `json:"session_id"`
+}
+
+type terminalAttemptFailure struct {
+	User      string    `json:"-"`
+	Host      string    `json:"host"`
+	SSHUser   string    `json:"ssh_user"`
+	SSHKey    string    `json:"ssh_key,omitempty"`
+	Stage     string    `json:"stage"`
+	Status    int       `json:"status"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+var terminalUpgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
+
+var terminalAttemptFailures sync.Map
+
+const terminalAttemptFailureTTL = 10 * time.Minute
+
+type wsWriter struct {
+	conn *websocket.Conn
+	mu   sync.Mutex
+}
+
+func (w *wsWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	msg := wsMessage{Type: "data", Data: string(p)}
+	if err := w.conn.WriteJSON(msg); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+func (w *wsWriter) Send(msg wsMessage) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.conn.WriteJSON(msg)
+}
+
+// terminalWS handles websocket terminal sessions
+func terminalWS(c *gin.Context) {
+	v, ok := c.Get("auth_user")
+	if !ok {
+		c.String(http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	user := v.(model.User)
+	if user.Username == nil {
+		c.String(http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	host := c.Query("host")
+	if host == "" {
+		c.String(http.StatusBadRequest, "host required")
+		return
+	}
+
+	sshUserQuery := c.Query("user")
+	sshKeyQuery := c.Query("key")
+	sessionID := c.Query("session_id")
+	cols := parseIntDefault(c.Query("cols"), 120)
+	rows := parseIntDefault(c.Query("rows"), 32)
+
+	server, sshUsers, err := app.App.Sshd.SshdIO.GetSSHUsersByHostLive(host)
+	if err != nil {
+		c.String(http.StatusNotFound, err.Error())
+		return
+	}
+
+	matchPolicies := app.App.Sshd.SshdIO.GetUserPolicys(*user.Username)
+	if !app.App.Sshd.SshdIO.MatchPolicy(user, model.Connect, *server, matchPolicies, false) {
+		c.String(http.StatusForbidden, "no permission")
+		return
+	}
+
+	sshUser, err := selectSSHUser(sshUsers, sshUserQuery, sshKeyQuery)
+	if err != nil {
+		logTerminalFailure(c, http.StatusBadRequest, user, host, sessionID, "select_ssh_user", sshUserQuery, sshKeyQuery, nil, err)
+		c.String(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	_, upstream, err := sshd.NewSSHClient(*user.Username, *server, sshUser)
+	if err != nil {
+		logTerminalFailure(c, http.StatusBadRequest, user, host, sessionID, "connect_upstream", sshUserQuery, sshKeyQuery, &sshUser, err)
+		c.String(http.StatusBadRequest, err.Error())
+		return
+	}
+	defer upstream.Close()
+
+	sess, err := upstream.NewSession()
+	if err != nil {
+		logTerminalFailure(c, http.StatusInternalServerError, user, host, sessionID, "create_session", sshUserQuery, sshKeyQuery, &sshUser, err)
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer sess.Close()
+
+	if err := sess.RequestPty("xterm-256color", rows, cols, gossh.TerminalModes{}); err != nil {
+		logTerminalFailure(c, http.StatusInternalServerError, user, host, sessionID, "request_pty", sshUserQuery, sshKeyQuery, &sshUser, err)
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	conn, err := terminalUpgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		logTerminalFailure(c, http.StatusBadRequest, user, host, sessionID, "upgrade_websocket", sshUserQuery, sshKeyQuery, &sshUser, err)
+		return
+	}
+	defer conn.Close()
+
+	if app.App.Config.WithDB.Enable && app.App.DBIo != nil {
+		client := c.ClientIP()
+		if err := app.App.DBIo.AddServerLoginRecord(&model.AddSshLoginRequest{
+			User:         user.Username,
+			Client:       &client,
+			TargetServer: &server.Host,
+			InstanceID:   &server.ID,
+		}); err != nil {
+			log.Warnf("create web terminal login record failed: %v", err)
+		} else {
+			log.Infof("web terminal login audit recorded: user=%s target=%s client=%s instance_id=%s", *user.Username, server.Host, client, server.ID)
+		}
+	}
+
+	writer := &wsWriter{conn: conn}
+	var outWriter io.Writer = writer
+	var auditFile io.Closer
+	if app.App.Config.WithVideo.Enable {
+		logFile, err := sshd.NewAuditLog(*user.Username, server.Host)
+		if err != nil {
+			log.Warnf("create audit log failed: %v", err)
+		} else {
+			auditFile = logFile
+			outWriter = io.MultiWriter(writer, logFile)
+		}
+	}
+	if auditFile != nil {
+		defer auditFile.Close()
+	}
+
+	sess.Stdout = outWriter
+	sess.Stderr = outWriter
+	stdin, err := sess.StdinPipe()
+	if err != nil {
+		_ = writer.Send(wsMessage{Type: "exit", Data: err.Error()})
+		return
+	}
+
+	if sessionID == "" {
+		sessionID = uuid.NewString()
+	}
+	_ = writer.Send(wsMessage{Type: "session", SessionID: sessionID})
+
+	tmuxEnabled := app.App.Config.Terminal.TmuxEnable != nil && *app.App.Config.Terminal.TmuxEnable
+	tmuxAvailable := false
+	if tmuxEnabled {
+		tmuxAvailable = isTmuxAvailable(upstream)
+		if !tmuxAvailable {
+			log.Infof("tmux not found on %s, fallback to shell", server.Host)
+		}
+	}
+
+	if tmuxEnabled && tmuxAvailable {
+		cmd := fmt.Sprintf("tmux new -A -s %s", sessionID)
+		if err := sess.Start(cmd); err != nil {
+			log.Warnf("tmux start failed: user=%s host=%s ssh_user=%s ssh_key=%s session_id=%s err=%v", valueOrEmpty(user.Username), host, sshUser.UserName, sshUser.KeyName, sessionID, err)
+			if err := sess.Shell(); err != nil {
+				logTerminalFailure(c, http.StatusInternalServerError, user, host, sessionID, "start_shell_after_tmux_fallback", sshUserQuery, sshKeyQuery, &sshUser, err)
+				_ = writer.Send(wsMessage{Type: "exit", Data: err.Error()})
+				return
+			}
+		}
+	} else {
+		if err := sess.Shell(); err != nil {
+			logTerminalFailure(c, http.StatusInternalServerError, user, host, sessionID, "start_shell", sshUserQuery, sshKeyQuery, &sshUser, err)
+			_ = writer.Send(wsMessage{Type: "exit", Data: err.Error()})
+			return
+		}
+	}
+
+	errCh := make(chan error, 2)
+
+	go func() {
+		defer close(errCh)
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				errCh <- err
+				return
+			}
+			var m wsMessage
+			if err := json.Unmarshal(msg, &m); err != nil {
+				continue
+			}
+			switch m.Type {
+			case "input":
+				if m.Data != "" {
+					if _, err := stdin.Write([]byte(m.Data)); err != nil {
+						errCh <- err
+						return
+					}
+				}
+			case "resize":
+				if m.Rows > 0 && m.Cols > 0 {
+					_ = sess.WindowChange(m.Rows, m.Cols)
+				}
+			case "ping":
+				_ = writer.Send(wsMessage{Type: "pong"})
+			}
+		}
+	}()
+
+	waitErr := sess.Wait()
+	if waitErr != nil {
+		log.Warnf("terminal session ended: %v", waitErr)
+		_ = writer.Send(wsMessage{Type: "exit", Data: waitErr.Error()})
+	} else {
+		_ = writer.Send(wsMessage{Type: "exit"})
+	}
+	select {
+	case <-errCh:
+	default:
+	}
+}
+
+func getTerminalAttemptFailure(c *gin.Context) {
+	v, ok := c.Get("auth_user")
+	if !ok {
+		c.String(http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	user := v.(model.User)
+	if user.Username == nil {
+		c.String(http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	attemptID := c.Param("attemptID")
+	if attemptID == "" {
+		c.String(http.StatusBadRequest, "attempt id required")
+		return
+	}
+
+	raw, ok := terminalAttemptFailures.Load(attemptID)
+	if !ok {
+		c.String(http.StatusNotFound, "terminal failure not found")
+		return
+	}
+	failure := raw.(terminalAttemptFailure)
+	if time.Since(failure.CreatedAt) > terminalAttemptFailureTTL {
+		terminalAttemptFailures.Delete(attemptID)
+		c.String(http.StatusNotFound, "terminal failure expired")
+		return
+	}
+	if failure.User != valueOrEmpty(user.Username) {
+		c.String(http.StatusForbidden, "forbidden")
+		return
+	}
+
+	c.JSON(http.StatusOK, failure)
+}
+
+func logTerminalFailure(
+	c *gin.Context,
+	status int,
+	user model.User,
+	host, sessionID, stage, requestedUser, requestedKey string,
+	selectedUser *model.SSHUser,
+	err error,
+) {
+	attemptID := c.Query("attempt_id")
+	sshUser := requestedUser
+	sshKey := requestedKey
+	if selectedUser != nil {
+		if selectedUser.UserName != "" {
+			sshUser = selectedUser.UserName
+		}
+		if selectedUser.KeyName != "" {
+			sshKey = selectedUser.KeyName
+		}
+	}
+	if attemptID != "" {
+		terminalAttemptFailures.Store(attemptID, terminalAttemptFailure{
+			User:      valueOrEmpty(user.Username),
+			Host:      host,
+			SSHUser:   sshUser,
+			SSHKey:    sshKey,
+			Stage:     stage,
+			Status:    status,
+			Message:   err.Error(),
+			CreatedAt: time.Now(),
+		})
+	}
+	log.Warnf(
+		"web terminal %s failed: status=%d user=%s client=%s host=%s ssh_user=%s ssh_key=%s session_id=%s err=%v",
+		stage,
+		status,
+		valueOrEmpty(user.Username),
+		c.ClientIP(),
+		host,
+		sshUser,
+		sshKey,
+		sessionID,
+		err,
+	)
+}
+
+func parseIntDefault(v string, d int) int {
+	if v == "" {
+		return d
+	}
+	i, err := strconv.Atoi(v)
+	if err != nil {
+		return d
+	}
+	return i
+}
+
+func selectSSHUser(users []model.SSHUser, preferUser, preferKey string) (model.SSHUser, error) {
+	if len(users) == 0 {
+		return model.SSHUser{}, fmt.Errorf("no ssh users")
+	}
+	if preferUser != "" || preferKey != "" {
+		for _, u := range users {
+			if preferUser != "" && u.UserName != preferUser {
+				continue
+			}
+			if preferKey != "" && u.KeyName != preferKey {
+				continue
+			}
+			return u, nil
+		}
+		if preferUser != "" && preferKey != "" {
+			return model.SSHUser{}, fmt.Errorf("ssh user %s with key %s not found", preferUser, preferKey)
+		}
+		if preferUser != "" {
+			return model.SSHUser{}, fmt.Errorf("ssh user %s not found", preferUser)
+		}
+		if preferKey != "" {
+			return model.SSHUser{}, fmt.Errorf("ssh key %s not found", preferKey)
+		}
+	}
+	return users[0], nil
+}
+
+func isTmuxAvailable(client *gossh.Client) bool {
+	sess, err := client.NewSession()
+	if err != nil {
+		log.Warnf("tmux probe session failed: %v", err)
+		return false
+	}
+	defer sess.Close()
+	if err := sess.Run("command -v tmux >/dev/null 2>&1"); err != nil {
+		return false
+	}
+	return true
+}
