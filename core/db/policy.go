@@ -24,12 +24,13 @@ func (d *DBService) CreatePolicy(req *model.PolicyRequest) (string, error) {
 	newPolicy := &model.Policy{
 		ID:             uuid.NewString(),
 		Name:           tea.StringValue(req.Name),
-		IsEnabled:      false, // 默认不启用，需要审批
+		IsEnabled:      tea.BoolValue(req.IsEnabled),
 		Users:          req.Users,
 		Actions:        req.Actions,
 		ServerFilter:   nil,
 		ServerFilterV1: req.ServerFilterV1,
 		ExpiresAt:      *req.ExpiresAt,
+		ApprovalID:     tea.StringValue(req.ApprovalID),
 	}
 	if d.DB.Create(newPolicy).Error != nil {
 		return "", d.DB.Error
@@ -42,7 +43,24 @@ func (d *DBService) UpdatePolicy(id string, mut *model.PolicyRequest) error {
 	if err != nil {
 		return err
 	}
-	return d.DB.Model(policy).Updates(mut).Error
+	updates := map[string]interface{}{
+		"users":            mut.Users,
+		"actions":          mut.Actions,
+		"server_filter_v1": mut.ServerFilterV1,
+	}
+	if mut.Name != nil {
+		updates["name"] = *mut.Name
+	}
+	if mut.ExpiresAt != nil {
+		updates["expires_at"] = *mut.ExpiresAt
+	}
+	if mut.IsEnabled != nil {
+		updates["is_enabled"] = *mut.IsEnabled
+	}
+	if mut.ApprovalID != nil {
+		updates["approval_id"] = *mut.ApprovalID
+	}
+	return d.DB.Model(policy).Updates(updates).Error
 }
 
 func (d *DBService) UpdatePolicyStatus(id string, mut model.ApprovalResult) error {

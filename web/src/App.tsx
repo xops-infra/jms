@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react'
 import { HashRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import { apiClient } from './api/client'
 import { Login } from './pages/Login'
+import { AdminPolicyPage } from './pages/AdminPolicy'
 import { AdminShellPage } from './pages/AdminShell'
 import { TerminalPage } from './pages/Terminal'
 import { WorkspacePage } from './pages/Workspace'
@@ -32,6 +33,11 @@ const Nav = () => {
           <NavLink to="/terminal" className={({ isActive }) => `topnav-link${isActive ? ' active' : ''}`}>
             终端首页
           </NavLink>
+          {isAdmin && (
+            <NavLink to="/admin/policy" className={({ isActive }) => `topnav-link${isActive ? ' active' : ''}`}>
+              Policy 管理
+            </NavLink>
+          )}
           {isAdmin && (
             <NavLink to="/admin/shell" className={({ isActive }) => `topnav-link${isActive ? ' active' : ''}`}>
               ShellTask 管理
@@ -146,6 +152,14 @@ function App() {
             <RequireAuth>
               <WorkspacePage />
             </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/policy"
+          element={
+            <RequireAdmin>
+              <AdminPolicyPage />
+            </RequireAdmin>
           }
         />
         <Route

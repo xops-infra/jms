@@ -59,6 +59,15 @@ var apiCmd = &cobra.Command{
 			_app.WithDB(false)
 		}
 
+		if app.App.Config.WithDingtalk.Enable {
+			log.Infof("enable dingtalk for api")
+			_app.WithDingTalk()
+			if !app.App.Config.WithDB.Enable {
+				app.App.Config.WithDingtalk.Enable = false
+				log.Warnf("dingtalk enable but db not enable, disable dingtalk")
+			}
+		}
+
 		// init sshd IO for api usage (ws terminal / file transfer)
 		app.App.Sshd.SshdIO = appio.NewSshd(app.App.DBIo, app.App.Config.LocalServers.ToMapWithHost())
 

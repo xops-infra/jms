@@ -105,7 +105,7 @@ func (a *ApprovalMut) ToPolicyMut() *PolicyRequest {
 			string(Connect),
 		},
 	}
-	if a.Name == nil {
+	if a.Name != nil {
 		req.Name = a.Name
 	}
 	if a.Period != nil {

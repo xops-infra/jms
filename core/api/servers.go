@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -63,6 +64,24 @@ func listServers(c *gin.Context) {
 			Allowed: allowed,
 		})
 	}
+
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].Allowed != items[j].Allowed {
+			return items[i].Allowed && !items[j].Allowed
+		}
+		leftName := strings.ToLower(strings.TrimSpace(items[i].Name))
+		rightName := strings.ToLower(strings.TrimSpace(items[j].Name))
+		if leftName == "" {
+			leftName = strings.ToLower(items[i].Host)
+		}
+		if rightName == "" {
+			rightName = strings.ToLower(items[j].Host)
+		}
+		if leftName == rightName {
+			return strings.ToLower(items[i].Host) < strings.ToLower(items[j].Host)
+		}
+		return leftName < rightName
+	})
 
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }

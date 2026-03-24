@@ -46,9 +46,10 @@ func NewGin() *gin.Engine {
 	u.PUT("/:id", updateUser)
 
 	p := api.Group("/policy")
-	p.GET("", listPolicy)
-	p.PUT("/:id", updatePolicy)
-	p.DELETE("/:id", deletePolicy)
+	p.GET("", requireAdmin(), listPolicy)
+	p.POST("", requireAdmin(), createPolicy)
+	p.PUT("/:id", requireAdmin(), updatePolicy)
+	p.DELETE("/:id", requireAdmin(), deletePolicy)
 
 	a := api.Group("/approval")
 	a.POST("", createApproval)

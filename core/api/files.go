@@ -349,9 +349,18 @@ func browseFiles(c *gin.Context) {
 	sshUserQuery := c.Query("user")
 	sshKeyQuery := c.Query("key")
 	search := strings.TrimSpace(c.Query("search"))
+	showHidden := false
 	if host == "" {
 		c.String(http.StatusBadRequest, "host required")
 		return
+	}
+	if raw := strings.TrimSpace(c.Query("show_hidden")); raw != "" {
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			c.String(http.StatusBadRequest, "invalid show_hidden")
+			return
+		}
+		showHidden = value
 	}
 
 	limit := browseDefaultLimit
@@ -429,7 +438,7 @@ func browseFiles(c *gin.Context) {
 		return
 	}
 
-	items, truncated := buildBrowseItems(entries, browsePath, search, limit)
+	items, truncated := buildBrowseItems(entries, browsePath, search, limit, showHidden)
 	c.JSON(http.StatusOK, model.BrowseFilesResponse{
 		Path:       browsePath,
 		ParentPath: parentRemotePath(browsePath),
@@ -576,13 +585,16 @@ func missingChunks(uploadID string, total int) []int {
 	return missing
 }
 
-func buildBrowseItems(entries []os.FileInfo, browsePath, search string, limit int) ([]model.BrowseFileItem, bool) {
+func buildBrowseItems(entries []os.FileInfo, browsePath, search string, limit int, showHidden bool) ([]model.BrowseFileItem, bool) {
 	normalizedSearch := strings.ToLower(strings.TrimSpace(search))
 	items := make([]model.BrowseFileItem, 0, len(entries))
 
 	for _, entry := range entries {
 		name := entry.Name()
 		if name == "." || name == ".." {
+			continue
+		}
+		if !showHidden && strings.HasPrefix(name, ".") {
 			continue
 		}
 		if normalizedSearch != "" && !strings.Contains(strings.ToLower(name), normalizedSearch) {

@@ -139,6 +139,7 @@ export const FileTransferPanel = ({ host, user, keyName, token, connected, heade
   const [browseItems, setBrowseItems] = useState<BrowseItem[]>([])
   const [browseParentPath, setBrowseParentPath] = useState<string | null>(null)
   const [browseTruncated, setBrowseTruncated] = useState(false)
+  const [browseShowHidden, setBrowseShowHidden] = useState(false)
   const [browseLoading, setBrowseLoading] = useState(false)
   const [browseError, setBrowseError] = useState('')
   const [selectedDownloadPath, setSelectedDownloadPath] = useState('')
@@ -406,6 +407,7 @@ export const FileTransferPanel = ({ host, user, keyName, token, connected, heade
     setBrowseError('')
     setBrowseItems([])
     setBrowseTruncated(false)
+    setBrowseShowHidden(false)
     setBrowseSearchInput('')
     setSelectedDownloadPath('')
     setBrowsePath(resolveDefaultBrowsePath(user))
@@ -450,6 +452,7 @@ export const FileTransferPanel = ({ host, user, keyName, token, connected, heade
           key: keyName,
           search: deferredBrowseSearch || undefined,
           limit: browseLimit,
+          show_hidden: browseShowHidden,
         },
         signal: controller.signal,
       })
@@ -485,7 +488,7 @@ export const FileTransferPanel = ({ host, user, keyName, token, connected, heade
       })
 
     return () => controller.abort()
-  }, [browseOpen, browsePath, browseReloadToken, canOperate, deferredBrowseSearch, host, keyName, user])
+  }, [browseOpen, browsePath, browseReloadToken, browseShowHidden, canOperate, deferredBrowseSearch, host, keyName, user])
 
   const onDropFiles = (files: FileList | null) => {
     if (!canOperateRef.current) return
@@ -587,8 +590,19 @@ export const FileTransferPanel = ({ host, user, keyName, token, connected, heade
                   />
                 </label>
 
+                <label className="file-browser-toggle">
+                  <input
+                    type="checkbox"
+                    checked={browseShowHidden}
+                    onChange={(e) => setBrowseShowHidden(e.target.checked)}
+                    disabled={browseLoading}
+                  />
+                  <span>显示隐藏文件</span>
+                </label>
+
                 <div className="file-browser-summary">
                   <span>当前目录: {browsePath}</span>
+                  {!browseShowHidden && <span>默认不显示以 `.` 开头的文件</span>}
                   {browseTruncated && <strong>结果过多，仅展示前 {browseLimit} 项，请继续搜索</strong>}
                 </div>
 
@@ -820,7 +834,7 @@ export const FileTransferPanel = ({ host, user, keyName, token, connected, heade
             <div className="transfer-section">
               <div className="transfer-download-note">
                 <strong>从服务器选择文件后下载到本地</strong>
-                <span>默认打开当前登录用户 home 目录，包含隐藏文件；目录项过多时请直接搜索文件名。</span>
+                <span>默认打开当前登录用户 home 目录，默认不显示隐藏文件，可按需勾选查看。</span>
               </div>
 
               <div className="transfer-download-actions">
