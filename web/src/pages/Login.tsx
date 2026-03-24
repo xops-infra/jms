@@ -40,7 +40,7 @@ export const Login = () => {
         <div className="brand">
           <div className="logo">JMS</div>
           <div>
-            <h1>PatsnapJMS</h1>
+            <h1>JMS</h1>
             <p>登录后进入统一终端与文件传输控制台</p>
           </div>
         </div>

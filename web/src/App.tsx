@@ -24,7 +24,7 @@ const Nav = () => {
       <div className="brand">
         <div className="logo">JMS</div>
         <div>
-          <strong>PatsnapJMS</strong>
+          <strong>JMS</strong>
           <span>Secure Access Console</span>
         </div>
       </div>
