@@ -331,7 +331,8 @@ export const TerminalPage = () => {
 
   const openWorkspace = useCallback(() => {
     if (!selectedServer || !sshSelected) return
-    const nextWindow = window.open(buildWorkspaceUrl(selectedServer, sshSelected), '_blank', 'noopener,noreferrer')
+    // 勿在第三个参数里写 noopener：否则规范要求 window.open 返回 null，即使用户未拦截弹窗也会误判
+    const nextWindow = window.open(buildWorkspaceUrl(selectedServer, sshSelected), '_blank')
     if (!nextWindow) {
       setLaunchStatus('浏览器拦截了新页签，请允许弹窗后重试。')
     }

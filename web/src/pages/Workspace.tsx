@@ -26,6 +26,12 @@ const buildWorkspaceDescription = (host: string, option: SSHOption | null) => {
 export const WorkspacePage = () => {
   const token = useAuthStore((s) => s.token)
   const [searchParams] = useSearchParams()
+
+  useEffect(() => {
+    if (window.opener) {
+      window.opener = null
+    }
+  }, [])
   const routeHost = searchParams.get('host')?.trim() || ''
   const routeUser = searchParams.get('user')?.trim() || ''
   const routeKey = searchParams.get('key')?.trim() || ''

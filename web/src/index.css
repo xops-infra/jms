@@ -1082,9 +1082,16 @@ button:disabled {
 
 .admin-audit-terminal-layout {
   display: grid;
-  grid-template-columns: minmax(280px, 400px) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  gap: 16px;
+  align-items: stretch;
+  min-height: min(82vh, 960px);
+}
+
+.admin-audit-terminal-layout > .panel {
+  min-height: 0;
+  height: 100%;
 }
 
 .admin-audit-file-list {
@@ -1127,21 +1134,62 @@ button:disabled {
   line-height: 1.5;
 }
 
-.admin-audit-replay-actions {
+.admin-audit-replay-panel {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
-.admin-audit-replay-hint {
+.admin-audit-replay-panel > .panel-header {
+  padding-bottom: 8px;
+}
+
+.admin-audit-replay-panel > .panel-header h3 {
+  margin-bottom: 4px;
+  font-size: 16px;
+}
+
+.admin-audit-replay-desc {
+  margin: 0;
   font-size: 12px;
+  line-height: 1.45;
   color: var(--muted);
 }
 
+.admin-audit-replay-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px 8px;
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-audit-replay-actions .small {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.admin-audit-replay-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .admin-audit-terminal-wrap {
-  min-height: 420px;
-  border-radius: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgba(15, 23, 42, 0.1);
   background: #0b1220;

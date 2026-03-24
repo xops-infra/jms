@@ -462,6 +462,14 @@ export const AdminAuditPage = () => {
     }
   }, [activeLogName, stopReplay])
 
+  useEffect(() => {
+    if (tab !== 'terminal' || !termEnabled || !activeLogName) return
+    const timer = window.setTimeout(() => {
+      void loadLogInstant()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [tab, termEnabled, activeLogName, loadLogInstant])
+
   const replayGradual = useCallback(async () => {
     if (!activeLogName) return
     stopReplay()
@@ -747,22 +755,34 @@ export const AdminAuditPage = () => {
               </div>
             </div>
           </section>
-          <section className="panel admin-shell-panel">
+          <section className="panel admin-shell-panel admin-audit-replay-panel">
             <div className="panel-header">
               <div>
                 <h3>回放</h3>
-                <p>原始终端输出（含 ANSI）。大文件建议「一次性加载」。</p>
+                <p className="admin-audit-replay-desc">
+                  原始终端输出（含 ANSI）；选中文件自动加载。大文件可渐进回放。
+                </p>
               </div>
             </div>
             <div className="panel-body admin-audit-replay-actions">
-              <button type="button" className="primary" onClick={() => void loadLogInstant()} disabled={!activeLogName || replayBusy}>
-                一次性加载
+              <button
+                type="button"
+                className="primary small"
+                onClick={() => void loadLogInstant()}
+                disabled={!activeLogName || replayBusy}
+              >
+                重新加载
               </button>
-              <button type="button" className="ghost" onClick={() => void replayGradual()} disabled={!activeLogName || replayBusy}>
+              <button
+                type="button"
+                className="ghost small"
+                onClick={() => void replayGradual()}
+                disabled={!activeLogName || replayBusy}
+              >
                 渐进回放
               </button>
-              <button type="button" className="ghost" onClick={stopReplay} disabled={!replayBusy}>
-                停止回放
+              <button type="button" className="ghost small" onClick={stopReplay} disabled={!replayBusy}>
+                停止
               </button>
               {replayHint && <span className="admin-audit-replay-hint">{replayHint}</span>}
             </div>

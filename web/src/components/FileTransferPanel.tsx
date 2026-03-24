@@ -79,10 +79,12 @@ const formatBytes = (size: number) => {
   return `${gb.toFixed(2)} GB`
 }
 
+/** 无尾斜杠也视为目录，最终目标为 dir + filename */
 const resolveTargetPath = (input: string, filename: string) => {
   if (!input) return ''
-  if (input.endsWith('/')) return `${input}${filename}`
-  return input
+  const dir = input.trim().replace(/\/+$/, '')
+  if (!dir) return `/${filename}`
+  return `${dir}/${filename}`
 }
 
 const resolveDefaultBrowsePath = (sshUser?: string) => {
@@ -127,7 +129,7 @@ const isAbortError = (err: unknown) => {
 
 export const FileTransferPanel = ({ host, user, keyName, token, connected, headerAction }: FileTransferPanelProps) => {
   const [activePage, setActivePage] = useState<TransferPage>('upload')
-  const [uploadPath, setUploadPath] = useState('/data/')
+  const [uploadPath, setUploadPath] = useState('/tmp/')
   const [queue, setQueue] = useState<UploadItem[]>([])
   const storageKey = host ? `${remoteKeyBase}:${host}:${user || 'default'}:${keyName || 'default'}` : `${remoteKeyBase}:default`
   const [remoteFiles, setRemoteFiles] = useState<RemoteFile[]>(() => loadRemoteFiles(storageKey))
@@ -738,7 +740,7 @@ export const FileTransferPanel = ({ host, user, keyName, token, connected, heade
                 <input
                   value={uploadPath}
                   onChange={(e) => setUploadPath(e.target.value)}
-                  placeholder="/data/ (以 / 结尾表示目录)"
+                  placeholder="/tmp/ 或 /tmp（无尾斜杠也按目录）"
                   disabled={!canOperate}
                 />
               </label>
