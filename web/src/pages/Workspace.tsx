@@ -136,11 +136,14 @@ export const WorkspacePage = () => {
       setSshSelected(matchedOption)
       setValidationState('ready')
 
+      // 始终与 API 匹配结果对齐，避免「重新校验」后 sshSelected 已更新但 host/user/key state 仍陈旧，
+      // 导致终端 WS 与 upload/init 使用不同密钥（多把 key 同用户时后端会选错 users[0]）。
+      setHost(routeHost)
+      setSshUser(matchedOption.user)
+      setSshKey(matchedOption.key_name || '')
+
       if (activateAfterValidate) {
         setSessionId(sessionStorage.getItem(sessionStorageKey) || '')
-        setHost(routeHost)
-        setSshUser(matchedOption.user)
-        setSshKey(matchedOption.key_name || '')
         setTerminalPhase('connecting')
         setActive(true)
       }
@@ -243,6 +246,11 @@ export const WorkspacePage = () => {
   const connectLabel = terminalPhase === 'connecting' ? '建立中...' : terminalPhase === 'closed' || terminalPhase === 'disconnected' ? '重新连接' : '连接工作区'
   const fileTransferStatus = terminalPhase === 'live' ? '已启用' : '等待终端在线'
 
+  // 终端与文件传输必须与当前 URL + 校验通过的登录项一致（优先 sshSelected，避免 state 漂移）
+  const effectiveHost = host || routeHost
+  const effectiveSshUser = sshSelected?.user || sshUser || routeUser || undefined
+  const effectiveSshKey = sshSelected?.key_name || sshKey || routeKey || undefined
+
   if (validationState === 'blocked') {
     return (
       <div className="page console-page">
@@ -343,9 +351,9 @@ export const WorkspacePage = () => {
               <div className="terminal-stage">
                 <TerminalView
                   active={active}
-                  host={host}
-                  user={sshUser || undefined}
-                  keyName={sshKey || undefined}
+                  host={effectiveHost}
+                  user={effectiveSshUser}
+                  keyName={effectiveSshKey}
                   token={token || ''}
                   sessionId={sessionId || undefined}
                   onSessionId={handleSessionId}
@@ -420,9 +428,9 @@ export const WorkspacePage = () => {
           </button>
           <div className="drawer-panel">
             <FileTransferPanel
-              host={host}
-              user={sshUser || undefined}
-              keyName={sshKey || undefined}
+              host={effectiveHost}
+              user={effectiveSshUser}
+              keyName={effectiveSshKey}
               token={token}
               connected={terminalPhase === 'live'}
               headerAction={

@@ -30,6 +30,8 @@ services:
     volumes: 
       - "${JMS_CONFIG_PATH:-/opt/jms/config.yaml}:/opt/jms/config.yaml:ro"
       - "${JMS_SSH_DIR:-/opt/jms/.ssh}:/opt/jms/.ssh/" # 持久化数据
+      # 与 withVideo.dir 一致；不挂载则日志只在容器内，宿主机 /opt/jms/audit 为空
+      - "${JMS_AUDIT_DIR:-/opt/jms/audit}:/opt/jms/audit"
 
   jms-scheduler:
     depends_on:
@@ -60,6 +62,7 @@ services:
     volumes: 
       - "${JMS_CONFIG_PATH:-/opt/jms/config.yaml}:/opt/jms/config.yaml:ro"
       - "${JMS_SSH_DIR:-/opt/jms/.ssh}:/opt/jms/.ssh/" # 持久化数据
+      - "${JMS_AUDIT_DIR:-/opt/jms/audit}:/opt/jms/audit"
 
   jms-web:
     depends_on:

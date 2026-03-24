@@ -87,9 +87,11 @@ func NewGin() *gin.Engine {
 	shellRecord.GET("", requireAdmin(), listShellRecord)
 
 	audits := api.Group("/audit")
-	audits.GET("/login", listLoginAudit)
-	audits.GET("/scp", listScpAudit)
+	audits.GET("/login", requireAdmin(), listLoginAudit)
+	audits.GET("/scp", requireAdmin(), listScpAudit)
 	audits.GET("/shell-task", requireAdmin(), listShellTaskAudit)
+	audits.GET("/terminal", requireAdmin(), listTerminalAuditLogs)
+	audits.GET("/terminal/:name", requireAdmin(), getTerminalAuditLog)
 
 	terminal := api.Group("/terminal")
 	terminal.GET("/ws", requireUser(), terminalWS)

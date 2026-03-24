@@ -4,6 +4,7 @@ import { apiClient } from './api/client'
 import { Login } from './pages/Login'
 import { AdminPolicyPage } from './pages/AdminPolicy'
 import { AdminShellPage } from './pages/AdminShell'
+import { AdminAuditPage } from './pages/AdminAudit'
 import { TerminalPage } from './pages/Terminal'
 import { WorkspacePage } from './pages/Workspace'
 import { useAuthStore } from './store/auth'
@@ -41,6 +42,11 @@ const Nav = () => {
           {isAdmin && (
             <NavLink to="/admin/shell" className={({ isActive }) => `topnav-link${isActive ? ' active' : ''}`}>
               ShellTask 管理
+            </NavLink>
+          )}
+          {isAdmin && (
+            <NavLink to="/admin/audit" className={({ isActive }) => `topnav-link${isActive ? ' active' : ''}`}>
+              审计
             </NavLink>
           )}
         </nav>
@@ -167,6 +173,14 @@ function App() {
           element={
             <RequireAdmin>
               <AdminShellPage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/audit"
+          element={
+            <RequireAdmin>
+              <AdminAuditPage />
             </RequireAdmin>
           }
         />
