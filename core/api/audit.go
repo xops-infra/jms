@@ -8,6 +8,23 @@ import (
 	"github.com/xops-infra/jms/model"
 )
 
+func auditLimitOffset(c *gin.Context) (limit, offset int) {
+	limit = 50
+	if c.Query("limit") != "" {
+		if v := cast.ToInt(c.Query("limit")); v > 0 {
+			limit = v
+			if limit > 200 {
+				limit = 200
+			}
+		}
+	}
+	offset = cast.ToInt(c.Query("offset"))
+	if offset < 0 {
+		offset = 0
+	}
+	return limit, offset
+}
+
 // @Summary listLoginAudit
 // @Description 服务器登录审计查询，支持查询用户、IP、时间范围的日志
 // @Tags audit
@@ -29,13 +46,23 @@ func listLoginAudit(c *gin.Context) {
 	if c.Query("user") != "" {
 		req.User = tea.String(c.Query("user"))
 	}
+	limit, offset := auditLimitOffset(c)
+	req.Limit = tea.Int(limit)
+	req.Offset = tea.Int(offset)
 
-	records, err := app.App.DBIo.ListServerLoginRecord(req)
+	records, total, err := app.App.DBIo.ListServerLoginRecord(req)
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, records)
+	hasMore := int64(offset)+int64(len(records)) < total
+	c.JSON(200, gin.H{
+		"items":    records,
+		"total":    total,
+		"limit":    limit,
+		"offset":   offset,
+		"has_more": hasMore,
+	})
 }
 
 // @Summary listScpAudit
@@ -63,11 +90,54 @@ func listScpAudit(c *gin.Context) {
 	if c.Query("action") != "" {
 		req.Action = tea.String(c.Query("action"))
 	}
-	records, err := app.App.DBIo.ListScpRecord(req)
+	limit, offset := auditLimitOffset(c)
+	req.Limit = tea.Int(limit)
+	req.Offset = tea.Int(offset)
+
+	records, total, err := app.App.DBIo.ListScpRecord(req)
+	if err != nil {
+		c.JSON(500, err.Error())
+		return
+	}
+	hasMore := int64(offset)+int64(len(records)) < total
+	c.JSON(200, gin.H{
+		"items":    records,
+		"total":    total,
+		"limit":    limit,
+		"offset":   offset,
+		"has_more": hasMore,
+	})
+}
+
+// @Summary listShellTaskAudit
+// @Description shell task 管理操作审计查询，支持按用户、动作、任务ID、时间范围查询
+// @Tags audit
+// @Accept json
+// @Produce json
+// @Param duration query int false "duration hours 24 = 1 day, 默认查 1 天的记录"
+// @Param user query string false "user"
+// @Param action query string false "action"
+// @Param task_id query string false "task_id"
+// @Success 200 {object} []model.ShellTaskAuditRecord
+// @Router /api/v1/audit/shell-task [get]
+func listShellTaskAudit(c *gin.Context) {
+	req := model.QueryShellTaskAuditRequest{}
+	if c.Query("duration") != "" {
+		req.Duration = tea.Int(cast.ToInt(c.Query("duration")))
+	}
+	if c.Query("user") != "" {
+		req.User = tea.String(c.Query("user"))
+	}
+	if c.Query("action") != "" {
+		req.Action = tea.String(c.Query("action"))
+	}
+	if c.Query("task_id") != "" {
+		req.TaskID = tea.String(c.Query("task_id"))
+	}
+	records, err := app.App.DBIo.ListShellTaskAuditRecord(req)
 	if err != nil {
 		c.JSON(500, err.Error())
 		return
 	}
 	c.JSON(200, records)
-
 }

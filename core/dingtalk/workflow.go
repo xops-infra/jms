@@ -149,7 +149,6 @@ func LoadApproval() {
 		log.Errorf("SetAccessToken failed! %s", err)
 		return
 	}
-	log.Infof("tonkens: %s", app.App.Scheduler.DingTalkClient.AccessToken.Token)
 	// 获取审批列表
 	policies, err := app.App.DBIo.QueryAllPolicy()
 	if err != nil {

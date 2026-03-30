@@ -7,6 +7,8 @@ type QueryScpRequest struct {
 	KeyWord  *string `json:"keyWord"`
 	User     *string `json:"user"`
 	Action   *string `json:"action"`
+	Limit    *int    `json:"limit"`
+	Offset   *int    `json:"offset"`
 }
 
 type AddScpRecordRequest struct {

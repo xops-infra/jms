@@ -37,6 +37,10 @@ func ServerShellRun() error {
 	wg := sync.WaitGroup{}
 	for _, task := range tasks {
 		log.Debugf("shell task: %s", tea.Prettify(task))
+		if !task.IsEnabled {
+			log.Debugf("shell task %s disabled, skip", task.UUID)
+			continue
+		}
 		if task.Status == model.StatusPending {
 			// 状态更新
 			err = app.App.DBIo.UpdateShellTaskStatus(task.UUID, model.StatusRunning, "")
@@ -153,6 +157,13 @@ func runShell(server model.Server, task model.ShellTask, sshUsers []model.SSHUse
 		}
 	}()
 
+	if len(sshUsers) == 0 {
+		err := fmt.Errorf("no ssh user configured for server %s", server.Host)
+		req.IsSuccess = tea.Bool(false)
+		req.Output = tea.String(err.Error())
+		return err
+	}
+
 	for _, sshUser := range sshUsers {
 		// TODO: 支持指定用户执行命令，目前随机选择一个
 		proxyClient, client, err := sshd.NewSSHClient("system_run_shell", server, sshUser)
@@ -190,7 +201,7 @@ func serverCronRun() {
 		log.Errorf("list shell task error: %s", err)
 	}
 	for _, task := range tasks {
-		if task.Corn == "" || task.Status == model.StatusRunning {
+		if !task.IsEnabled || task.Corn == "" || task.Status == model.StatusRunning {
 			continue
 		}
 		// 校验时间

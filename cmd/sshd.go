@@ -191,8 +191,15 @@ func sessionHandler(sess *ssh.Session) {
 		app.App.Sshd.UserCache.Add(user, 1, cache.DefaultExpiration)
 	}
 
-	rawCmd := (*sess).RawCommand()
+	rawCmd := strings.TrimSpace((*sess).RawCommand())
 	log.Debugf("rawCmd: %s\n", rawCmd)
+	// 交互式 ssh（shell 请求）协议上无远程命令，RawCommand 为空；与 elfgzp/ssh 文档一致：
+	// Command() 为空表示用户请求 shell。
+	if rawCmd == "" {
+		log.Warnf("user: %s, remote addr: %s login success (interactive)", user, remote)
+		sshHandler(sess)
+		return
+	}
 	cmd, args, err := sshd.ParseRawCommand(rawCmd)
 	if err != nil {
 		sshd.ErrorInfo(err, sess)

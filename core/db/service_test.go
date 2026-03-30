@@ -99,7 +99,7 @@ func TestListServerLoginRecord(t *testing.T) {
 		Duration: tea.Int(4),
 		User:     tea.String("zhoushoujian"),
 	}
-	records, err := app.App.DBIo.ListServerLoginRecord(req)
+	records, _, err := app.App.DBIo.ListServerLoginRecord(req)
 	if err != nil {
 		t.Error(err)
 		return

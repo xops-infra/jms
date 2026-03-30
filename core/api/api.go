@@ -54,9 +54,13 @@ func createApproval(c *gin.Context) {
 			})
 		}
 
+		commentLabel := *req.Applicant
+		if req.Name != nil && *req.Name != "" {
+			commentLabel = *req.Name
+		}
 		values = append(values, dt.FormComponentValue{
 			Name:  tea.String("Comment"),
-			Value: tea.String(fmt.Sprintf("%s -来自API接口发起的策略申请", *req.Name)),
+			Value: tea.String(fmt.Sprintf("%s -来自API接口发起的策略申请", commentLabel)),
 		})
 		if req.Actions != nil {
 			var vString []string

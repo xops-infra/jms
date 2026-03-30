@@ -6,6 +6,8 @@ type QueryLoginRequest struct {
 	User     *string `json:"user"`
 	Ip       *string `json:"ip"`
 	Duration *int    `json:"duration" default:"24"` // 24 hours
+	Limit    *int    `json:"limit"`
+	Offset   *int    `json:"offset"`
 }
 
 type AddSshLoginRequest struct {

@@ -12,7 +12,26 @@ import (
 Shell API 提供了一个接口让用户能够对管理的机器执行脚本的操作。并支持查看执行的日志。
 */
 
+func (d *DBService) ensureShellTaskSchema() error {
+	d.shellTaskSchemaOnce.Do(func() {
+		if d.DB == nil {
+			return
+		}
+		migrator := d.DB.Migrator()
+		if !migrator.HasTable(&ShellTask{}) {
+			return
+		}
+		if !migrator.HasColumn(&ShellTask{}, "IsEnabled") {
+			d.shellTaskSchemaErr = migrator.AddColumn(&ShellTask{}, "IsEnabled")
+		}
+	})
+	return d.shellTaskSchemaErr
+}
+
 func (d *DBService) CreateShellTask(req CreateShellTaskRequest) (string, error) {
+	if err := d.ensureShellTaskSchema(); err != nil {
+		return "", err
+	}
 	if req.Name == nil || req.Shell == nil || req.Servers == nil {
 		return "", fmt.Errorf("invalid request. check required fields")
 	}
@@ -36,10 +55,18 @@ func (d *DBService) CreateShellTask(req CreateShellTaskRequest) (string, error) 
 		Name:         *req.Name,
 		Shell:        *req.Shell,
 		ServerFilter: *req.Servers,
+		IsEnabled:    true,
 		Status:       StatusPending,
+		SubmitUser:   "",
+	}
+	if req.SubmitUser != nil {
+		task.SubmitUser = *req.SubmitUser
 	}
 	if req.Corn != nil {
 		task.Corn = *req.Corn
+	}
+	if req.IsEnabled != nil {
+		task.IsEnabled = *req.IsEnabled
 	}
 	err = d.DB.Create(&task).Error
 	return task.UUID, err
@@ -47,18 +74,27 @@ func (d *DBService) CreateShellTask(req CreateShellTaskRequest) (string, error) 
 
 // TODO: 支持条件查询
 func (d *DBService) ListShellTask() ([]ShellTask, error) {
+	if err := d.ensureShellTaskSchema(); err != nil {
+		return nil, err
+	}
 	var tasks []ShellTask
-	err := d.DB.Where("is_deleted is false").Find(&tasks).Order("created_at").Error
+	err := d.DB.Where("is_deleted is false").Order("created_at desc").Find(&tasks).Error
 	return tasks, err
 }
 
 func (d *DBService) GetShellTask(uuid string) (*ShellTask, error) {
+	if err := d.ensureShellTaskSchema(); err != nil {
+		return nil, err
+	}
 	var task ShellTask
 	err := d.DB.Where("uuid = ? and is_deleted is false", uuid).First(&task).Error
 	return &task, err
 }
 
 func (d *DBService) UpdateShellTask(uuid string, req *CreateShellTaskRequest) error {
+	if err := d.ensureShellTaskSchema(); err != nil {
+		return err
+	}
 	var task ShellTask
 	err := d.DB.Where("uuid = ? and is_deleted is false", uuid).First(&task).Error
 	if err != nil {
@@ -77,11 +113,30 @@ func (d *DBService) UpdateShellTask(uuid string, req *CreateShellTaskRequest) er
 	if req.Corn != nil {
 		task.Corn = *req.Corn
 	}
+	if req.IsEnabled != nil {
+		task.IsEnabled = *req.IsEnabled
+	}
 	err = d.DB.Save(&task).Error
 	return err
 }
 
+func (d *DBService) UpdateShellTaskEnabled(uuid string, enabled bool) error {
+	if err := d.ensureShellTaskSchema(); err != nil {
+		return err
+	}
+	var task ShellTask
+	err := d.DB.Where("uuid = ? and is_deleted is false", uuid).First(&task).Error
+	if err != nil {
+		return err
+	}
+	task.IsEnabled = enabled
+	return d.DB.Save(&task).Error
+}
+
 func (d *DBService) UpdateShellTaskStatus(uuid string, status Status, output string) error {
+	if err := d.ensureShellTaskSchema(); err != nil {
+		return err
+	}
 	var task ShellTask
 	err := d.DB.Where("uuid = ? and is_deleted is false", uuid).First(&task).Error
 	if err != nil {
@@ -96,11 +151,17 @@ func (d *DBService) UpdateShellTaskStatus(uuid string, status Status, output str
 }
 
 func (d *DBService) DeleteShellTask(uuid string) error {
+	if err := d.ensureShellTaskSchema(); err != nil {
+		return err
+	}
 	// 先查询是否存在
 	var task ShellTask
 	err := d.DB.Where("uuid = ? and is_deleted is false", uuid).First(&task).Error
 	if err != nil {
 		return err
+	}
+	if task.Status == StatusRunning {
+		return fmt.Errorf("running task %s can not be deleted", task.Name)
 	}
 	task.IsDeleted = true
 	return d.DB.Save(&task).Error
@@ -139,6 +200,6 @@ func (d *DBService) QueryShellTaskRecord(query *QueryRecordRequest) ([]ShellTask
 	if query.ServerIP != nil {
 		sql = sql.Where("server_ip = ?", *query.ServerIP)
 	}
-	err := sql.Order("created_at").Find(&records).Error
+	err := sql.Order("created_at desc").Find(&records).Error
 	return records, err
 }

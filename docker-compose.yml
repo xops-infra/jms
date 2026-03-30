@@ -1,4 +1,7 @@
 version: "3"
+x-jms-build: &jms_build
+  context: .
+  dockerfile: Dockerfile
 services: 
   pg:
     image: postgres:16
@@ -11,50 +14,63 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - /root/data:/var/lib/postgresql/data
+      - "./data/pg:/var/lib/postgresql/data"
 
   jms-sshd:
     depends_on:
       - pg
-    restart: always
-    build: 
-      context: .
-      dockerfile: Dockerfile
+    restart: always # 支持 always, on-failure, unless-stopped
+    build: *jms_build
+    image: jms:local
     ports: 
       - "22222:22222"
     environment:
       - TIMEOUT=1800
       - DEBUG=false
     volumes: 
-      - "/opt/jms/config.yaml:/opt/jms/config.yaml"
-      - "/opt/jms/:/opt/jms/"
+      - "${JMS_CONFIG_PATH:-/opt/jms/config.yaml}:/opt/jms/config.yaml:ro"
+      - "${JMS_SSH_DIR:-/opt/jms/.ssh}:/opt/jms/.ssh/" # 持久化数据
+      # 与 withVideo.dir 一致；不挂载则日志只在容器内，宿主机 /opt/jms/audit 为空
+      - "${JMS_AUDIT_DIR:-/opt/jms/audit}:/opt/jms/audit"
 
   jms-scheduler:
     depends_on:
       - pg
     restart: always
-    build: 
-      context: .
-      dockerfile: Dockerfile
+    build: *jms_build
+    image: jms:local
     ports: 
       - "6060:6060"
     environment:
       - DEBUG=false
       - SCHEDULER=true
+      - JMS_DINGTALK_WEB_HOOK_TOKEN=xxx # 钉钉群机器人 token (可选)
     volumes:
-      - "/opt/jms/config.yaml:/opt/jms/config.yaml"
+      - "${JMS_CONFIG_PATH:-/opt/jms/config.yaml}:/opt/jms/config.yaml:ro"
 
   jms-api:
     depends_on:
       - pg
     restart: always
-    build: 
-      context: .
-      dockerfile: Dockerfile
+    build: *jms_build
+    image: jms:local
     ports: 
       - "8013:8013"
     environment:
       - DEBUG=false
-      - API=true
+      - API=true # true为api模式
     volumes: 
-      - "/opt/jms/config.yaml:/opt/jms/config.yaml"
+      - "${JMS_CONFIG_PATH:-/opt/jms/config.yaml}:/opt/jms/config.yaml:ro"
+      - "${JMS_SSH_DIR:-/opt/jms/.ssh}:/opt/jms/.ssh/" # 持久化数据
+      - "${JMS_AUDIT_DIR:-/opt/jms/audit}:/opt/jms/audit"
+
+  jms-web:
+    depends_on:
+      - jms-api
+    restart: always
+    build: *jms_build
+    image: jms:local
+    environment:
+      - WEB=true
+    ports:
+      - "8080:80"

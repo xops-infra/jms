@@ -14,7 +14,9 @@ import (
 	"github.com/google/gops/agent"
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/api"
+	appio "github.com/xops-infra/jms/io"
 	"github.com/xops-infra/jms/model"
+	"github.com/xops-infra/jms/utils"
 )
 
 var apiPort int
@@ -43,10 +45,31 @@ var apiCmd = &cobra.Command{
 		// init app
 		_app := app.NewApplication(debug, logDir, rootCmd.Version, config)
 
+		if app.App.Config.WithLdap.Enable {
+			log.Infof("enable ldap")
+			ldap, err := utils.NewLdap(_app.Config.WithLdap)
+			if err != nil {
+				panic(err)
+			}
+			_app.Sshd.Ldap = ldap
+		}
+
 		if app.App.Config.WithDB.Enable {
 			log.Infof("enable db without automigrate")
 			_app.WithDB(false)
 		}
+
+		if app.App.Config.WithDingtalk.Enable {
+			log.Infof("enable dingtalk for api")
+			_app.WithDingTalk()
+			if !app.App.Config.WithDB.Enable {
+				app.App.Config.WithDingtalk.Enable = false
+				log.Warnf("dingtalk enable but db not enable, disable dingtalk")
+			}
+		}
+
+		// init sshd IO for api usage (ws terminal / file transfer)
+		app.App.Sshd.SshdIO = appio.NewSshd(app.App.DBIo, app.App.Config.LocalServers.ToMapWithHost())
 
 		log.Infof("api server start on port: %d", apiPort)
 		if !debug {

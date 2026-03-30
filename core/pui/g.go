@@ -73,9 +73,6 @@ func (ui *PUI) initHistory() {
 		return
 	}
 	ui.historyFile = file.Name()
-	if err := ui.loadHistoryFromDB(file); err != nil {
-		log.Errorf("load history from db error: %s", err)
-	}
 	_ = file.Close()
 }
 
@@ -289,12 +286,7 @@ func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	} else {
 		ui.sessionWrite(fmt.Sprintf(InfoLabel, app.App.Version, ""))
 	}
-	prompt := promptui.Prompt{
-		Label:  "请输入关键字，回车进行过滤后选择",
-		Stdin:  *ui.sess,
-		Stdout: *ui.sess,
-	}
-	filter, err := prompt.Run()
+	filter, err := ui.readFilterInput()
 	if err != nil {
 		// ^C ^D is not error
 		if err.Error() == "^C" {
@@ -310,55 +302,19 @@ func (ui *PUI) inputFilter(broadcast *Broadcast) (string, error) {
 	return filter, nil
 }
 
-func (ui *PUI) loadHistoryFromDB(file *os.File) error {
-	if !app.App.Config.WithDB.Enable || app.App.DBIo == nil {
-		return nil
-	}
-	user := ui.getUsername()
-	if user == "" {
-		return nil
-	}
-	records, err := app.App.DBIo.ListSearchHistory(user, 20)
-	if err != nil {
-		return err
-	}
-	// write from oldest to newest for readline history
-	for i := len(records) - 1; i >= 0; i-- {
-		keyword := strings.TrimSpace(records[i].Keyword)
-		if keyword == "" {
-			continue
-		}
-		if _, err := file.WriteString(keyword + "\n"); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (ui *PUI) saveSearchHistory(filter string) {
-	filter = strings.TrimSpace(filter)
-	if filter == "" || filter == "^C" {
-		return
-	}
-	if !app.App.Config.WithDB.Enable || app.App.DBIo == nil {
-		return
-	}
-	user := ui.getUsername()
-	if user == "" {
-		return
-	}
-	if err := app.App.DBIo.AddSearchHistory(user, filter, 20); err != nil {
-		log.Errorf("add search history error: %s", err)
-	}
-}
-
 func (ui *PUI) readFilterInput() (string, error) {
 	cfg := &readline.Config{
-		Prompt:         "请输入关键字，回车进行过滤后选择: ",
-		Stdin:          *ui.sess,
-		Stdout:         *ui.sess,
-		HistoryLimit:   100,
-		UniqueEditLine: true,
+		Prompt:              "请输入关键字，回车进行过滤后选择: ",
+		Stdin:               *ui.sess,
+		Stdout:              *ui.sess,
+		HistoryLimit:        100,
+		UniqueEditLine:      true,
+		ForceUseInteractive: true,
+		FuncIsTerminal:      func() bool { return true },
+		FuncMakeRaw:         func() error { return nil },
+		FuncExitRaw:         func() error { return nil },
+		FuncGetWidth:        ui.sessionWidth,
+		FuncOnWidthChanged:  func(func()) {},
 	}
 	if ui.historyFile != "" {
 		cfg.HistoryFile = ui.historyFile
@@ -385,6 +341,17 @@ func (ui *PUI) readFilterInput() (string, error) {
 		}
 	}
 	return strings.TrimSpace(line), nil
+}
+
+func (ui *PUI) sessionWidth() int {
+	if ui == nil || ui.sess == nil {
+		return 80
+	}
+	pty, _, ok := (*ui.sess).Pty()
+	if ok && pty.Window.Width > 0 {
+		return pty.Window.Width
+	}
+	return 80
 }
 
 // ShowMainMenu show main menu
