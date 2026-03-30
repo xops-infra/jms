@@ -51,10 +51,13 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "do_push=true" >> "$GITHUB_OUTPUT"
+            DATE_TAG=$(date -u +%Y%m%d)
+            SHORT_SHA="${GITHUB_SHA:0:7}"
             {
               echo 'tags<<EOF'
               echo "${DOCKER_USER}/jms:latest"
               echo "${DOCKER_USER}/jms:${GITHUB_SHA}"
+              echo "${DOCKER_USER}/jms:${DATE_TAG}-${SHORT_SHA}"
               echo EOF
             } >> "$GITHUB_OUTPUT"
           else
