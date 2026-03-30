@@ -64,6 +64,8 @@ export const TerminalView = ({
   const fitRef = useRef<FitAddon | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const pingRef = useRef<number | null>(null)
+  const resizeFrameRef = useRef<number | null>(null)
+  const scheduleFitRef = useRef<() => void>(() => {})
   const sessionIdRef = useRef(sessionId)
   const onSessionIdRef = useRef(onSessionId)
   const onStateChangeRef = useRef(onStateChange)
@@ -81,6 +83,41 @@ export const TerminalView = ({
   }, [onStateChange])
 
   useEffect(() => {
+    const fitTerminal = () => {
+      const fit = fitRef.current
+      const term = termRef.current
+      const container = containerRef.current
+      if (!fit || !term || !container) return
+      if (container.clientWidth === 0 || container.clientHeight === 0) return
+
+      fit.fit()
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
+      }
+    }
+
+    const scheduleFit = () => {
+      if (resizeFrameRef.current !== null) {
+        window.cancelAnimationFrame(resizeFrameRef.current)
+      }
+      resizeFrameRef.current = window.requestAnimationFrame(() => {
+        resizeFrameRef.current = null
+        fitTerminal()
+      })
+    }
+
+    scheduleFitRef.current = scheduleFit
+
+    return () => {
+      if (resizeFrameRef.current !== null) {
+        window.cancelAnimationFrame(resizeFrameRef.current)
+        resizeFrameRef.current = null
+      }
+      scheduleFitRef.current = () => {}
+    }
+  }, [])
+
+  useEffect(() => {
     if (!containerRef.current || termRef.current) return
     const term = new Terminal({
       fontFamily: '"Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
@@ -95,20 +132,29 @@ export const TerminalView = ({
     const fit = new FitAddon()
     term.loadAddon(fit)
     term.open(containerRef.current)
-    fit.fit()
     termRef.current = term
     fitRef.current = fit
+    scheduleFitRef.current()
 
     const handleResize = () => {
-      fit.fit()
-      const cols = term.cols
-      const rows = term.rows
-      wsRef.current?.send(JSON.stringify({ type: 'resize', cols, rows }))
+      scheduleFitRef.current()
+    }
+
+    const observer = new ResizeObserver(() => {
+      handleResize()
+    })
+    observer.observe(containerRef.current)
+
+    if (document.fonts) {
+      void document.fonts.ready.then(() => {
+        handleResize()
+      })
     }
 
     window.addEventListener('resize', handleResize)
     return () => {
       window.removeEventListener('resize', handleResize)
+      observer.disconnect()
       term.dispose()
       termRef.current = null
       fitRef.current = null
@@ -150,6 +196,7 @@ export const TerminalView = ({
 
     ws.onopen = () => {
       opened = true
+      scheduleFitRef.current()
       onStateChangeRef.current?.({ phase: 'live' })
       term.writeln('\u001b[38;5;82mConnected\u001b[0m')
     }

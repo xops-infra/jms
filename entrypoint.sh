@@ -1,19 +1,25 @@
 #!/bin/sh
 
-# 判断是否有变量DEBUG 如果有则带上启动参数
-if [ -n "$DEBUG" ] && [ "$DEBUG" = "true" ]; then
-    DEBUG="--debug"
+if [ "${WEB:-}" = "true" ]; then
+    exec nginx -g "daemon off;"
 fi
 
-# 超时时间设置
-if [ -n "$TIMEOUT" ]; then
-    TIMEOUT="--timeout $TIMEOUT"
-fi
+set -- /usr/bin/jms-go
 
-if [ -n "$API" ] && [ "$API" = "true" ]; then
-    /usr/bin/jms-go api $DEBUG
-elif [ -n "$SCHEDULER" ] && [ "$SCHEDULER" = "true" ]; then
-    /usr/bin/jms-go scheduler $DEBUG
+if [ "${API:-}" = "true" ]; then
+    set -- "$@" api
+elif [ "${SCHEDULER:-}" = "true" ]; then
+    set -- "$@" scheduler
 else
-    /usr/bin/jms-go sshd  $DEBUG $TIMEOUT
+    set -- "$@" sshd
 fi
+
+if [ "${DEBUG:-}" = "true" ]; then
+    set -- "$@" --debug
+fi
+
+if [ -n "${TIMEOUT:-}" ] && [ "${API:-}" != "true" ] && [ "${SCHEDULER:-}" != "true" ]; then
+    set -- "$@" --timeout "$TIMEOUT"
+fi
+
+exec "$@"

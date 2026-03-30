@@ -68,9 +68,9 @@ services:
     depends_on:
       - jms-api
     restart: always
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    image: jms-web:local
+    build: *jms_build
+    image: jms:local
+    environment:
+      - WEB=true
     ports:
       - "8080:80"

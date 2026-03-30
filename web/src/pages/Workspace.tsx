@@ -4,7 +4,7 @@ import { FileTransferPanel } from '../components/FileTransferPanel'
 import { TerminalView, type TerminalStateEvent } from '../components/TerminalView'
 import { apiClient } from '../api/client'
 import { useAuthStore } from '../store/auth'
-import { type SSHOption, type ServerItem, type TerminalPhase, RefreshIcon, StatusBadge, splitTagLabels } from './terminalShared'
+import { type SSHOption, type ServerItem, type TerminalPhase, splitTagLabels } from './terminalShared'
 
 type ValidationState = 'loading' | 'ready' | 'blocked'
 
@@ -21,6 +21,12 @@ const mapWorkspaceError = (err: any) => {
 const buildWorkspaceDescription = (host: string, option: SSHOption | null) => {
   const identity = option?.key_name || option?.auth_type || '未指定认证方式'
   return `${host}${option?.user ? ` · ${option.user}` : ''} · ${identity}`
+}
+
+const summarizeSessionId = (value: string) => {
+  const normalized = value.trim()
+  if (normalized.length <= 22) return normalized
+  return `${normalized.slice(0, 8)}...${normalized.slice(-8)}`
 }
 
 export const WorkspacePage = () => {
@@ -217,22 +223,6 @@ export const WorkspacePage = () => {
     setTerminalReason(event.reason || '终端链路已关闭，可重新连接继续操作。')
   }, [])
 
-  const terminalBadge = useMemo(() => {
-    if (terminalPhase === 'connecting') {
-      return { className: 'badge connecting', label: 'CONNECTING' }
-    }
-    if (terminalPhase === 'live') {
-      return { className: 'badge live', label: 'LIVE' }
-    }
-    if (terminalPhase === 'closed') {
-      return { className: 'badge closed', label: 'CLOSED' }
-    }
-    if (terminalPhase === 'disconnected') {
-      return { className: 'badge warning', label: 'OFFLINE' }
-    }
-    return { className: 'badge', label: 'IDLE' }
-  }, [terminalPhase])
-
   const overlayEyebrow = useMemo(() => {
     if (terminalPhase === 'connecting') return 'Linking Session'
     if (terminalPhase === 'closed') return 'Session Complete'
@@ -251,6 +241,26 @@ export const WorkspacePage = () => {
           : '工作区已锁定为当前机器和登录配置，可以直接恢复连接。'
   const connectLabel = terminalPhase === 'connecting' ? '建立中...' : terminalPhase === 'closed' || terminalPhase === 'disconnected' ? '重新连接' : '连接工作区'
   const fileTransferStatus = terminalPhase === 'live' ? '已启用' : '等待终端在线'
+  const workspaceDescription = buildWorkspaceDescription(host || routeHost, sshSelected)
+  const sessionSummary = sessionId ? summarizeSessionId(sessionId) : ''
+  const workspaceStatusTitle =
+    terminalPhase === 'live'
+      ? '终端在线'
+      : terminalPhase === 'connecting'
+        ? '终端连接中'
+        : terminalPhase === 'closed'
+          ? '会话已结束'
+          : terminalPhase === 'disconnected'
+            ? '终端已断开'
+            : '终端未连接'
+  const workspaceStatusClass = terminalPhase === 'live' ? 'live' : 'offline'
+  const footerMetaSummary = [
+    sessionSummary ? `Session: ${sessionSummary}` : '',
+    fileTransferStatus,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const footerTags = selectedTagGroups.primary
 
   // 终端与文件传输必须与当前 URL + 校验通过的登录项一致（优先 sshSelected，避免 state 漂移）
   const effectiveHost = host || routeHost
@@ -307,49 +317,36 @@ export const WorkspacePage = () => {
       <div className={`workspace-layout ${drawerOpen ? 'drawer-open' : 'drawer-closed'}`}>
         <main className="console-main">
           <div className="terminal-card workspace-terminal-card">
-            <div className="terminal-header">
-              <div className="workspace-header-copy">
-                <h2>{overlayTitle}</h2>
-                <p>{buildWorkspaceDescription(host || routeHost, sshSelected)}</p>
+            <div className="terminal-header workspace-header">
+              <div className="workspace-header-main">
+                <div className="workspace-header-copy">
+                  <h2>{overlayTitle}</h2>
+                </div>
               </div>
-              <div className="terminal-meta workspace-header-meta">
-                {selectedServer?.status && <StatusBadge status={selectedServer.status} prefix="状态: " />}
-                {selectedTagGroups.primary.map((tag) => (
-                  <span className="pill" key={tag}>
-                    {tag}
+              <div className="workspace-header-side">
+                <div className="terminal-meta workspace-header-meta">
+                  <span className="workspace-status-indicator" title={workspaceStatusTitle} aria-label={workspaceStatusTitle}>
+                    <span className={`workspace-status-dot ${workspaceStatusClass}`} aria-hidden="true" />
                   </span>
-                ))}
-                {sessionId && <span className="pill">Session: {sessionId}</span>}
-                {sshSelected && (
-                  <span className="pill">
-                    {sshSelected.user} · {sshSelected.key_name || sshSelected.auth_type}
+                  <span className="workspace-header-detail" title={workspaceDescription}>
+                    {workspaceDescription}
                   </span>
-                )}
-                <span className={terminalBadge.className}>{terminalBadge.label}</span>
-                <button
-                  className="icon-button"
-                  onClick={() => {
-                    void validateWorkspace(false)
-                  }}
-                  disabled={sshLoading}
-                  title="重新校验工作区"
-                  aria-label="重新校验工作区"
-                >
-                  <RefreshIcon />
-                </button>
-                {terminalPhase !== 'live' && (
-                  <button className="primary small" onClick={reconnect} disabled={sshLoading || terminalPhase === 'connecting'}>
-                    {connectLabel}
+                </div>
+                <div className="workspace-header-actions">
+                  <button className="ghost small" onClick={() => { void validateWorkspace(false) }} disabled={sshLoading}>
+                    刷新
                   </button>
-                )}
-                <button className="ghost small" onClick={() => { window.location.hash = '#/terminal' }}>
-                  返回首页
-                </button>
-                {active && (
-                  <button className="ghost small" onClick={handleDisconnect}>
-                    断开
-                  </button>
-                )}
+                  {terminalPhase !== 'live' && (
+                    <button className="primary small" onClick={reconnect} disabled={sshLoading || terminalPhase === 'connecting'}>
+                      {connectLabel}
+                    </button>
+                  )}
+                  {active && (
+                    <button className="ghost small" onClick={handleDisconnect}>
+                      断开
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -418,6 +415,26 @@ export const WorkspacePage = () => {
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="workspace-terminal-footer">
+              <div className="workspace-terminal-footer-main">
+                <span className="workspace-terminal-footer-connection" title={workspaceDescription}>
+                  {workspaceDescription}
+                </span>
+                {footerMetaSummary && (
+                  <span className="workspace-terminal-footer-meta">{footerMetaSummary}</span>
+                )}
+              </div>
+              {footerTags.length > 0 && (
+                <div className="workspace-terminal-footer-tags">
+                  {footerTags.map((tag) => (
+                    <span className="pill workspace-terminal-tag" key={tag} title={tag}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </main>
