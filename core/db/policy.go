@@ -39,14 +39,22 @@ func (d *DBService) CreatePolicy(req *model.PolicyRequest) (string, error) {
 }
 
 func (d *DBService) UpdatePolicy(id string, mut *model.PolicyRequest) error {
+	if mut == nil {
+		return fmt.Errorf("policy update request is nil")
+	}
 	policy, err := d.QueryPolicyById(id)
 	if err != nil {
 		return err
 	}
-	updates := map[string]interface{}{
-		"users":            mut.Users,
-		"actions":          mut.Actions,
-		"server_filter_v1": mut.ServerFilterV1,
+	updates := make(map[string]interface{})
+	if mut.Users != nil {
+		updates["users"] = mut.Users
+	}
+	if mut.Actions != nil {
+		updates["actions"] = mut.Actions
+	}
+	if mut.ServerFilterV1 != nil {
+		updates["server_filter_v1"] = mut.ServerFilterV1
 	}
 	if mut.Name != nil {
 		updates["name"] = *mut.Name
@@ -59,6 +67,9 @@ func (d *DBService) UpdatePolicy(id string, mut *model.PolicyRequest) error {
 	}
 	if mut.ApprovalID != nil {
 		updates["approval_id"] = *mut.ApprovalID
+	}
+	if len(updates) == 0 {
+		return nil
 	}
 	return d.DB.Model(policy).Updates(updates).Error
 }

@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -13,6 +14,27 @@ import (
 	"github.com/xops-infra/jms/core/dingtalk"
 	. "github.com/xops-infra/jms/model"
 )
+
+func presentApprovalCreateError(stage string, err error) (int, string) {
+	if err == nil {
+		return http.StatusOK, ""
+	}
+
+	message := err.Error()
+	switch stage {
+	case "create_policy":
+		if strings.Contains(message, "policy already exists") {
+			return http.StatusConflict, "同名申请已存在，请修改申请名称后重试。"
+		}
+		return http.StatusInternalServerError, "提交申请失败，请联系管理员检查策略存储。"
+	case "create_dingtalk":
+		return http.StatusBadGateway, "提交申请失败，审批服务暂不可用，请稍后重试。"
+	case "link_approval":
+		return http.StatusInternalServerError, "审批单已创建，但策略关联失败，请联系管理员处理。"
+	default:
+		return http.StatusInternalServerError, "提交申请失败，请联系管理员处理。"
+	}
+}
 
 // @Summary 创建审批策略
 // @Description 创建策略
@@ -76,7 +98,8 @@ func createApproval(c *gin.Context) {
 		policyId, err := app.App.DBIo.CreatePolicy(req.ToPolicyMut())
 		if err != nil {
 			log.Errorf("JmsDBService.CreatePolicy error: %s", err)
-			c.JSON(500, err.Error())
+			status, msg := presentApprovalCreateError("create_policy", err)
+			c.String(status, msg)
 			return
 		}
 		// 再创建审批
@@ -87,15 +110,17 @@ func createApproval(c *gin.Context) {
 			if err := app.App.DBIo.DeletePolicy(policyId); err != nil {
 				log.Errorf("JmsDBService.DeletePolicy error: %s", err)
 			}
-			c.JSON(500, err.Error())
+			status, msg := presentApprovalCreateError("create_dingtalk", err)
+			c.String(status, msg)
 			return
 		}
 		err = app.App.DBIo.UpdatePolicy(policyId, &PolicyRequest{
 			ApprovalID: &processid,
 		})
 		if err != nil {
-			log.Errorf("JmsDBService.UpdatePolicy error: %s", err)
-			c.JSON(500, err.Error())
+			log.Errorf("JmsDBService.UpdatePolicy error, policy id: %s, approval id: %s, err: %s", policyId, processid, err)
+			status, msg := presentApprovalCreateError("link_approval", err)
+			c.String(status, msg)
 			return
 		}
 		c.JSON(200, policyId)

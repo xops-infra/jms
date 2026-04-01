@@ -13,6 +13,32 @@ import {
   tokenizeQuery,
 } from './terminalShared'
 
+const padApprovalPart = (value: number, width = 2) => value.toString().padStart(width, '0')
+
+const formatApprovalTimestamp = (value: Date) =>
+  `${value.getFullYear()}${padApprovalPart(value.getMonth() + 1)}${padApprovalPart(value.getDate())}-${padApprovalPart(value.getHours())}${padApprovalPart(value.getMinutes())}${padApprovalPart(value.getSeconds())}${padApprovalPart(value.getMilliseconds(), 3)}`
+
+const buildDefaultApprovalName = (host: string) => `connect-${host}-${formatApprovalTimestamp(new Date())}`
+
+const mapApprovalError = (err: any) => {
+  const status = err?.response?.status
+  const responseText = typeof err?.response?.data === 'string' ? err.response.data.trim() : ''
+
+  if (responseText.includes('policy already exists') || responseText.includes('同名申请已存在')) {
+    return '同名申请已存在，请修改申请名称后重试。'
+  }
+  if (responseText.includes('null value in column "users"') || responseText.includes('审批单已创建，但策略关联失败')) {
+    return '审批单可能已创建，但策略关联失败，请联系管理员处理。'
+  }
+  if (status === 400) {
+    return responseText || '申请参数不完整，请检查后重试。'
+  }
+  if (responseText && !/SQLSTATE|jms_go_policy|null value in column/i.test(responseText)) {
+    return responseText
+  }
+  return '提交申请失败，请稍后重试或联系管理员。'
+}
+
 type HomeSelectionPanelProps = {
   selectedServer: ServerItem | null
   selectedSSHUser: string
@@ -325,7 +351,7 @@ export const TerminalPage = () => {
       setApprovalStatus('')
       return
     }
-    setApprovalName(`connect-${selectedServer.host}-${new Date().toISOString().slice(0, 10)}`)
+    setApprovalName(buildDefaultApprovalName(selectedServer.host))
     setApprovalStatus('')
   }, [selectedServer?.host, selectedServer?.allowed])
 
@@ -343,7 +369,7 @@ export const TerminalPage = () => {
     setApprovalSubmitting(true)
     setApprovalStatus('')
     try {
-      const name = approvalName.trim() || `web-access-${new Date().toISOString()}`
+      const name = approvalName.trim() || buildDefaultApprovalName(selectedServer.host)
       const ids = selectedServer.id ? [selectedServer.id] : []
       const names = [selectedServer.name || selectedServer.host]
       const hosts = [selectedServer.host]
@@ -362,7 +388,7 @@ export const TerminalPage = () => {
       })
       setApprovalStatus('已提交申请')
     } catch (err: any) {
-      setApprovalStatus(err?.response?.data || err?.message || '提交失败')
+      setApprovalStatus(mapApprovalError(err))
     } finally {
       setApprovalSubmitting(false)
     }
