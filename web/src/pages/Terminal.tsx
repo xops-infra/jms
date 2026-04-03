@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { apiClient } from '../api/client'
+import { usePageFullscreen } from '../hooks/usePageFullscreen'
 import { useAuthStore } from '../store/auth'
 import {
   type SSHOption,
@@ -250,6 +251,7 @@ export const TerminalPage = () => {
   const [approvalStatus, setApprovalStatus] = useState('')
   const [approvalSubmitting, setApprovalSubmitting] = useState(false)
   const [launchStatus, setLaunchStatus] = useState('')
+  const { isPageFullscreen: homePageFullscreen, togglePageFullscreen: toggleHomePageFullscreen } = usePageFullscreen()
 
   useEffect(() => {
     document.title = 'JMS Web Console'
@@ -415,7 +417,7 @@ export const TerminalPage = () => {
 
   return (
     <div className="page console-page">
-      <div className="console-layout terminal-home-layout">
+      <div className={`console-layout terminal-home-layout${homePageFullscreen ? ' is-page-fullscreen' : ''}`}>
         <aside className="console-sidebar">
           <div className="panel">
             <div className="panel-header">
@@ -424,6 +426,19 @@ export const TerminalPage = () => {
                 <p>先选择机器，再在右侧详情区打开独立工作区</p>
               </div>
               <div className="panel-actions">
+                <button
+                  type="button"
+                  className="ghost small"
+                  onClick={() => { toggleHomePageFullscreen() }}
+                  title={
+                    homePageFullscreen
+                      ? '退出全屏 (Shift+Esc)'
+                      : '全屏：在当前标签内铺满窗口；Shift+Esc 退出'
+                  }
+                  aria-pressed={homePageFullscreen}
+                >
+                  {homePageFullscreen ? '退出全屏' : '全屏'}
+                </button>
                 <button
                   className="icon-button"
                   onClick={fetchServers}

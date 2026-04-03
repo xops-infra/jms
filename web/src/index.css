@@ -837,6 +837,71 @@ button:disabled {
   --drawer-width: 384px;
 }
 
+/* 工作区网页全屏（.is-page-fullscreen），不含右侧文件传输 */
+.terminal-card.workspace-terminal-card.is-page-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.terminal-card.workspace-terminal-card.is-page-fullscreen .terminal-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* 终端首页网页全屏 */
+.console-layout.terminal-home-layout.is-page-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  padding: 12px 16px 16px;
+  box-sizing: border-box;
+  margin: 0;
+  background:
+    radial-gradient(800px 500px at 10% 10%, #fff2d9 0%, transparent 60%),
+    radial-gradient(900px 700px at 90% 5%, #dff0ff 0%, transparent 60%),
+    linear-gradient(120deg, var(--bg), var(--bg-2));
+  align-items: stretch;
+}
+
+.console-layout.terminal-home-layout.is-page-fullscreen .console-sidebar {
+  max-height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+.console-layout.terminal-home-layout.is-page-fullscreen .console-main {
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+}
+
+.console-layout.terminal-home-layout.is-page-fullscreen .terminal-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+}
+
+.console-layout.terminal-home-layout.is-page-fullscreen .terminal-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .console-sidebar {
   display: grid;
   gap: 16px;

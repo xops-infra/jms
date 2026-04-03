@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { FileTransferPanel } from '../components/FileTransferPanel'
 import { TerminalView, type TerminalStateEvent } from '../components/TerminalView'
 import { apiClient } from '../api/client'
+import { usePageFullscreen } from '../hooks/usePageFullscreen'
 import { useAuthStore } from '../store/auth'
 import { type SSHOption, type ServerItem, type TerminalPhase, splitTagLabels } from './terminalShared'
 
@@ -56,6 +57,7 @@ export const WorkspacePage = () => {
   const [host, setHost] = useState('')
   const [sshUser, setSshUser] = useState('')
   const [sshKey, setSshKey] = useState('')
+  const { isPageFullscreen, togglePageFullscreen } = usePageFullscreen()
 
   const workspaceLabel = useMemo(
     () => (routeHost ? `${routeHost}${routeUser ? ` · ${routeUser}` : ''} | JMS Workspace` : 'JMS Workspace'),
@@ -316,7 +318,7 @@ export const WorkspacePage = () => {
     <div className="page console-page">
       <div className={`workspace-layout ${drawerOpen ? 'drawer-open' : 'drawer-closed'}`}>
         <main className="console-main">
-          <div className="terminal-card workspace-terminal-card">
+          <div className={`terminal-card workspace-terminal-card${isPageFullscreen ? ' is-page-fullscreen' : ''}`}>
             <div className="terminal-header workspace-header">
               <div className="workspace-header-main">
                 <div className="workspace-header-copy">
@@ -333,6 +335,19 @@ export const WorkspacePage = () => {
                   </span>
                 </div>
                 <div className="workspace-header-actions">
+                  <button
+                    type="button"
+                    className="ghost small"
+                    onClick={() => { togglePageFullscreen() }}
+                    title={
+                      isPageFullscreen
+                        ? '退出全屏 (Shift+Esc)'
+                        : '全屏：在当前标签内铺满窗口（不含文件传输侧栏）；Shift+Esc 退出'
+                    }
+                    aria-pressed={isPageFullscreen}
+                  >
+                    {isPageFullscreen ? '退出全屏' : '全屏'}
+                  </button>
                   <button className="ghost small" onClick={() => { void validateWorkspace(false) }} disabled={sshLoading}>
                     刷新
                   </button>
