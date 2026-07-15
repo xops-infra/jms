@@ -209,6 +209,8 @@ func sessionHandler(sess *ssh.Session) {
 	switch cmd {
 	case "exec":
 		execHandler(sess)
+	case "targets", "users", "run":
+		nonInteractiveSSHHandler(cmd, args, sess)
 	case "scp":
 		scpHandler(args, sess)
 	case "exit":

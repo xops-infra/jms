@@ -1,0 +1,4 @@
+interface:
+  display_name: "JMS SSH"
+  short_description: "Use JMS securely through non-interactive SSH commands"
+  default_prompt: "Use $jms-ssh to discover an allowed server and run a safe command through JMS."

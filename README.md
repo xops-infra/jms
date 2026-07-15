@@ -109,6 +109,24 @@
   $ ssh -p 22222 jms@localhost
   # 这里可以看到连接成功后的提示信息，且可连接的服务器数量为 0，因为没有配置云账号信息。
 
+  # 非交互命令要求公钥认证并启用数据库；查询当前用户有权限的服务器
+  $ ssh -p 22222 zhoushoujian@localhost targets --format json
+
+  # 查询目标服务器可用的 SSH 用户；target 支持精确的服务器 ID、名称或 IP
+  $ ssh -p 22222 zhoushoujian@localhost users --target 192.168.1.1 --format json
+
+  # 在目标服务器执行非交互命令；本地 SSH 退出码与目标命令退出码一致
+  $ ssh -p 22222 zhoushoujian@localhost run --target 192.168.1.1 --user ec2-user -- uname -a
+
+  # 管道、重定向等 shell 语法必须通过 --shell 显式传入
+  $ ssh -p 22222 zhoushoujian@localhost run --target 192.168.1.1 --user ec2-user --shell 'df -h | grep /data'
+
+  # AI 可用 base64 传递包含复杂引号的脚本，避免 OpenSSH 参数拼接导致歧义
+  $ ssh -p 22222 zhoushoujian@localhost run --target 192.168.1.1 --user ec2-user --shell-base64 "$(printf '%s' 'printf \"%s\\n\" \"hello world\"' | base64)"
+
+  # 同名 SSH 用户存在多把密钥时，使用 --key 精确指定
+  $ ssh -p 22222 zhoushoujian@localhost run --target 192.168.1.1 --user ec2-user --key my-key.pem -- id
+
   # 配置免密登录，需要启用数据库或者 ladp 认证后才能实现
   # ssh-copy-id -p 22222 登录用户@jms域名
   $ ssh-copy-id -p 22222 zhoushoujian@localhost
