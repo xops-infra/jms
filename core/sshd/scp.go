@@ -83,6 +83,23 @@ func (r *response) GetMessage() string {
 	return r.Message
 }
 
+// scpTarget 定位 -t/-f 标志并返回其后紧跟的目标参数。
+// 之前实现固定取 args[1]，当命令包含额外 flag（如 scp -v -t <target>，
+// OpenSSH 在带 -v 调试或部分客户端下会注入）时，args[1] 会是 flag 本身而非目标，
+// 导致 ExtractIP 报 "no IP address found in input" 并断开。
+// 这里改为按 flag 的位置取下一个参数，兼容任意前置 flag。
+func scpTarget(args []string) (string, error) {
+	for i, arg := range args {
+		if arg == "-t" || arg == "-f" {
+			if i+1 >= len(args) {
+				return "", fmt.Errorf("scp: missing target after %s", arg)
+			}
+			return args[i+1], nil
+		}
+	}
+	return "", errors.New("scp: neither -t nor -f flag found in args")
+}
+
 // ExecuteSCP ExecuteSCP
 func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 	defer func() {
@@ -103,14 +120,19 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 	for _, arg := range args {
 		if arg == "-t" || arg == "-f" {
 			log.Debugf("arg: %s", arg)
+			target, err := scpTarget(args)
+			if err != nil {
+				replyErr(*clientSess, err)
+				return err
+			}
 			switch arg {
 			case "-t":
-				err := app.App.Sshd.SshdIO.CheckPermission(args[1], user, Upload)
+				err := app.App.Sshd.SshdIO.CheckPermission(target, user, Upload)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
 				}
-				err = copyToServer(args, clientSess)
+				err = copyToServer(args, target, clientSess)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -118,12 +140,12 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 				(*clientSess).Close()
 				return nil
 			case "-f":
-				err := app.App.Sshd.SshdIO.CheckPermission(args[1], user, Download)
+				err := app.App.Sshd.SshdIO.CheckPermission(target, user, Download)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
 				}
-				err = copyFromServer(args, clientSess)
+				err = copyFromServer(target, clientSess)
 				if err != nil {
 					replyErr(*clientSess, err)
 					return err
@@ -136,7 +158,7 @@ func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 	return errors.New("this feature is not currently supported")
 }
 
-func copyToServer(args []string, clientSess *ssh.Session) error {
+func copyToServer(args []string, target string, clientSess *ssh.Session) error {
 	err := replyOk(*clientSess)
 	if err != nil {
 		return err
@@ -163,7 +185,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 			return fmt.Errorf("unexpected count in reading start directory message header: n=%d", 3)
 		}
 
-		err = copyFileToServer(bufferedReader, size, filename, args[1], perm, clientSess)
+		err = copyFileToServer(bufferedReader, size, filename, target, perm, clientSess)
 		if err != nil {
 			return err
 		}
@@ -171,7 +193,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 			err = app.App.DBIo.AddScpRecord(&AddScpRecordRequest{
 				Action: tea.String("upload"),
 				From:   tea.String(filename),
-				To:     tea.String(args[1]), // root@10.9.x.x:/data/xx.zip
+				To:     tea.String(target), // root@10.9.x.x:/data/xx.zip
 				User:   tea.String((*clientSess).User()),
 				Client: tea.String((*clientSess).RemoteAddr().String()),
 			})
@@ -180,7 +202,7 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 			}
 		}
 
-		log.Infof("user %s upload file %s to %s success", (*clientSess).User(), filename, args[1])
+		log.Infof("user %s upload file %s to %s success", (*clientSess).User(), filename, target)
 		return nil
 	case flagEndDirectory:
 	case flagStartDirectory:
@@ -192,8 +214,8 @@ func copyToServer(args []string, clientSess *ssh.Session) error {
 	return nil
 }
 
-func copyFromServer(args []string, sess *ssh.Session) error {
-	sshUser, server, filePath, err := app.App.Sshd.SshdIO.GetSSHUserAndServerByScpPath(args[1])
+func copyFromServer(target string, sess *ssh.Session) error {
+	sshUser, server, filePath, err := app.App.Sshd.SshdIO.GetSSHUserAndServerByScpPath(target)
 	if err != nil {
 		return err
 	}
@@ -291,7 +313,7 @@ func copyFromServer(args []string, sess *ssh.Session) error {
 				err = app.App.DBIo.AddScpRecord(&AddScpRecordRequest{
 					Action: tea.String("download"),
 					To:     tea.String(filename),
-					From:   tea.String(args[1]), // root@10.9.x.x:/data/xxx.json
+					From:   tea.String(target), // root@10.9.x.x:/data/xxx.json
 					User:   tea.String((*sess).User()),
 					Client: tea.String((*sess).RemoteAddr().String()),
 				})
@@ -299,7 +321,7 @@ func copyFromServer(args []string, sess *ssh.Session) error {
 					log.Errorf("record scp download file to db failed: %v", err)
 				}
 			}
-			log.Infof("user %s download file %s from %s success", (*sess).User(), filename, args[1])
+			log.Infof("user %s download file %s from %s success", (*sess).User(), filename, target)
 			return
 		case flagEndDirectory:
 		case flagStartDirectory:
