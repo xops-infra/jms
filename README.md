@@ -1,248 +1,198 @@
-## 1. 简介
-
-`jms`是一款轻量级的云服务器链接工具，
-
-- 登录认证方式
-  1. 支持 ldap 登录认证；
-  2. 数据库用户认证；
-  3. 默认 jms/jms 用户认证；
-- 支持多云服务器资产自动发现
-  1. aws
-  2. tencent
-- 支持权限管理
-  1. 基于用户组的权限管理；
-  2. 基于机器标签的权限管理；
-  3. [设计文档](https://www.yuque.com/motobox/enpuok/tzshwswnr7dhh6xp)
-- 支持审批功能；
-  1. jms 内置审批功能（普通用户 cli 发起，admin 用户 可以在 cli 审批）；
-  2. 钉钉审批功能；
-- 支持文件上传下载；
-- 支持 Proxy 功能；
-- 支持审计功能：
-  1. 支持操作日志回放功能，文本文件方式记录标准输入输出；
-  2. 支持文件上传下载行为入表 `record_scp`；
-  3. 支持服务器登录行为入表 `record_ssh_login`；
-- 支持服务器 SSH 可以连接性异常钉钉告警；
-- 支持批脚本执行；
-  1. 支持选定服务器；
-  2. 支持定时任务反复执行；
-  3. 支持接口任务执行结果，入参支持任务，或者某个服务器所有的执行历史；
-  4. 执行状态，包括 "Pending", "Running", "Success", "Failed", "NotAllSuccess", "Cancelled"
-- 支持设置全局通知功能；
-
-## 2. 部署手册
-
-- 准备工作：
-
-  - （必须）云账号 AKSK（需要服务器查询权限）；
-  - （必须）配置文件 `config.yml`，[配置介绍](config.yaml)；
-  - （可选）ldap 认证账号；
-  - （可选）钉钉审批；
-
-- 启动 Server
-
-  ```bash
-  # 启动命令介绍
-  $ jms sshd -h
-  start sshd server as proxy server
-
-  Usage:
-    jms sshd [flags]
-
-  Flags:
-    -h, --help             help for sshd
-        --log-dir string   log dir (default "/opt/jms/logs/")
-        --port int         ssh port (default 22222)
-        --timeout int      ssh timeout (default 1800)
-
-  Global Flags:
-    -c, --config string   config file (default is /opt/jms/config.yaml) (default "/opt/jms/config.yaml")
-    -d, --debug           debug mode
-
-  # 启动
-  $ jms sshd --port 22222 --timeout 1800 --log-dir /opt/jms/logs/ --config ./config.yaml
-
-  2024-04-28T20:52:59.706+0800    INFO    cmd/sshd.go:41  config file: /opt/jms/config.yaml
-  2024-04-28T20:53:06.102+0800    INFO    cmd/sshd.go:74  enable policy
-  2024-04-28T20:53:06.104+0800    INFO    instance/server.go:34   get instances profile: tencent-xxx region: ap-beijing
-  2024-04-28T20:53:16.613+0800    INFO    cmd/sshd.go:114 starting ssh server on port 22222 timeout 1800...
+# jms
 
+`jms` 是一款轻量级、开源的 SSH 堡垒机。它通过统一的 SSH 入口提供多云资产发现、访问控制、操作审计、文件传输和批量任务，并支持人类使用的交互式 TUI 与 AI/自动化使用的非交互命令。
 
-  ```
+## 功能
 
-- 启动 API 管理接口
+- SSH TUI：选择目标服务器和 SSH 用户后进入终端。
+- 身份认证：支持数据库用户、LDAP 和 SSH 公钥认证。
+- 资产管理：支持 AWS、腾讯云及本地静态资产。
+- 权限控制：支持按用户组、资产标签和上传/下载操作授权。
+- 审批：支持内置审批及钉钉审批。
+- 代理：可通过 SSH Proxy 访问隔离网络中的资产。
+- 审计：记录终端会话、SSH 登录、文件传输和非交互命令。
+- 文件传输：通过堡垒机执行单文件 SCP 上传和下载。
+- 任务调度：支持批量 Shell 任务、定时执行和结果查询。
+- Web 与 API：提供管理界面、Web 终端及 Swagger API 文档。
+- 自动化：使用原生 SSH 公钥身份执行资产查询和远程命令，无需为 AI 单独签发 API 凭据。
 
-  为了配合权限、用户、Key、云账号等信息的管理，提供了 API 管理接口，可以通过 API 方式管理 Key 和云账号 Profile。
+## 组件
 
-  ```bash
-  # 启动命令介绍
-  $ jms api -h
-  api server for jms, must withDB
-          swagger url: http://localhost:8013/swagger/index.html
+| 组件 | 默认端口 | 用途 |
+| --- | ---: | --- |
+| `jms sshd` | `22222` | SSH TUI、非交互命令和 SCP 入口 |
+| `jms api` | `8013` | 管理 API、Swagger 和 WebSocket 终端后端 |
+| `jms scheduler` | `6060` | 资产同步、任务调度和后台作业 |
+| `jms-web` | `8080` | Web 管理界面和 Web 终端 |
 
-  Usage:
-    jms api [flags]
+## 快速开始
 
-  Flags:
-    -h, --help             help for api
-        --log-dir string   log dir (default "/opt/jms/logs/")
-        --port int         api port (default 8013)
+### Docker Compose
 
-  Global Flags:
-    -c, --config string   config file (default is /opt/jms/config.yaml) (default "/opt/jms/config.yaml")
-    -d, --debug           debug mode
+项目中的 [`docker-compose.yml`](docker-compose.yml) 可启动 PostgreSQL、SSHD、API、Scheduler 和 Web：
 
-  # 启动后可以通过 http://localhost:8013/swagger/index.html 查看 API 文档
-  ```
+```bash
+mkdir -p data/ssh data/audit
 
-  # AD 登录获取 token（需要启用 withLdap 与 withAuth.jwtSecret）
-  $ curl -X POST http://localhost:8013/api/v1/login/ad -d 'user=your_user&password=your_pass'
-  # 返回：{"token":"...","expires_at":...}
+export JMS_CONFIG_PATH="$PWD/config.yaml"
+export JMS_SSH_DIR="$PWD/data/ssh"
+export JMS_AUDIT_DIR="$PWD/data/audit"
 
-  # 下发脚本接口需要管理员 token
-  # Authorization: Bearer <token>
+docker compose up -d --build
+```
 
-- 客户端连接和使用
+启动后可访问：
 
-  ```bash
-  # 连接测试 默认config.yaml 没有使用ladp也没有使用数据库认证，默认用户密码 jms/jms
-  $ ssh -p 22222 jms@localhost
-  # 这里可以看到连接成功后的提示信息，且可连接的服务器数量为 0，因为没有配置云账号信息。
+- SSH：`localhost:22222`
+- Swagger：<http://localhost:8013/swagger/index.html>
+- Web：<http://localhost:8080>
 
-  # 非交互命令要求公钥认证并启用数据库；查询当前用户有权限的服务器
-  $ ssh -p 22222 zhoushoujian@localhost targets --format json
+仓库中的 [`config.yaml`](config.yaml) 仅为示例配置。启用数据库功能时，请先把数据库地址等字段调整为实际环境；Compose 网络内的 PostgreSQL 主机名为 `pg`。
 
-  # 查询目标服务器可用的 SSH 用户；target 支持精确的服务器 ID、名称或 IP
-  $ ssh -p 22222 zhoushoujian@localhost users --target 192.168.1.1 --format json
+### 从源码运行
 
-  # 在目标服务器执行非交互命令；本地 SSH 退出码与目标命令退出码一致
-  $ ssh -p 22222 zhoushoujian@localhost run --target 192.168.1.1 --user ec2-user -- uname -a
+需要 Go 1.25 或更高版本：
 
-  # 管道、重定向等 shell 语法必须通过 --shell 显式传入
-  $ ssh -p 22222 zhoushoujian@localhost run --target 192.168.1.1 --user ec2-user --shell 'df -h | grep /data'
+```bash
+go build -o jms .
 
-  # AI 可用 base64 传递包含复杂引号的脚本，避免 OpenSSH 参数拼接导致歧义
-  $ ssh -p 22222 zhoushoujian@localhost run --target 192.168.1.1 --user ec2-user --shell-base64 "$(printf '%s' 'printf \"%s\\n\" \"hello world\"' | base64)"
+./jms --config ./config.yaml sshd --port 22222
+./jms --config ./config.yaml api --port 8013
+./jms --config ./config.yaml scheduler
+```
 
-  # 同名 SSH 用户存在多把密钥时，使用 --key 精确指定
-  $ ssh -p 22222 zhoushoujian@localhost run --target 192.168.1.1 --user ec2-user --key my-key.pem -- id
+各子命令的完整参数可通过 `./jms <command> --help` 查看。
 
-  # 配置免密登录，需要启用数据库或者 ladp 认证后才能实现
-  # ssh-copy-id -p 22222 登录用户@jms域名
-  $ ssh-copy-id -p 22222 zhoushoujian@localhost
+## 配置
 
-  # 文件传输
-  # 上传 scp -P 22222 本地文件  登录用户@jms域名:远端服务器用户@远端服务器IP地址:远端服务器文件路径
-  $ scp -P 22222 ./README.md  zhoushoujian@localhost:ec2-user@192.168.1.1:/tmp/README1.md
-  # 指定 key_name（当服务器未绑定 key 时）
-  $ scp -P 22222 ./README.md  zhoushoujian@localhost:ec2-user@192.168.1.1#key_name=aws-us7086-Jumpserver.pem:/tmp/README1.md
-  README.md                                     100% 2506     2.9KB/s   00:00
-  # 下载 scp -P 22222 登录用户@jms域名:远端服务器用户@远端服务器IP地址:远端服务器文件路径 本地文件
-  $ scp -P 22222 zhoushoujian@localhost:ec2-user@192.168.1.1:/tmp/README1.md /tmp/README.md
-  # 指定 key_name（当服务器未绑定 key 时）
-  $ scp -P 22222 zhoushoujian@localhost:ec2-user@192.168.1.1#key_name=aws-us7086-Jumpserver.pem:/tmp/README1.md /tmp/README.md
-  README1.md                                    100% 2506     1.8MB/s   00:00
+主要配置项位于 [`config.yaml`](config.yaml)：
 
-  ```
+| 配置段 | 用途 |
+| --- | --- |
+| `profiles` | 云账号和区域，用于自动发现资产 |
+| `keys` | 访问目标服务器使用的 SSH 用户、密钥或密码 |
+| `proxies` | 跨网络访问目标资产的代理 |
+| `withLdap` | LDAP 身份认证 |
+| `withDB` | 数据库、权限、审计和管理功能 |
+| `withAuth` | API JWT 签名和有效期 |
+| `withDingTalk` | 钉钉审批及通知 |
+| `withUpload` | 文件上传限制 |
+| `withTerminal` | Web 终端设置 |
 
-- 更多启动方式
+生产部署前至少应完成以下事项：
 
-  ```bash
-  # docker启动
-  $ docker run -dit -v ./config.yaml:/opt/jms/config.yaml -p 22222:22222 --name jms zhoushoujian/jms:latest
+1. 替换所有示例账号、密码和 `jwtSecret`。
+2. 限制 SSH、API、数据库和 Web 端口的网络访问范围。
+3. 将配置文件、SSH 私钥和审计目录设置为仅服务账号可读写。
+4. 不要把真实云凭据、密码、Token、私钥或内部地址提交到 Git。
 
-  # docker-compose 启动
-  $ docker-compose up -d
+## SSH 使用
 
-  # k8s 部署，完善好 configmap配置后，直接部署即可
-  $ kubectl apply -f statefulset.yaml -n jms --create-namespace
-  ```
+### 交互式终端
 
-## 3. 开发计划
+```bash
+ssh -p 22222 alice@bastion.example.com
+```
 
-- v2 版本拆分组件支持分布式部署，拆分后的组件都是单机部署的支持容灾，sshd 多节点部署防止挂掉全部中断；
-- 优化文件传输方式，支持 scp 后文件选择传输，简化传输命令；
+连接后在两级菜单中选择目标服务器和 SSH 用户。启用数据库或 LDAP 认证后，可注册本地公钥以免密登录：
 
-## 4. 开发日志
+```bash
+ssh-copy-id -p 22222 alice@bastion.example.com
+```
 
-- 2025-01
+### 非交互命令
 
-  - feat: 支持 scp 临时目录放到 app.App.Config.WithVideo.Dir 共用清理策略，否则还放 /tmp 由系统清理。
+非交互模式适合脚本和 AI Agent。它要求使用 SSH 公钥认证并启用数据库，沿用当前用户的资产权限、目标机密钥和审计策略。
 
-- 2024-12
+```bash
+# 查询有权访问的资产
+ssh -p 22222 alice@bastion.example.com targets --query web --format json
 
-  - feat: 支持人工修改服务资产登录用户密码(必须同时配置 user和passwd, 默认 user 为 root，否则不生效)而不是 KEY，并且刷新资产也能保留修改后的数据库配置
+# 查询目标资产可用的 SSH 用户；target 支持资产 ID、名称或 IP
+ssh -p 22222 alice@bastion.example.com \
+  users --target srv-123 --format json
 
-- 2024-11
+# 执行普通命令；本地 SSH 退出码与目标命令退出码一致
+ssh -p 22222 alice@bastion.example.com \
+  run --target srv-123 --user deploy -- uname -a
 
-  - refactor: 重构代码结构，拆分服务器入库，解耦 sdk 查询内存不释放问题；
-  - feat:支持上传下载权限判断。
+# 管道、重定向等 Shell 语法必须显式使用 --shell
+ssh -p 22222 alice@bastion.example.com \
+  run --target srv-123 --user deploy --shell 'df -h | grep /data'
 
-- 2024-09
+# 复杂脚本可用单行 Base64 传递，减少本地 Shell 转义歧义
+script_b64="$(printf '%s' 'printf "%s\n" "hello world"' | base64 | tr -d '\n')"
+ssh -p 22222 alice@bastion.example.com \
+  run --target srv-123 --user deploy --shell-base64 "$script_b64"
 
-  - feat: 支持使用 JMS_DINGTALK_WEB_HOOK_TOKEN 配置 runshell 任务发送钉钉消息；
+# 同一 SSH 用户存在多把密钥时可精确指定
+ssh -p 22222 alice@bastion.example.com \
+  run --target srv-123 --user deploy --key example-key.pem -- id
+```
 
-- 2024-07
+仓库内置的 [jms-ssh Skill](.agents/skills/jms-ssh/SKILL.md) 描述了 AI Agent 的发现、执行、传输和故障处理流程。
 
-  - feat: 支持权限数据 Load 在内存，降低数据库 IO；
-  - feat: 支持机器标签 KV 方式过滤而不是制定 team 和 envtype；
-  - feat: 支持未被托管机器的可见但是报错，方便快速定位机器
-  - feat: 审计增加实例 ID， 增加分钟级时间查询粒度，可作为准实时监控；
+### SCP 文件传输
 
-- 2024-06
+SCP 路径格式为 `<目标用户>@<目标地址>[:或 #key_name=...:]<目标路径>`：
 
-  - feat: 支持本地配置链接机器
-  - feat: 增加 aduit api 接口，支持查询审计日志；
-  - feat: 增加连接数据库表同步到目标数据库表功能；
+```bash
+# 上传
+scp -P 22222 ./artifact.tar.gz \
+  alice@bastion.example.com:deploy@192.0.2.10:/tmp/artifact.tar.gz
 
-- 2024-05
+# 下载
+scp -P 22222 \
+  alice@bastion.example.com:deploy@192.0.2.10:/tmp/result.log \
+  ./result.log
 
-  - refactor: 重构权限设计；
-  - feat: 新增 shell task 功能，支持提交脚本任务执行，并支持查询任务执行结果；
+# 目标资产未绑定密钥时显式选择 key_name
+scp -P 22222 ./artifact.tar.gz \
+  alice@bastion.example.com:deploy@192.0.2.10#key_name=example-key.pem:/tmp/artifact.tar.gz
+```
 
-- 2024-04
+当前 SCP 代理支持单文件上传和下载，不支持递归目录传输。
 
-  - feat: 支持 API 方式管理 KEY 和云账号 Profile
-  - feat: 增加数据库 Record 表，记录上传下载和服务器登录日志
-  - feat: 支持数据库热加载配置，支持 API 操作 Key,Profile,Proxy；
-  - feat: 支持服务器按名称排序；
-  - feat: 支持密钥本地和数据库入库认证；
+## API 与 Web
 
-- 2024-01
+运行 `jms api` 后，可在 <http://localhost:8013/swagger/index.html> 查看并试用当前版本的 API。Web 前端默认通过 `jms-api` 访问管理接口和终端 WebSocket。
 
-  - feat: 支持钉钉审批功能：
-  - feat: 支持 audit 日志定时清理
-  - feat: 支持服务器标签 EnvType !不等于的匹配规则
+启用认证时，受保护的 API 需要 `Authorization: Bearer <token>`。Shell 任务鉴权和迁移说明见 [`docs/2026-03-13-shell-api-auth.md`](docs/2026-03-13-shell-api-auth.md)。
 
-- 2023-12
+## Kubernetes
 
-  - feat: 增加 API 管理；
-  - chore: 优化交互界面；
-  - feat:支持会话超时退出功能；
-  - feat: 支持基于 sqlite 的独立审批功能；
+[`deployment.yaml`](deployment.yaml) 是示例清单。使用前应替换镜像、ConfigMap、Secret、存储和网络策略：
 
-- 2023-11
+```bash
+kubectl create namespace jms --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f deployment.yaml
+```
 
-  - 支持监控机器连接性告警功能；
-  - 支持 scp 复制功能；
-  - 支持配置热更新；
+不要把生产凭据直接写入清单或提交到仓库；应由集群 Secret 管理方案注入。
 
-- 2023-10
+## 开发
 
-  - 支持 ssh-copy-id 设置，并通过密钥验证登录；
+```bash
+# Go 编译、静态检查和测试
+go build ./...
+go vet ./...
+go test ./...
 
-- 2023-09
+# 前端检查和构建
+cd web
+npm ci
+npm run lint
+npm run build
+```
 
-  - 支持输入过滤功能；
-  - 支持设置策略，只能看到授权的资产；
-  - 增加录像功能；
+常用容器目标可通过 `make help` 查看，例如 `make all`、`make sshd`、`make api` 和 `make web`。
 
-- 2023-08
+功能变化请以 [提交历史](https://github.com/xops-infra/jms/commits/dev) 和 [Releases](https://github.com/xops-infra/jms/releases) 为准，避免 README 中的版本流水账过期。
 
-  - 基本功能上线
-  - 增加资产分类，基于账号和区域
-  - 增加 ldap 认证功能
+## License
 
-## 5. 特别感谢
+本项目基于 [`LICENSE`](LICENSE) 中的协议开源。
 
-- [TNK-Studio/gortal](https://github.com/TNK-Studio/gortal.git)
+## 致谢
+
+- [TNK-Studio/gortal](https://github.com/TNK-Studio/gortal)
