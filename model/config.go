@@ -153,6 +153,9 @@ type WithLdap struct {
 	BindPassword     string   `mapstructure:"bindPassword"`
 	Host             string   `mapstructure:"host"`
 	Port             int      `mapstructure:"port"`
+	UseSSL           bool     `mapstructure:"use_ssl"`
+	StartTLS         bool     `mapstructure:"start_tls"`
+	SSLSkipVerify    bool     `mapstructure:"ssl_skip_verify"`
 	BaseDN           string   `mapstructure:"baseDN"`
 	UserSearchFilter string   `mapstructure:"userSearchFilter"`
 	Attributes       []string `mapstructure:"attributes"`

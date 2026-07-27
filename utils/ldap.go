@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"crypto/tls"
 	"fmt"
 
 	"github.com/go-ldap/ldap"
@@ -8,15 +9,46 @@ import (
 	"github.com/xops-infra/noop/log"
 )
 
+func dialLdap(config model.WithLdap) (*ldap.Conn, error) {
+	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
+	if config.UseSSL {
+		tlsConfig := &tls.Config{
+			ServerName:         config.Host,
+			InsecureSkipVerify: config.SSLSkipVerify,
+		}
+		conn, err := ldap.DialTLS("tcp", addr, tlsConfig)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to connect to LDAP server via ldaps: %s", err.Error())
+		}
+		return conn, nil
+	}
+
+	conn, err := ldap.Dial("tcp", addr)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to LDAP server: %s", err.Error())
+	}
+	if config.StartTLS {
+		tlsConfig := &tls.Config{
+			ServerName:         config.Host,
+			InsecureSkipVerify: config.SSLSkipVerify,
+		}
+		if err := conn.StartTLS(tlsConfig); err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("Failed to start TLS on LDAP connection: %s", err.Error())
+		}
+	}
+	return conn, nil
+}
+
 type Ldap struct {
 	Conn   *ldap.Conn
 	Config model.WithLdap
 }
 
 func NewLdap(config model.WithLdap) (*Ldap, error) {
-	ldapConn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", config.Host, config.Port))
+	ldapConn, err := dialLdap(config)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to LDAP server: %s", err.Error())
+		return nil, err
 	}
 	err = ldapConn.Bind(config.BindUser, config.BindPassword)
 	if err != nil {
@@ -29,9 +61,9 @@ func NewLdap(config model.WithLdap) (*Ldap, error) {
 }
 
 func (l *Ldap) refreshLdap() error {
-	ldapConn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", l.Config.Host, l.Config.Port))
+	ldapConn, err := dialLdap(l.Config)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to LDAP server: %s", err.Error())
+		return err
 	}
 	err = ldapConn.Bind(l.Config.BindUser, l.Config.BindPassword)
 	if err != nil {
