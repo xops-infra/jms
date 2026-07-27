@@ -40,6 +40,9 @@ withLdap:
   enable: false
   host: "xxx"
   port: 389
+  use_ssl: false
+  start_tls: false
+  ssl_skip_verify: false
   baseDN: "dc=corp,dc=xxx,dc=com"
   bindUser: "xx"
   bindPassword: "xxx"
