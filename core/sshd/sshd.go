@@ -60,6 +60,7 @@ func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
 	if proxyClient != nil {
 		defer proxyClient.Close()
 	}
+	defer upstreamClient.Close()
 
 	upstreamSess, err := upstreamClient.NewSession()
 	if err != nil {
