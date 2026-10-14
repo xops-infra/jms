@@ -51,10 +51,14 @@ func createApproval(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
-	if req.Applicant == nil {
-		c.JSON(400, fmt.Errorf("Applicant is empty"))
+	authUser, ok := c.Get("auth_user")
+	user, validUser := authUser.(User)
+	if !ok || !validUser || user.Username == nil || *user.Username == "" {
+		c.String(http.StatusUnauthorized, "unauthorized")
 		return
 	}
+	// The authenticated account owns the submission; beneficiaries remain explicit.
+	req.Applicant = user.Username
 	// 如果启用了审批，创建审批
 	if app.App.Config.WithDingtalk.Enable {
 		values := []dt.FormComponentValue{
@@ -155,6 +159,17 @@ func updateApproval(c *gin.Context) {
 		c.JSON(400, err.Error())
 		return
 	}
+	if req == nil {
+		c.String(http.StatusBadRequest, "request is empty")
+		return
+	}
+	authUser, ok := c.Get("auth_user")
+	user, validUser := authUser.(User)
+	if !ok || !validUser || user.Username == nil || *user.Username == "" {
+		c.String(http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	req.Applicant = user.Username
 	if err := app.App.DBIo.UpdatePolicyStatus(id, *req); err != nil {
 		c.JSON(500, err.Error())
 		return

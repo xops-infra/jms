@@ -40,7 +40,11 @@ func listServers(c *gin.Context) {
 		return
 	}
 
-	matchPolicies := app.App.Sshd.SshdIO.GetUserPolicys(*authUser.Username)
+	matchPolicies, err := app.App.Sshd.SshdIO.GetUserPolicys(*authUser.Username)
+	if err != nil {
+		c.String(http.StatusServiceUnavailable, "access policies unavailable")
+		return
+	}
 	items := make([]serverListItem, 0, len(servers))
 	q := strings.TrimSpace(c.Query("q"))
 
@@ -118,7 +122,11 @@ func listServerSSHUsers(c *gin.Context) {
 		return
 	}
 
-	matchPolicies := app.App.Sshd.SshdIO.GetUserPolicys(*authUser.Username)
+	matchPolicies, err := app.App.Sshd.SshdIO.GetUserPolicys(*authUser.Username)
+	if err != nil {
+		c.String(http.StatusServiceUnavailable, "access policies unavailable")
+		return
+	}
 	if !app.App.Sshd.SshdIO.MatchPolicy(authUser, model.Connect, *server, matchPolicies, false) {
 		c.String(http.StatusForbidden, "no permission")
 		return

@@ -42,7 +42,7 @@ func requireUser() gin.HandlerFunc {
 			return
 		}
 		user, err := app.App.DBIo.DescribeUser(username)
-		if err != nil {
+		if err != nil || (user.IsDeleted != nil && *user.IsDeleted) {
 			c.String(http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return
@@ -68,12 +68,19 @@ func requireAdmin() gin.HandlerFunc {
 		}
 
 		user, err := app.App.DBIo.DescribeUser(username)
-		if err != nil {
+		if err != nil || (user.IsDeleted != nil && *user.IsDeleted) {
 			c.String(http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return
 		}
-		if user.Groups == nil || !user.Groups.Contains(adminGroup) {
+		isAdmin := false
+		for _, group := range user.Groups {
+			if group == adminGroup {
+				isAdmin = true
+				break
+			}
+		}
+		if !isAdmin {
 			c.String(http.StatusForbidden, "admin required")
 			c.Abort()
 			return

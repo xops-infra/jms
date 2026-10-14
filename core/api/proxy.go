@@ -6,6 +6,16 @@ import (
 	"github.com/xops-infra/jms/model"
 )
 
+type proxyListResponse struct {
+	Name         *string `json:"name"`
+	Host         *string `json:"host"`
+	Port         *int    `json:"port"`
+	IPPrefix     *string `json:"ip_prefix"`
+	LoginUser    *string `json:"login_user"`
+	KeyID        *string `json:"key_id"`
+	IdentityFile *string `json:"identity_file"`
+}
+
 // @Summary ListProxy
 // @Description list proxy servers
 // @Tags proxy
@@ -19,7 +29,19 @@ func listProxy(c *gin.Context) {
 		c.JSON(500, err.Error())
 		return
 	}
-	c.JSON(200, proxies)
+	var items []proxyListResponse
+	for _, proxy := range proxies {
+		items = append(items, proxyListResponse{
+			Name:         proxy.Name,
+			Host:         proxy.Host,
+			Port:         proxy.Port,
+			IPPrefix:     proxy.IPPrefix,
+			LoginUser:    proxy.LoginUser,
+			KeyID:        proxy.KeyID,
+			IdentityFile: proxy.IdentityFile,
+		})
+	}
+	c.JSON(200, items)
 }
 
 // @Summary AddProxy

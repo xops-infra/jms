@@ -100,6 +100,12 @@ func scpTarget(args []string) (string, error) {
 	return "", errors.New("scp: neither -t nor -f flag found in args")
 }
 
+// scpRemoteCommand keeps the remote path as a single literal shell argument.
+// The option terminator also prevents paths beginning with '-' from becoming flags.
+func scpRemoteCommand(mode, filePath string) string {
+	return fmt.Sprintf("scp %s -- '%s'", mode, strings.ReplaceAll(filePath, "'", "'\\''"))
+}
+
 // ExecuteSCP ExecuteSCP
 func ExecuteSCP(args []string, clientSess *ssh.Session) error {
 	defer func() {
@@ -253,7 +259,7 @@ func copyFromServer(target string, sess *ssh.Session) error {
 		return err
 	}
 
-	err = upstreamSess.Start(fmt.Sprintf("scp -f %s", filePath))
+	err = upstreamSess.Start(scpRemoteCommand("-f", filePath))
 	if err != nil {
 		return err
 	}
@@ -462,7 +468,7 @@ func copyToUpstreamSession(r *bufio.Reader, upstreamSess *gossh.Session, perm, f
 		return err
 	}
 
-	err = upstreamSess.Start(fmt.Sprintf("scp -t %s", filePath))
+	err = upstreamSess.Start(scpRemoteCommand("-t", filePath))
 	if err != nil {
 		return err
 	}

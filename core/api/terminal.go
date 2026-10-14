@@ -99,7 +99,11 @@ func terminalWS(c *gin.Context) {
 		return
 	}
 
-	matchPolicies := app.App.Sshd.SshdIO.GetUserPolicys(*user.Username)
+	matchPolicies, err := app.App.Sshd.SshdIO.GetUserPolicys(*user.Username)
+	if err != nil {
+		c.String(http.StatusServiceUnavailable, "access policies unavailable")
+		return
+	}
 	if !app.App.Sshd.SshdIO.MatchPolicy(user, model.Connect, *server, matchPolicies, false) {
 		c.String(http.StatusForbidden, "no permission")
 		return

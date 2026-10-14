@@ -79,8 +79,6 @@ var sshdCmd = &cobra.Command{
 			_app.WithDB(false) // sshd 只管连接，api 才去操作数据库
 		}
 
-		
-
 		app.App.Sshd.SshdIO = io.NewSshd(app.App.DBIo, app.App.Config.LocalServers.ToMapWithHost())
 		app.App.Sshd.UserCache = cache.New(cache.NoExpiration, cache.NoExpiration)
 
@@ -144,13 +142,28 @@ func init() {
 }
 
 func passwordAuth(ctx ssh.Context, pass string) bool {
+	var ldapLogin func(string, string) error
+	if app.App.Sshd.Ldap != nil {
+		ldapLogin = app.App.Sshd.Ldap.Login
+	}
+	return authenticateSSHPassword(ctx.User(), pass, ldapLogin)
+}
+
+func authenticateSSHPassword(username, pass string, ldapLogin func(string, string) error) bool {
+	if app.App.Config.WithDB.Enable {
+		if app.App.DBIo == nil {
+			return false
+		}
+		if _, err := app.App.DBIo.DescribeActiveUser(username); err != nil {
+			return false
+		}
+	}
 	if app.App.Config.WithLdap.Enable {
-		err := app.App.Sshd.Ldap.Login(ctx.User(), pass)
-		return err == nil
+		return ldapLogin != nil && ldapLogin(username, pass) == nil
 	}
 	// 如果启用 policy策略，登录时需要验证用户密码
 	if app.App.Config.WithDB.Enable {
-		allow, err := app.App.DBIo.Login(ctx.User(), pass)
+		allow, err := app.App.DBIo.Login(username, pass)
 		if err != nil {
 			log.Error(err.Error())
 			return false
@@ -158,7 +171,7 @@ func passwordAuth(ctx ssh.Context, pass string) bool {
 		return allow
 	} else {
 		// 当 ladp和数据库都么启用的时候， 默认认证，jms/jms
-		switch ctx.User() {
+		switch username {
 		case "jms":
 			return pass == "jms"
 		default:
@@ -171,6 +184,9 @@ func passwordAuth(ctx ssh.Context, pass string) bool {
 // 还支持pubkey在数据库
 func publicKeyAuth(ctx ssh.Context, key ssh.PublicKey) bool {
 	if app.App.Config.WithDB.Enable {
+		if app.App.DBIo == nil {
+			return false
+		}
 		// 数据库读取数据认证
 		return app.App.DBIo.AuthKey(ctx.User(), key)
 	}

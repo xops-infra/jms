@@ -114,7 +114,6 @@ func saveDingtalkUsers(users []*dt.UserInfo) error {
 				_, err = app.App.DBIo.CreateUser(&UserRequest{
 					Username:       tea.String(strings.Split(user.Email, "@")[0]),
 					Email:          tea.String(user.Email),
-					Passwd:         tea.String(user.Email),
 					DingtalkDeptID: tea.String(strconv.FormatInt(user.DeptIDList[0], 10)),
 					DingtalkID:     tea.String(user.UserID),
 				})

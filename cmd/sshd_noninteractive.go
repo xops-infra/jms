@@ -343,7 +343,11 @@ func loadCommandContext(username string) (model.User, model.Servers, []model.Pol
 	if err != nil {
 		return model.User{}, nil, nil, err
 	}
-	return user, servers, app.App.Sshd.SshdIO.GetUserPolicys(username), nil
+	policies, err := app.App.Sshd.SshdIO.GetUserPolicys(username)
+	if err != nil {
+		return model.User{}, nil, nil, err
+	}
+	return user, servers, policies, nil
 }
 
 func resolveExactServer(servers model.Servers, target string) (model.Server, error) {

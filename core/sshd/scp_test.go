@@ -1,6 +1,55 @@
 package sshd
 
-import "testing"
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+)
+
+func TestScpRemoteCommand(t *testing.T) {
+	// Capture the actual argv produced by a shell without contacting a server.
+	dir := t.TempDir()
+	scp := filepath.Join(dir, "scp")
+	if err := os.WriteFile(scp, []byte("#!/bin/sh\nprintf '%s\\000' \"$@\"\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "absolute path", path: "/data/report.txt"},
+		{name: "spaces", path: "/data/quarterly report.txt"},
+		{name: "apostrophes", path: "/data/user's report.txt"},
+		{name: "semicolon", path: "report; printf injected"},
+		{name: "logical operator", path: "report && printf injected"},
+		{name: "pipeline", path: "report | printf injected"},
+		{name: "command substitution", path: "$(printf injected)"},
+		{name: "backtick substitution", path: "`printf injected`"},
+		{name: "environment expansion", path: "$HOME/report.txt"},
+		{name: "glob", path: "*.txt"},
+		{name: "newline", path: "report\nprintf injected"},
+		{name: "leading option", path: "-S evil"},
+	}
+
+	for _, mode := range []string{"-f", "-t"} {
+		for _, tt := range tests {
+			t.Run(mode+"/"+tt.name, func(t *testing.T) {
+				cmd := exec.Command("/bin/sh", "-c", scpRemoteCommand(mode, tt.path))
+				cmd.Env = []string{"PATH=" + dir}
+				got, err := cmd.CombinedOutput()
+				if err != nil {
+					t.Fatalf("shell command failed: %v, output %q", err, got)
+				}
+				want := mode + "\x00--\x00" + tt.path + "\x00"
+				if string(got) != want {
+					t.Fatalf("scp argv = %q, want %q", got, want)
+				}
+			})
+		}
+	}
+}
 
 func TestScpTarget(t *testing.T) {
 	tests := []struct {

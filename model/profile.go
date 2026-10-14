@@ -18,8 +18,8 @@ type Profile struct {
 	gorm.Model `json:"-"`
 	UUID       string      `gorm:"column:uuid;type:varchar(36);unique_index;not null"`
 	Name       string      `gorm:"column:name;type:varchar(255);not null"`
-	AK         string      `gorm:"column:ak;type:varchar(255);not null"`
-	SK         string      `gorm:"column:sk;type:varchar(255);not null"` // 经过加密
+	AK         string      `json:"-" gorm:"column:ak;type:varchar(255);not null"`
+	SK         string      `json:"-" gorm:"column:sk;type:varchar(255);not null"` // 经过加密
 	IsDelete   bool        `gorm:"column:is_delete;type:boolean;not null;default:false"`
 	Cloud      string      `gorm:"column:cloud;type:varchar(255);not null"`
 	Regions    StringSlice `gorm:"column:regions;type:json;not null"`

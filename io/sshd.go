@@ -202,14 +202,18 @@ func (i *SshdIO) GetSSHUsersByHostResolvedLive(host string) (*model.Server, []mo
 	return server, mergeSSHUsers(sshUsers, fallbackUsers), fallbackUsers, nil
 }
 
-// 依据 scp的路径获取 sshuser和服务器
-// 返回 sshuser 和 服务器 remotePath
-func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *model.Server, string, error) {
+type scpPathTarget struct {
+	username string
+	host     string
+	keyName  string
+	path     string
+}
 
+// parseScpPath shares the target identity between authorization and connection.
+func parseScpPath(scpPath string) (scpPathTarget, error) {
 	args := strings.SplitN(scpPath, ":", 2)
-
 	if len(args) < 2 {
-		return nil, nil, "", fmt.Errorf("scp path %s invalid", scpPath)
+		return scpPathTarget{}, fmt.Errorf("scp path %s invalid", scpPath)
 	}
 
 	inputServer, remotePath := args[0], args[1]
@@ -219,23 +223,32 @@ func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *
 		inputServer = parts[0]
 		selector := parts[1]
 		if selector == "" {
-			return nil, nil, "", fmt.Errorf("scp path %s invalid: empty selector", scpPath)
+			return scpPathTarget{}, fmt.Errorf("scp path %s invalid: empty selector", scpPath)
 		}
 		if strings.HasPrefix(selector, "key_name=") {
 			selectorKeyName = strings.TrimPrefix(selector, "key_name=")
 			if selectorKeyName == "" {
-				return nil, nil, "", fmt.Errorf("scp path %s invalid: key_name empty", scpPath)
+				return scpPathTarget{}, fmt.Errorf("scp path %s invalid: key_name empty", scpPath)
 			}
 		} else {
-			return nil, nil, "", fmt.Errorf("scp path %s invalid: unsupported selector %s", scpPath, selector)
+			return scpPathTarget{}, fmt.Errorf("scp path %s invalid: unsupported selector %s", scpPath, selector)
 		}
 	}
 	serverArgs := strings.SplitN(inputServer, "@", 2)
-	if len(serverArgs) < 2 {
-		return nil, nil, "", fmt.Errorf("scp path %s invalid", scpPath)
+	if len(serverArgs) < 2 || serverArgs[0] == "" || serverArgs[1] == "" {
+		return scpPathTarget{}, fmt.Errorf("scp path %s invalid", scpPath)
 	}
+	return scpPathTarget{username: serverArgs[0], host: serverArgs[1], keyName: selectorKeyName, path: remotePath}, nil
+}
 
-	sshUsername, host := serverArgs[0], serverArgs[1]
+// 依据 scp的路径获取 sshuser和服务器
+// 返回 sshuser 和 服务器 remotePath
+func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *model.Server, string, error) {
+	target, err := parseScpPath(scpPath)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	sshUsername, host, selectorKeyName, remotePath := target.username, target.host, target.keyName, target.path
 
 	servers, err := i.db.LoadServer()
 	if err != nil {

@@ -27,7 +27,10 @@ func (ui *PUI) getServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
 	if !app.App.Config.WithDB.Enable || app.App.DBIo == nil {
 		return nil, errors.New("database not enabled, server list unavailable")
 	}
-	matchPolicies := app.App.Sshd.SshdIO.GetUserPolicys((*sess).User())
+	matchPolicies, err := app.App.Sshd.SshdIO.GetUserPolicys((*sess).User())
+	if err != nil {
+		return nil, err
+	}
 	sshd.Info(fmt.Sprintf("matchPolicies: %d", len(matchPolicies)), sess)
 	servers, err := app.App.DBIo.LoadServer()
 	if err != nil {

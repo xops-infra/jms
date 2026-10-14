@@ -81,7 +81,7 @@ func NewApplication(debug bool, logDir, version, config string) *Application {
 	} else {
 		log.Default().WithLevel(log.InfoLevel).WithHumanTime(time.Local).WithFilename(logfile).Init()
 	}
-	go http.ListenAndServe(":6060", nil)
+	go http.ListenAndServe("127.0.0.1:6060", nil)
 
 	fmt.Println("jms version: ", App.Version)
 	fmt.Println("log file: ", logfile)
@@ -120,7 +120,7 @@ func (app *Application) WithDingTalk() *Application {
 		AppKey:    app.Config.WithDingtalk.AppKey,
 		AppSecret: app.Config.WithDingtalk.AppSecret,
 	}
-	log.Infof("dingtalk config: %+v", c)
+	log.Infof("initializing dingtalk client")
 	client, err := dt.NewDingTalkClient(&c)
 	if err != nil {
 		log.Errorf("create dingtalk client failed: %s", err)
@@ -136,7 +136,7 @@ func (app *Application) WithDB(migrate bool) *Application {
 	// 优先匹配 pg
 	var dialector gorm.Dialector
 	if app.Config.WithDB.PG.Database != "" {
-		log.Debugf("with policy pg database: %s", app.Config.WithDB.PG.GetUrl())
+		log.Debugf("initializing postgres policy database")
 		dialector = postgres.Open(app.Config.WithDB.PG.GetUrl())
 	} else {
 		dbFile := app.Config.WithDB.DBFile

@@ -13,6 +13,12 @@ func (d *DBService) Login(username, password string) (bool, error) {
 	if err := d.DB.Where("username = ?", username).First(&user).Error; err != nil {
 		return false, err
 	}
+	if user.IsDeleted != nil && *user.IsDeleted {
+		return false, nil
+	}
+	if user.Passwd == nil || *user.Passwd == "" {
+		return false, nil
+	}
 	// bas64 加密后比较
 	base64Pass := base64.StdEncoding.EncodeToString([]byte(password))
 	return base64Pass == tea.StringValue(user.Passwd), nil

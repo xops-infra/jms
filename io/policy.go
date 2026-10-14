@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/xops-infra/jms/model"
 
 	"github.com/xops-infra/noop/log"
@@ -14,20 +13,19 @@ import (
 // 对用户，策略，服务器，动作做权限判断
 // onlyIp 用来兼容策略对上传下载的判断，因为上传下载信息只会有 IP 信息。
 func (p *SshdIO) MatchPolicy(user model.User, inPutAction model.Action, server model.Server, dbPolicies []model.Policy, onlyIp bool) bool {
+	if user.IsDeleted != nil && *user.IsDeleted {
+		return false
+	}
 
 	if p.db == nil {
 		// 没有启用数据库策略的直接通过
 		log.Debugf("db is not enable, allow all")
 		return true
 	}
-	if p.SystemPolicyCheck(user, server) {
-		log.Debugf("system policy allow for user: %s", tea.Prettify(user))
-		return true
-	}
-
-	isOK := false
+	// Implicit access is a grant, but applicable explicit denials take precedence.
+	isOK := p.SystemPolicyCheck(user, server)
 	for _, dbPolicy := range dbPolicies {
-		if !dbPolicy.IsEnabled {
+		if dbPolicy.IsDeleted || !dbPolicy.IsEnabled {
 			log.Debugf("policy %s is disabled", dbPolicy.Name)
 			continue
 		}
@@ -58,7 +56,7 @@ func (p *SshdIO) MatchPolicy(user model.User, inPutAction model.Action, server m
 	return isOK
 }
 
-func (p *SshdIO) GetUserPolicys(username string) []model.Policy {
+func (p *SshdIO) GetUserPolicys(username string) ([]model.Policy, error) {
 	var matchPolicies []model.Policy
 	if p.db == nil {
 		// 如果没有使用数据库，则默认都可见
@@ -70,8 +68,7 @@ func (p *SshdIO) GetUserPolicys(username string) []model.Policy {
 	} else {
 		policies, err := p.db.QueryAllPolicy()
 		if err != nil {
-			log.Errorf("query all policy error: %s", err)
-			return nil
+			return nil, fmt.Errorf("load access policies: %w", err)
 		}
 		for _, policy := range policies {
 			if policy.Users.Contains(username) {
@@ -83,25 +80,32 @@ func (p *SshdIO) GetUserPolicys(username string) []model.Policy {
 			}
 		}
 	}
-	return matchPolicies
+	return matchPolicies, nil
 }
 
 // argsWithServer 是 root@10.9.x.x:/data/xx.zip 这一串组合字符，方法内会解析
 func (p *SshdIO) CheckPermission(argsWithServer string, user model.User, inputAction model.Action) error {
-	serverIP, err := model.ExtractIP(argsWithServer)
+	if p.db == nil {
+		return fmt.Errorf("database not enabled")
+	}
+	target, err := parseScpPath(argsWithServer)
 	if err != nil {
 		return err
 	}
-	log.Debugf("serverIP: %s", serverIP)
+	log.Debugf("transfer host: %s", target.host)
 	// 丰富 server
-	server, err := p.db.GetInstanceByHost(serverIP)
+	server, err := p.db.GetInstanceByHost(target.host)
 	if err != nil {
-		return fmt.Errorf("can not find server %s in jms try again later", serverIP)
+		return fmt.Errorf("can not find server %s in jms try again later", target.host)
 	}
-	dbPolicies := p.GetUserPolicys(*user.Username)
+	dbPolicies, err := p.GetUserPolicys(*user.Username)
+	if err != nil {
+		return err
+	}
 	// 判断是否有权限
-	if !p.MatchPolicy(user, inputAction, *server, dbPolicies, true) {
-		return fmt.Errorf("user: %s has no permission to %s server: %s", *user.Username, inputAction, serverIP)
+	// The loaded asset contains tags and identifiers, so evaluate every filter.
+	if !p.MatchPolicy(user, inputAction, *server, dbPolicies, false) {
+		return fmt.Errorf("user: %s has no permission to %s server: %s", *user.Username, inputAction, target.host)
 	}
 	return nil
 }
@@ -109,7 +113,7 @@ func (p *SshdIO) CheckPermission(argsWithServer string, user model.User, inputAc
 // System level
 func (p *SshdIO) SystemPolicyCheck(user model.User, server model.Server) bool {
 
-	if user.Groups.Contains("admin") {
+	if hasAdminGroup(user) {
 		log.Debugf("admin allow")
 		return true
 	}
@@ -130,7 +134,7 @@ func (p *SshdIO) SystemPolicyCheck(user model.User, server model.Server) bool {
 // admin有所有权限
 func matchUserGroup(user model.User, server model.Server) bool {
 	if user.Groups != nil {
-		if user.Groups.Contains("admin") {
+		if hasAdminGroup(user) {
 			return true
 		}
 		if server.Tags.GetTeam() != nil {
@@ -144,6 +148,15 @@ func matchUserGroup(user model.User, server model.Server) bool {
 			return false
 		}
 
+	}
+	return false
+}
+
+func hasAdminGroup(user model.User) bool {
+	for _, group := range user.Groups {
+		if group == "admin" {
+			return true
+		}
 	}
 	return false
 }

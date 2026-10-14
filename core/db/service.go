@@ -37,17 +37,22 @@ func (d *DBService) GetServerCount() int {
 func (d *DBService) NeedApprove(username string) ([]*Policy, error) {
 	// 是否 admin组，且有需要审批的策略
 	var policies []*Policy
-	user, err := d.DescribeUser(username)
+	user, err := d.DescribeActiveUser(username)
 	if err != nil {
 		return nil, err
 	}
-	if user.Groups == nil {
+	isAdmin := false
+	for _, group := range user.Groups {
+		if group == "admin" {
+			isAdmin = true
+			break
+		}
+	}
+	if !isAdmin {
 		return nil, nil
 	}
-	if user.Groups.Contains("admin") {
-		if err := d.DB.Where("is_enabled = ?", false).Where("approver is null").Find(&policies).Error; err != nil {
-			return nil, err
-		}
+	if err := d.DB.Where("is_enabled = ?", false).Where("approver is null").Find(&policies).Error; err != nil {
+		return nil, err
 	}
 	return policies, nil
 }
@@ -62,6 +67,18 @@ func (d *DBService) DescribeUser(name string) (User, error) {
 	}
 	if err := d.DB.Where("username = ?", name).First(&user).Error; err != nil {
 		return user, err
+	}
+	return user, nil
+}
+
+// DescribeActiveUser checks account status without changing administrative lookup semantics.
+func (d *DBService) DescribeActiveUser(name string) (User, error) {
+	user, err := d.DescribeUser(name)
+	if err != nil {
+		return user, err
+	}
+	if user.IsDeleted != nil && *user.IsDeleted {
+		return user, fmt.Errorf("account is disabled")
 	}
 	return user, nil
 }

@@ -59,7 +59,7 @@ type Proxy struct {
 	Port         int    `gorm:"column:port;type:integer;not null"`
 	IPPrefix     string `gorm:"column:ip_prefix;type:varchar(255);not null"`
 	LoginUser    string `gorm:"column:login_user;type:varchar(255);not null"`
-	LoginPasswd  string `gorm:"column:login_passwd;type:varchar(255);"`
+	LoginPasswd  string `json:"-" gorm:"column:login_passwd;type:varchar(255);"`
 	IdentityFile string `gorm:"column:identity_file;type:varchar(255);"`
 }
 

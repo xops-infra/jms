@@ -127,7 +127,7 @@ func isProxyServer(server Server) (*CreateProxyRequest, error) {
 		}
 		for _, proxy := range proxys {
 			if strings.HasPrefix(server.Host, *proxy.IPPrefix) {
-				log.Debugf("get proxy from config for %s, %s\n", server.Host, tea.Prettify(proxy))
+				log.Debugf("get proxy from config for %s: host=%s port=%d user=%s", server.Host, tea.StringValue(proxy.Host), tea.IntValue(proxy.Port), tea.StringValue(proxy.LoginUser))
 				return &proxy, nil
 			}
 		}
@@ -187,7 +187,7 @@ func newSshConfig(sshUser SSHUser) (*gossh.ClientConfig, error) {
 
 func ProxyClient(instance Server, proxy CreateProxyRequest, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
 	if proxy.LoginUser == nil || *proxy.LoginUser == "" || tea.StringValue(proxy.Host) == "" || tea.IntValue(proxy.Port) == 0 {
-		return nil, nil, fmt.Errorf("proxy config error, %s", tea.Prettify(proxy))
+		return nil, nil, fmt.Errorf("proxy config error: host=%q port=%d user=%q", tea.StringValue(proxy.Host), tea.IntValue(proxy.Port), tea.StringValue(proxy.LoginUser))
 	}
 	// 支持密码或者私钥认证
 	proxyConfig := &gossh.ClientConfig{
@@ -196,7 +196,7 @@ func ProxyClient(instance Server, proxy CreateProxyRequest, sshUser SSHUser) (*g
 		Timeout:         8 * time.Second,
 	}
 	if proxy.LoginPasswd != nil && *proxy.LoginPasswd != "" {
-		log.Debugf("proxy login passwd: %s", *proxy.LoginPasswd)
+		log.Debugf("proxy authentication method: password")
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.Password(*proxy.LoginPasswd))
 	} else if proxy.KeyID != nil && *proxy.KeyID != "" {
 		// 走 proxy keyID 去获取认证信息
@@ -220,7 +220,7 @@ func ProxyClient(instance Server, proxy CreateProxyRequest, sshUser SSHUser) (*g
 		}
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.PublicKeys(signerProxy))
 	} else {
-		return nil, nil, fmt.Errorf("proxy config error has no auth, %s", tea.Prettify(proxy))
+		return nil, nil, fmt.Errorf("proxy config error has no auth: host=%q port=%d user=%q", tea.StringValue(proxy.Host), tea.IntValue(proxy.Port), tea.StringValue(proxy.LoginUser))
 	}
 	log.Infof("connecting %s with proxy connect: %s:%d", instance.Host, *proxy.Host, *proxy.Port)
 	proxyClient, err := gossh.Dial("tcp", fmt.Sprintf("%s:%d", *proxy.Host, *proxy.Port), proxyConfig)
