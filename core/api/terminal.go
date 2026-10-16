@@ -17,6 +17,7 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/sshd"
+	jmsio "github.com/xops-infra/jms/io"
 	"github.com/xops-infra/jms/model"
 )
 
@@ -116,11 +117,15 @@ func terminalWS(c *gin.Context) {
 		return
 	}
 
-	_, upstream, err := sshd.NewSSHClient(*user.Username, *server, sshUser)
+	proxy, upstream, actual, err := sshd.ConnectSSHClient(*user.Username, *server, sshUser)
+	sshUser = actual
 	if err != nil {
 		logTerminalFailure(c, http.StatusBadRequest, user, host, sessionID, "connect_upstream", sshUserQuery, sshKeyQuery, &sshUser, err)
 		c.String(http.StatusBadRequest, err.Error())
 		return
+	}
+	if proxy != nil {
+		defer proxy.Close()
 	}
 	defer upstream.Close()
 
@@ -187,6 +192,7 @@ func terminalWS(c *gin.Context) {
 		sessionID = uuid.NewString()
 	}
 	_ = writer.Send(wsMessage{Type: "session", SessionID: sessionID})
+	_ = writer.Send(wsMessage{Type: "identity", Data: sshUser.UserName})
 
 	tmuxEnabled := app.App.Config.Terminal.TmuxEnable != nil && *app.App.Config.Terminal.TmuxEnable
 	tmuxAvailable := false
@@ -356,6 +362,9 @@ func parseIntDefault(v string, d int) int {
 func selectSSHUser(users []model.SSHUser, preferUser, preferKey string) (model.SSHUser, error) {
 	if len(users) == 0 {
 		return model.SSHUser{}, fmt.Errorf("no ssh users")
+	}
+	if preferUser == "" {
+		return jmsio.SelectSSHUser(users, "", preferKey)
 	}
 	if preferUser != "" || preferKey != "" {
 		for _, u := range users {

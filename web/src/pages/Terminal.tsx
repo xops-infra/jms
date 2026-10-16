@@ -141,8 +141,8 @@ const HomeSelectionPanel = ({
                         >
                           {sshOptions.map((opt) => (
                             <option key={buildSSHOptionValue(opt)} value={buildSSHOptionValue(opt)}>
-                              {opt.user} · {opt.key_name || opt.auth_type}
-                              {opt.source && opt.source !== 'profile_fallback' ? ` · ${opt.source}` : ''}
+                              {opt.user || '自动连接'} · {opt.key_name || opt.auth_type}
+                              {opt.source && opt.source !== 'profile_fallback' && opt.source !== 'automatic' ? ` · ${opt.source}` : ''}
                             </option>
                           ))}
                         </select>
@@ -164,10 +164,10 @@ const HomeSelectionPanel = ({
                               onChange={() => onSelectSSH(opt)}
                             />
                             <div className="terminal-ssh-option-body">
-                              <strong>{opt.user}</strong>
+                              <strong>{opt.user || '自动连接'}</strong>
                               <span>{opt.key_name || opt.auth_type}</span>
                             </div>
-                            <em>{opt.source === 'profile_fallback' ? 'PROFILE KEY' : opt.auth_type}</em>
+                            <em>{opt.auth_type === 'auto' ? '自动' : opt.source === 'profile_fallback' ? 'PROFILE KEY' : opt.auth_type}</em>
                           </label>
                         )
                       })}
@@ -246,6 +246,7 @@ export const TerminalPage = () => {
   const [sshLoading, setSshLoading] = useState(false)
   const [sshError, setSshError] = useState('')
   const [sshSelected, setSshSelected] = useState<SSHOption | null>(null)
+  const sshOptionsHostRef = useRef('')
   const [approvalName, setApprovalName] = useState('')
   const [approvalPeriod, setApprovalPeriod] = useState('1w')
   const [approvalStatus, setApprovalStatus] = useState('')
@@ -314,12 +315,14 @@ export const TerminalPage = () => {
     setLaunchStatus('')
     try {
       const res = await apiClient.get<{ items: SSHOption[] }>(
-        `/api/v1/servers/${encodeURIComponent(item.host)}/ssh-users`,
+        `/api/v1/servers/${encodeURIComponent(item.host)}/ssh-users?automatic=true`,
       )
       if (requestId !== sshRequestRef.current) return
       const options = res.data.items || []
       setSshOptions(options)
-      setSshSelected((prev) => options.find((opt) => isSameSSHOption(prev, opt)) || options[0] || null)
+      const sameHost = sshOptionsHostRef.current === item.host
+      sshOptionsHostRef.current = item.host
+      setSshSelected((prev) => (sameHost ? options.find((opt) => isSameSSHOption(prev, opt)) : null) || options[0] || null)
     } catch (err: any) {
       if (requestId !== sshRequestRef.current) return
       setSshOptions([])
@@ -524,7 +527,7 @@ export const TerminalPage = () => {
                     ))}
                     {selectedServer.allowed && sshSelected && (
                       <span className="pill">
-                        {sshSelected.user} · {sshSelected.key_name || sshSelected.auth_type}
+                        {sshSelected.user || '自动连接'} · {sshSelected.key_name || sshSelected.auth_type}
                       </span>
                     )}
                     {selectedServer.allowed && (

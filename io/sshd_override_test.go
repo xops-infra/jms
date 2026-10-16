@@ -59,3 +59,35 @@ func TestServerUsernameOverridesManagedKeyOnlyForThatAsset(t *testing.T) {
 		t.Fatal("shared key request changed")
 	}
 }
+
+func TestSSHSelectionPreservesExplicitUsersAndKeyAmbiguity(t *testing.T) {
+	users := []model.SSHUser{{UserName: "root", KeyName: "one.pem"}, {UserName: "ubuntu", KeyName: "one.pem"}, {UserName: "root", KeyName: "two.pem"}}
+	automatic, err := SelectSSHUser(users, "", "one.pem")
+	if err != nil || !automatic.Auto || automatic.KeyName != "one.pem" {
+		t.Fatal("automatic key selection failed")
+	}
+	explicit, err := SelectSSHUser(users, "ubuntu", "one.pem")
+	if err != nil || explicit.Auto || explicit.UserName != "ubuntu" {
+		t.Fatal("explicit selection changed")
+	}
+	if _, err := SelectSSHUser(users, "", ""); err == nil {
+		t.Fatal("ambiguous keys were silently selected")
+	}
+	if _, err := SelectSSHUser(users, "ec2-user", "one.pem"); err == nil {
+		t.Fatal("explicit unknown user was guessed")
+	}
+	if got := AutomaticSSHUsers(users); len(got) != 2 || !got[0].Auto {
+		t.Fatal("automatic options were not grouped by key")
+	}
+}
+
+func TestAutomaticSelectionDeduplicatesCredentialAliases(t *testing.T) {
+	users := []model.SSHUser{{UserName: "root", KeyName: "root-label.pem", Base64Pem: "same-managed-credential"}, {UserName: "ubuntu", KeyName: "ubuntu-label.pem", Base64Pem: "same-managed-credential"}}
+	if got := AutomaticSSHUsers(users); len(got) != 1 {
+		t.Fatal("identical key aliases produced duplicate automatic choices")
+	}
+	selected, err := SelectSSHUser(users, "", "")
+	if err != nil || !selected.Auto {
+		t.Fatalf("identical key aliases were considered ambiguous: %v", err)
+	}
+}

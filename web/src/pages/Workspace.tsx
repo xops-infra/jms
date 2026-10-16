@@ -53,6 +53,7 @@ export const WorkspacePage = () => {
   const [validationError, setValidationError] = useState('')
   const [selectedServer, setSelectedServer] = useState<ServerItem | null>(null)
   const [sshSelected, setSshSelected] = useState<SSHOption | null>(null)
+  const [connectedUsername, setConnectedUsername] = useState('')
   const [sshLoading, setSshLoading] = useState(false)
   const [host, setHost] = useState('')
   const [sshUser, setSshUser] = useState('')
@@ -85,7 +86,7 @@ export const WorkspacePage = () => {
 
   const validateWorkspace = useCallback(async (activateAfterValidate = false) => {
     if (!token) return
-    if (!routeHost || !routeUser || !routeAuth) {
+    if (!routeHost || !routeAuth || (!routeUser && routeAuth !== 'auto')) {
       setValidationState('blocked')
       setValidationError('连接参数不完整，请返回首页重新选择。')
       setActive(false)
@@ -96,6 +97,7 @@ export const WorkspacePage = () => {
       return
     }
 
+    setConnectedUsername('')
     const requestId = ++validationRequestRef.current
     setValidationState('loading')
     setValidationError('')
@@ -105,7 +107,7 @@ export const WorkspacePage = () => {
     try {
       const [serversResult, sshResult] = await Promise.allSettled([
         apiClient.get<{ items: ServerItem[] }>('/api/v1/servers'),
-        apiClient.get<{ items: SSHOption[] }>(`/api/v1/servers/${encodeURIComponent(routeHost)}/ssh-users`),
+        apiClient.get<{ items: SSHOption[] }>(`/api/v1/servers/${encodeURIComponent(routeHost)}/ssh-users?automatic=true`),
       ])
 
       if (requestId !== validationRequestRef.current) return
@@ -203,11 +205,13 @@ export const WorkspacePage = () => {
 
   const handleTerminalStateChange = useCallback((event: TerminalStateEvent) => {
     if (event.phase === 'connecting') {
+      setConnectedUsername('')
       setTerminalReason('')
       setTerminalPhase('connecting')
       return
     }
     if (event.phase === 'live') {
+      if (event.username) setConnectedUsername(event.username)
       setTerminalReason('')
       setTerminalPhase('live')
       return
@@ -411,7 +415,7 @@ export const WorkspacePage = () => {
                             </div>
                             <div className="terminal-snapshot-item">
                               <span>登录用户</span>
-                              <strong>{sshSelected?.user || routeUser}</strong>
+                              <strong>{connectedUsername || sshSelected?.user || routeUser || '自动连接'}</strong>
                             </div>
                             <div className="terminal-snapshot-item">
                               <span>认证方式</span>

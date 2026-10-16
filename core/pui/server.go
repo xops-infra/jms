@@ -15,6 +15,7 @@ import (
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/sshd"
+	jmsio "github.com/xops-infra/jms/io"
 	. "github.com/xops-infra/jms/model"
 )
 
@@ -178,6 +179,7 @@ func (ui *PUI) getServerSSHUsersMenu(server Server) func(int, MenuItem, *ssh.Ses
 			}
 		}
 
+		sshUsers = append(jmsio.AutomaticSSHUsers(sshUsers), sshUsers...)
 		for _, sshUser := range sshUsers {
 			serverSnapshot := currentServer
 			sshUserSnapshot := sshUser
@@ -210,6 +212,9 @@ func (ui *PUI) getServerSSHUsersMenu(server Server) func(int, MenuItem, *ssh.Ses
 				return true, nil
 			}
 			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUserSnapshot.KeyName, sshUserSnapshot.UserName)
+			if sshUserSnapshot.Auto {
+				subMenu.Label = fmt.Sprintf("自动连接 · %s", sshUserSnapshot.KeyName)
+			}
 			menu = append(menu, subMenu)
 		}
 

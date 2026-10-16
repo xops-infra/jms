@@ -52,7 +52,7 @@ func newAuditLog(user, host string) (*os.File, error) {
 // 独立的阻塞远程客户端连接方法
 func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
 	log.Infof("NewTerminal server: %v, sshUser: %v, user: %v", server.Host, sshUser.KeyName, (*sess).User())
-	proxyClient, upstreamClient, err := NewSSHClient((*sess).User(), server, sshUser)
+	proxyClient, upstreamClient, actual, err := ConnectSSHClient((*sess).User(), server, sshUser)
 	if err != nil {
 		log.Errorf("NewSSHClient error: %s", err)
 		return err
@@ -61,6 +61,9 @@ func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
 		defer proxyClient.Close()
 	}
 	defer upstreamClient.Close()
+	if sshUser.Auto {
+		Info(fmt.Sprintf("已使用 %s 连接", actual.UserName), sess)
+	}
 
 	upstreamSess, err := upstreamClient.NewSession()
 	if err != nil {
@@ -141,7 +144,7 @@ func isProxyServer(server Server) (*CreateProxyRequest, error) {
 
 // NewSSHClient NewSSHClient
 // proxy client 返回主要是为了外部 close 用。
-func NewSSHClient(user string, server Server, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
+func newSSHClient(user string, server Server, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
 	proxy, err := isProxyServer(server)
 	if err != nil {
 		return nil, nil, fmt.Errorf("SSH proxy lookup failed (stage=proxy_lookup target=%q): %w", net.JoinHostPort(server.Host, fmt.Sprint(server.Port)), err)
@@ -157,7 +160,7 @@ func NewSSHClient(user string, server Server, sshUser SSHUser) (*gossh.Client, *
 	}
 	client, err := gossh.Dial("tcp", address, config)
 	if err != nil {
-		return nil, nil, fmt.Errorf("SSH target connection failed (stage=target_connect target=%q user=%q key=%q): %w", address, sshUser.UserName, sshUser.KeyName, err)
+		return nil, nil, &ConnectionError{Stage: "target_connect", Detail: fmt.Sprintf("target=%q user=%q key=%q", address, sshUser.UserName, sshUser.KeyName), Err: err}
 	}
 	return nil, client, nil
 }
@@ -260,7 +263,7 @@ func ProxyClient(instance Server, proxy CreateProxyRequest, sshUser SSHUser) (*g
 	}
 	clientConn, proxyChans, proxyReqs, err := gossh.NewClientConn(conn, targetAddress, config)
 	if err != nil {
-		return nil, nil, fmt.Errorf("SSH target connection failed (stage=target_connect target=%q user=%q key=%q proxy=%q): %w", targetAddress, sshUser.UserName, sshUser.KeyName, proxyAddress, err)
+		return nil, nil, &ConnectionError{Stage: "target_connect", Detail: fmt.Sprintf("target=%q user=%q key=%q proxy=%q", targetAddress, sshUser.UserName, sshUser.KeyName, proxyAddress), Err: err}
 	}
 	client := gossh.NewClient(clientConn, proxyChans, proxyReqs)
 	connected = true

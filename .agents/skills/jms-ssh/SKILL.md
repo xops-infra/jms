@@ -44,6 +44,8 @@ ssh -o BatchMode=yes "$JMS_ALIAS" \
   run --target "$TARGET_ID" --user "$SSH_USER" -- COMMAND ARG...
 ```
 
+For automatic username selection, omit `--user` intentionally after confirming the authorized target and managed credential. Specify `--key` when discovery shows multiple credentials. JMS only switches usernames after target authentication rejection and does not retry the command. An explicit `--user` remains strict.
+
 Set a timeout when appropriate; accepted values are 1 second through 30 minutes and the default is 60 seconds:
 
 ```bash

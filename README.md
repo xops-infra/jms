@@ -153,6 +153,10 @@ scp -P 22222 ./artifact.tar.gz \
 
 当前 SCP 代理支持单文件上传和下载，不支持递归目录传输。
 
+### Automatic login username
+
+Choose the automatic connection option in the menu or Web UI, or omit `--user` from a CLI `run` command. JMS tries a bounded set of usernames only after target authentication rejection, remembers the successful username per asset/key, and executes the command once. Explicit usernames and per-server overrides remain strict. See [the design](docs/ssh-login-selection.md) for behavior and configuration.
+
 ### Per-server login username
 
 The existing `server.user` database field overrides the login username for that asset, including managed keys and password authentication. Leave it empty to use the shared key's username. Asset synchronization preserves this override by asset ID; it does not change the shared key or other assets.

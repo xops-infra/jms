@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
+	jmsio "github.com/xops-infra/jms/io"
 	"github.com/xops-infra/jms/model"
 )
 
@@ -133,6 +134,11 @@ func listServerSSHUsers(c *gin.Context) {
 	}
 
 	items := make([]sshUserItem, 0, len(sshUsers))
+	if c.Query("automatic") == "true" {
+		for _, automatic := range jmsio.AutomaticSSHUsers(sshUsers) {
+			items = append(items, sshUserItem{User: "", KeyName: automatic.KeyName, AuthType: "auto", Source: "automatic"})
+		}
+	}
 	fallbackIndex := make(map[string]struct{}, len(fallbackUsers))
 	for _, u := range fallbackUsers {
 		fallbackIndex[u.UserName+"|"+u.KeyName+"|"+u.Password] = struct{}{}

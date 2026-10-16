@@ -21,6 +21,7 @@ export type TerminalStatePhase = 'connecting' | 'live' | 'closed' | 'disconnecte
 export type TerminalStateEvent = {
   phase: TerminalStatePhase
   reason?: string
+  username?: string
 }
 
 type WsMessage = {
@@ -209,6 +210,9 @@ export const TerminalView = ({
         }
         if (msg.type === 'session' && msg.session_id) {
           onSessionIdRef.current?.(msg.session_id)
+        }
+        if (msg.type === 'identity' && msg.data) {
+          onStateChangeRef.current?.({ phase: 'live', username: msg.data })
         }
         if (msg.type === 'exit') {
           receivedExit = true
