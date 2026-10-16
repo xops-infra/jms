@@ -144,18 +144,22 @@ func isProxyServer(server Server) (*CreateProxyRequest, error) {
 func NewSSHClient(user string, server Server, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
 	proxy, err := isProxyServer(server)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("SSH proxy lookup failed (stage=proxy_lookup target=%q): %w", net.JoinHostPort(server.Host, fmt.Sprint(server.Port)), err)
 	}
 	if proxy != nil {
 		return ProxyClient(server, *proxy, sshUser)
 	}
 	log.Infof("%s direct connect: %s:%d", user, server.Host, server.Port)
+	address := net.JoinHostPort(server.Host, fmt.Sprint(server.Port))
 	config, err := newSshConfig(sshUser)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("SSH target credentials failed (stage=target_credentials target=%q user=%q key=%q): %w", address, sshUser.UserName, sshUser.KeyName, err)
 	}
-	client, err := gossh.Dial("tcp", fmt.Sprintf("%s:%d", server.Host, server.Port), config)
-	return nil, client, err
+	client, err := gossh.Dial("tcp", address, config)
+	if err != nil {
+		return nil, nil, fmt.Errorf("SSH target connection failed (stage=target_connect target=%q user=%q key=%q): %w", address, sshUser.UserName, sshUser.KeyName, err)
+	}
+	return nil, client, nil
 }
 
 func newSshConfig(sshUser SSHUser) (*gossh.ClientConfig, error) {
@@ -187,8 +191,11 @@ func newSshConfig(sshUser SSHUser) (*gossh.ClientConfig, error) {
 
 func ProxyClient(instance Server, proxy CreateProxyRequest, sshUser SSHUser) (*gossh.Client, *gossh.Client, error) {
 	if proxy.LoginUser == nil || *proxy.LoginUser == "" || tea.StringValue(proxy.Host) == "" || tea.IntValue(proxy.Port) == 0 {
-		return nil, nil, fmt.Errorf("proxy config error: host=%q port=%d user=%q", tea.StringValue(proxy.Host), tea.IntValue(proxy.Port), tea.StringValue(proxy.LoginUser))
+		return nil, nil, fmt.Errorf("proxy config error (stage=proxy_config): host=%q port=%d user=%q", tea.StringValue(proxy.Host), tea.IntValue(proxy.Port), tea.StringValue(proxy.LoginUser))
 	}
+	proxyAddress := net.JoinHostPort(*proxy.Host, fmt.Sprint(*proxy.Port))
+	targetAddress := net.JoinHostPort(instance.Host, fmt.Sprint(instance.Port))
+	proxyAuth := "password"
 	// 支持密码或者私钥认证
 	proxyConfig := &gossh.ClientConfig{
 		User:            *proxy.LoginUser,
@@ -199,14 +206,16 @@ func ProxyClient(instance Server, proxy CreateProxyRequest, sshUser SSHUser) (*g
 		log.Debugf("proxy authentication method: password")
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.Password(*proxy.LoginPasswd))
 	} else if proxy.KeyID != nil && *proxy.KeyID != "" {
+		proxyAuth = "key_id=" + *proxy.KeyID
 		// 走 proxy keyID 去获取认证信息
 		log.Debugf("proxy keyID: %s", *proxy.KeyID)
 		signerProxy, err := app.App.Sshd.SshdIO.GetSignerByKeyID(*proxy.KeyID)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("SSH proxy credentials failed (stage=proxy_credentials proxy=%q user=%q auth=%q): %w", proxyAddress, *proxy.LoginUser, proxyAuth, err)
 		}
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.PublicKeys(signerProxy))
 	} else if proxy.IdentityFile != nil && *proxy.IdentityFile != "" {
+		proxyAuth = "key_file=" + *proxy.IdentityFile
 		// 兼容数据库通过 identityFile 认证, 随后走文件认证
 		signerProxy, err := app.App.Sshd.SshdIO.GetSignerByIdentityFile(*proxy.IdentityFile)
 		if err != nil {
@@ -214,35 +223,47 @@ func ProxyClient(instance Server, proxy CreateProxyRequest, sshUser SSHUser) (*g
 			log.Debugf("proxy identityFile: %s", *proxy.IdentityFile)
 			_signerProxy, err := getSignerFromLocal(app.App.SSHDir + strings.TrimPrefix(*proxy.IdentityFile, "/"))
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("SSH proxy credentials failed (stage=proxy_credentials proxy=%q user=%q auth=%q): %w", proxyAddress, *proxy.LoginUser, proxyAuth, err)
 			}
 			signerProxy = _signerProxy
 		}
 		proxyConfig.Auth = append(proxyConfig.Auth, gossh.PublicKeys(signerProxy))
 	} else {
-		return nil, nil, fmt.Errorf("proxy config error has no auth: host=%q port=%d user=%q", tea.StringValue(proxy.Host), tea.IntValue(proxy.Port), tea.StringValue(proxy.LoginUser))
+		return nil, nil, fmt.Errorf("proxy config error has no auth (stage=proxy_config): host=%q port=%d user=%q", tea.StringValue(proxy.Host), tea.IntValue(proxy.Port), tea.StringValue(proxy.LoginUser))
 	}
-	log.Infof("connecting %s with proxy connect: %s:%d", instance.Host, *proxy.Host, *proxy.Port)
-	proxyClient, err := gossh.Dial("tcp", fmt.Sprintf("%s:%d", *proxy.Host, *proxy.Port), proxyConfig)
+	log.Infof("SSH route target=%q target_user=%q target_key=%q proxy=%q proxy_user=%q proxy_auth=%q", targetAddress, sshUser.UserName, sshUser.KeyName, proxyAddress, *proxy.LoginUser, proxyAuth)
+	proxyClient, err := gossh.Dial("tcp", proxyAddress, proxyConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("SSH proxy connection failed (stage=proxy_connect proxy=%q user=%q auth=%q target=%q): %w", proxyAddress, *proxy.LoginUser, proxyAuth, targetAddress, err)
 	}
+	// Transfer ownership to the caller only after both handshakes succeed.
+	connected := false
+	defer func() {
+		if !connected {
+			proxyClient.Close()
+		}
+	}()
 
-	conn, err := proxyClient.Dial("tcp", fmt.Sprintf("%s:%d", instance.Host, instance.Port))
+	conn, err := proxyClient.Dial("tcp", targetAddress)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("SSH proxy forwarding failed (stage=proxy_forward proxy=%q target=%q): %w", proxyAddress, targetAddress, err)
 	}
+	defer func() {
+		if !connected {
+			conn.Close()
+		}
+	}()
 
 	config, err := newSshConfig(sshUser)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("SSH target credentials failed (stage=target_credentials target=%q user=%q key=%q proxy=%q): %w", targetAddress, sshUser.UserName, sshUser.KeyName, proxyAddress, err)
 	}
-	clientConn, proxyChans, proxyReqs, err := gossh.NewClientConn(conn, fmt.Sprintf("%s:%d", instance.Host, instance.Port), config)
+	clientConn, proxyChans, proxyReqs, err := gossh.NewClientConn(conn, targetAddress, config)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("SSH target connection failed (stage=target_connect target=%q user=%q key=%q proxy=%q): %w", targetAddress, sshUser.UserName, sshUser.KeyName, proxyAddress, err)
 	}
 	client := gossh.NewClient(clientConn, proxyChans, proxyReqs)
-
+	connected = true
 	return proxyClient, client, nil
 }
 
