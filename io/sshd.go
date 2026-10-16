@@ -114,6 +114,16 @@ func mergeSSHUsers(primary []model.SSHUser, additions []model.SSHUser) []model.S
 	return merged
 }
 
+// A per-server username overrides shared key identities without changing the key.
+func applyServerSSHUsername(server model.Server, users []model.SSHUser) []model.SSHUser {
+	if username := strings.TrimSpace(server.User); username != "" {
+		for index := range users {
+			users[index].UserName = username
+		}
+	}
+	return users
+}
+
 // 依据 host获取服务器所有的 sshuser
 // 支持在云上 key，还支持本地配置的 sshuser 通过 IP 匹配；
 func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server, keys []model.AddKeyRequest) ([]model.SSHUser, error) {
@@ -148,7 +158,7 @@ func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server,
 			if err != nil {
 				continue
 			}
-			newSshUsers = append(newSshUsers, sshUsers...)
+			newSshUsers = append(newSshUsers, applyServerSSHUsername(server, sshUsers)...)
 		}
 	} else {
 		log.Errorf("server %s not found in jms", host)
@@ -197,7 +207,7 @@ func (i *SshdIO) GetSSHUsersByHostResolvedLive(host string) (*model.Server, []mo
 	}
 	fallbackUsers := make([]model.SSHUser, 0)
 	if !hasKeySSHUser(sshUsers) {
-		fallbackUsers = buildSSHUsersByProfile(keys, server.Profile)
+		fallbackUsers = applyServerSSHUsername(*server, buildSSHUsersByProfile(keys, server.Profile))
 	}
 	return server, mergeSSHUsers(sshUsers, fallbackUsers), fallbackUsers, nil
 }
@@ -273,12 +283,16 @@ func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *
 				if key.UserName == nil || *key.UserName == "" {
 					return nil, nil, "", fmt.Errorf("key_name %s has empty user_name in jms", selectorKeyName)
 				}
-				if *key.UserName != sshUsername {
-					return nil, nil, "", fmt.Errorf("key_name %s belongs to user %s, not %s", selectorKeyName, *key.UserName, sshUsername)
+				loginUser := *key.UserName
+				if override := strings.TrimSpace(server.User); override != "" {
+					loginUser = override
+				}
+				if loginUser != sshUsername {
+					return nil, nil, "", fmt.Errorf("key_name %s belongs to user %s, not %s", selectorKeyName, loginUser, sshUsername)
 				}
 				return &model.SSHUser{
 					KeyName:   *key.IdentityFile,
-					UserName:  *key.UserName,
+					UserName:  loginUser,
 					Base64Pem: tea.StringValue(key.PemBase64),
 				}, &server, remotePath, nil
 			}

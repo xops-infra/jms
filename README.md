@@ -153,6 +153,10 @@ scp -P 22222 ./artifact.tar.gz \
 
 当前 SCP 代理支持单文件上传和下载，不支持递归目录传输。
 
+### Per-server login username
+
+The existing `server.user` database field overrides the login username for that asset, including managed keys and password authentication. Leave it empty to use the shared key's username. Asset synchronization preserves this override by asset ID; it does not change the shared key or other assets.
+
 ### SSH connection diagnostics
 
 Connection errors include a `stage` and the relevant endpoint and SSH identity. For proxy routes, the proxy and target use separate credentials; changing a target key will not fix a proxy login failure.

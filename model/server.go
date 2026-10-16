@@ -16,7 +16,7 @@ type Server struct {
 	Host     string               `gorm:"column:host"` // 默认取私有 IP 第一个
 	Port     int                  `gorm:"column:port"`
 	KeyPairs StringSlice          `gorm:"column:key_pairs;type:json"` // key pair name
-	User     string               `gorm:"column:user;default:''"`     // 用 KEY 的这里可以不写，在 key里面指定用户，如果带上 Passwd的 User必须有
+	User     string               `gorm:"column:user;default:''"`     // Optional per-asset username override; empty uses the managed key username.
 	Passwd   string               `gorm:"column:passwd;default:''"`
 	Profile  string               `gorm:"column:profile"`
 	Region   string               `gorm:"column:region"`

@@ -167,6 +167,11 @@ func (ui *PUI) getServerSSHUsersMenu(server Server) func(int, MenuItem, *ssh.Ses
 				return menu
 			}
 			fallbackUsers := buildSSHUsersByProfile(keys, currentServer.Profile)
+			if username := strings.TrimSpace(currentServer.User); username != "" {
+				for index := range fallbackUsers {
+					fallbackUsers[index].UserName = username
+				}
+			}
 			if len(fallbackUsers) > 0 {
 				usingFallbackKeys = true
 				sshUsers = append(sshUsers, fallbackUsers...)
