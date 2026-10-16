@@ -19,6 +19,7 @@ import (
 
 	"github.com/xops-infra/jms/app"
 	coresshd "github.com/xops-infra/jms/core/sshd"
+	jmsio "github.com/xops-infra/jms/io"
 	"github.com/xops-infra/jms/model"
 )
 
@@ -197,7 +198,7 @@ func runCommand(args []string, sess *ssh.Session) (int, error) {
 	if err != nil {
 		return exitSSHUserNotFound, err
 	}
-	sshUser, err := resolveExactSSHUser(sshUsers, opts.User, opts.Key)
+	sshUser, err := jmsio.SelectSSHUser(sshUsers, opts.User, opts.Key)
 	if err != nil {
 		return exitSSHUserNotFound, err
 	}
@@ -222,7 +223,7 @@ func runCommand(args []string, sess *ssh.Session) (int, error) {
 	}
 
 	startedAt := time.Now()
-	code, execErr := executeUpstreamCommand(sess, server, sshUser, command, opts.Timeout)
+	code, execErr := executeUpstreamCommand(sess, server, &sshUser, command, opts.Timeout)
 	fingerprint := ""
 	if publicKey := (*sess).PublicKey(); publicKey != nil {
 		fingerprint = gossh.FingerprintSHA256(publicKey)
@@ -245,8 +246,9 @@ func runCommand(args []string, sess *ssh.Session) (int, error) {
 	return code, execErr
 }
 
-func executeUpstreamCommand(clientSess *ssh.Session, server model.Server, sshUser model.SSHUser, command string, timeout time.Duration) (int, error) {
-	proxyClient, upstream, err := coresshd.NewSSHClient((*clientSess).User(), server, sshUser)
+func executeUpstreamCommand(clientSess *ssh.Session, server model.Server, sshUser *model.SSHUser, command string, timeout time.Duration) (int, error) {
+	proxyClient, upstream, actual, err := coresshd.ConnectSSHClient((*clientSess).User(), server, *sshUser)
+	*sshUser = actual
 	if err != nil {
 		return exitUpstreamFailure, err
 	}
@@ -301,8 +303,8 @@ func parseRunOptions(args []string) (runOptions, error) {
 	fs := newFlagSet("run")
 	fs.StringVar(&opts.Target, "target", "", "server id, exact name, or host")
 	fs.StringVar(&opts.Target, "t", "", "server id, exact name, or host")
-	fs.StringVar(&opts.User, "user", "", "target ssh user")
-	fs.StringVar(&opts.User, "u", "", "target ssh user")
+	fs.StringVar(&opts.User, "user", "", "target ssh user (omit for automatic selection)")
+	fs.StringVar(&opts.User, "u", "", "target ssh user (omit for automatic selection)")
 	fs.StringVar(&opts.Key, "key", "", "target ssh key name")
 	fs.DurationVar(&opts.Timeout, "timeout", 60*time.Second, "execution timeout")
 	fs.StringVar(&opts.ShellBase64, "shell-base64", "", "base64-encoded shell command")
@@ -312,9 +314,6 @@ func parseRunOptions(args []string) (runOptions, error) {
 	opts.Command = fs.Args()
 	if opts.Target == "" {
 		return opts, errors.New("--target is required")
-	}
-	if opts.User == "" {
-		return opts, errors.New("--user is required")
 	}
 	if opts.Timeout < time.Second || opts.Timeout > 30*time.Minute {
 		return opts, errors.New("--timeout must be between 1s and 30m")
@@ -343,7 +342,11 @@ func loadCommandContext(username string) (model.User, model.Servers, []model.Pol
 	if err != nil {
 		return model.User{}, nil, nil, err
 	}
-	return user, servers, app.App.Sshd.SshdIO.GetUserPolicys(username), nil
+	policies, err := app.App.Sshd.SshdIO.GetUserPolicys(username)
+	if err != nil {
+		return model.User{}, nil, nil, err
+	}
+	return user, servers, policies, nil
 }
 
 func resolveExactServer(servers model.Servers, target string) (model.Server, error) {
@@ -359,23 +362,6 @@ func resolveExactServer(servers model.Servers, target string) (model.Server, err
 	}
 	if len(matches) > 1 {
 		return model.Server{}, fmt.Errorf("target %q is ambiguous; use the server id", target)
-	}
-	return matches[0], nil
-}
-
-func resolveExactSSHUser(users []model.SSHUser, username, key string) (model.SSHUser, error) {
-	matches := make([]model.SSHUser, 0, 1)
-	for _, user := range users {
-		if user.UserName != username || (key != "" && user.KeyName != key) {
-			continue
-		}
-		matches = append(matches, user)
-	}
-	if len(matches) == 0 {
-		return model.SSHUser{}, fmt.Errorf("ssh user %q not found", username)
-	}
-	if len(matches) > 1 {
-		return model.SSHUser{}, fmt.Errorf("ssh user %q is ambiguous; specify --key", username)
 	}
 	return matches[0], nil
 }

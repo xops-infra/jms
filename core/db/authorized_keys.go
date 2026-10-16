@@ -12,6 +12,9 @@ import (
 
 // 支持单个用户多个公钥认证
 func (d *DBService) AuthKey(username string, pub ssh.PublicKey) bool {
+	if _, err := d.DescribeActiveUser(username); err != nil {
+		return false
+	}
 	keys, err := d.GetKeyByUsername(username)
 	if err != nil {
 		log.Errorf("get %s key error: %s", username, err)
@@ -34,6 +37,9 @@ func (d *DBService) GetKeyByUsername(username string) ([]model.AuthorizedKey, er
 
 // addAuthorizedKey
 func (d *DBService) AddAuthorizedKey(username string, pub string) error {
+	if _, err := d.DescribeActiveUser(username); err != nil {
+		return err
+	}
 	// 先查询 pub key 是否已存在
 	var count int64
 	// 处理掉换行符

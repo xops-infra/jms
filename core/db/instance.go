@@ -39,6 +39,14 @@ func (d *DBService) UpdateServerWithDelete(newServers []model.Server) error {
 		return err
 	}
 
+	// Keep username overrides tied to the asset ID, including key-only assets.
+	usernameOverrides := make(map[string]string)
+	for _, server := range existingServers {
+		if username := strings.TrimSpace(server.User); username != "" {
+			usernameOverrides[server.ID] = username
+		}
+	}
+
 	var manualPasswdServers model.Servers
 	// find passwd not '' to reset new server
 	err = d.DB.Where("passwd != ''").Find(&manualPasswdServers).Error
@@ -56,6 +64,10 @@ func (d *DBService) UpdateServerWithDelete(newServers []model.Server) error {
 			server.User = manual_server.User
 			newServers[id] = server
 			log.Infof("reset server from manual passwd: %s", server.Host)
+		}
+		if username, found := usernameOverrides[server.ID]; found {
+			server.User = username
+			newServers[id] = server
 		}
 		newServerMap[server.Host] = server
 	}

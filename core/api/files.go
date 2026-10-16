@@ -248,10 +248,13 @@ func uploadComplete(c *gin.Context) {
 		return
 	}
 
-	_, upstream, err := sshd.NewSSHClient(*authUser.Username, *server, sshUser)
+	proxy, upstream, err := sshd.NewSSHClient(*authUser.Username, *server, sshUser)
 	if err != nil {
 		c.String(http.StatusBadRequest, err.Error())
 		return
+	}
+	if proxy != nil {
+		defer proxy.Close()
 	}
 	defer upstream.Close()
 
@@ -408,10 +411,13 @@ func browseFiles(c *gin.Context) {
 		return
 	}
 
-	_, upstream, err := sshd.NewSSHClient(*authUser.Username, *server, sshUser)
+	proxy, upstream, err := sshd.NewSSHClient(*authUser.Username, *server, sshUser)
 	if err != nil {
 		c.String(http.StatusBadRequest, err.Error())
 		return
+	}
+	if proxy != nil {
+		defer proxy.Close()
 	}
 	defer upstream.Close()
 
@@ -489,10 +495,13 @@ func downloadFile(c *gin.Context) {
 		return
 	}
 
-	_, upstream, err := sshd.NewSSHClient(*authUser.Username, *server, sshUser)
+	proxy, upstream, err := sshd.NewSSHClient(*authUser.Username, *server, sshUser)
 	if err != nil {
 		c.String(http.StatusBadRequest, err.Error())
 		return
+	}
+	if proxy != nil {
+		defer proxy.Close()
 	}
 	defer upstream.Close()
 

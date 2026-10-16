@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/xops-infra/jms/app"
+	jmsio "github.com/xops-infra/jms/io"
 	"github.com/xops-infra/jms/model"
 )
 
@@ -40,7 +41,11 @@ func listServers(c *gin.Context) {
 		return
 	}
 
-	matchPolicies := app.App.Sshd.SshdIO.GetUserPolicys(*authUser.Username)
+	matchPolicies, err := app.App.Sshd.SshdIO.GetUserPolicys(*authUser.Username)
+	if err != nil {
+		c.String(http.StatusServiceUnavailable, "access policies unavailable")
+		return
+	}
 	items := make([]serverListItem, 0, len(servers))
 	q := strings.TrimSpace(c.Query("q"))
 
@@ -118,13 +123,22 @@ func listServerSSHUsers(c *gin.Context) {
 		return
 	}
 
-	matchPolicies := app.App.Sshd.SshdIO.GetUserPolicys(*authUser.Username)
+	matchPolicies, err := app.App.Sshd.SshdIO.GetUserPolicys(*authUser.Username)
+	if err != nil {
+		c.String(http.StatusServiceUnavailable, "access policies unavailable")
+		return
+	}
 	if !app.App.Sshd.SshdIO.MatchPolicy(authUser, model.Connect, *server, matchPolicies, false) {
 		c.String(http.StatusForbidden, "no permission")
 		return
 	}
 
 	items := make([]sshUserItem, 0, len(sshUsers))
+	if c.Query("automatic") == "true" {
+		for _, automatic := range jmsio.AutomaticSSHUsers(sshUsers) {
+			items = append(items, sshUserItem{User: "", KeyName: automatic.KeyName, AuthType: "auto", Source: "automatic"})
+		}
+	}
 	fallbackIndex := make(map[string]struct{}, len(fallbackUsers))
 	for _, u := range fallbackUsers {
 		fallbackIndex[u.UserName+"|"+u.KeyName+"|"+u.Password] = struct{}{}

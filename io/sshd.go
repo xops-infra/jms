@@ -114,6 +114,16 @@ func mergeSSHUsers(primary []model.SSHUser, additions []model.SSHUser) []model.S
 	return merged
 }
 
+// A per-server username overrides shared key identities without changing the key.
+func applyServerSSHUsername(server model.Server, users []model.SSHUser) []model.SSHUser {
+	if username := strings.TrimSpace(server.User); username != "" {
+		for index := range users {
+			users[index].UserName = username
+		}
+	}
+	return users
+}
+
 // 依据 host获取服务器所有的 sshuser
 // 支持在云上 key，还支持本地配置的 sshuser 通过 IP 匹配；
 func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server, keys []model.AddKeyRequest) ([]model.SSHUser, error) {
@@ -148,7 +158,7 @@ func (i *SshdIO) GetSSHUsersByHost(host string, servers map[string]model.Server,
 			if err != nil {
 				continue
 			}
-			newSshUsers = append(newSshUsers, sshUsers...)
+			newSshUsers = append(newSshUsers, applyServerSSHUsername(server, sshUsers)...)
 		}
 	} else {
 		log.Errorf("server %s not found in jms", host)
@@ -197,19 +207,23 @@ func (i *SshdIO) GetSSHUsersByHostResolvedLive(host string) (*model.Server, []mo
 	}
 	fallbackUsers := make([]model.SSHUser, 0)
 	if !hasKeySSHUser(sshUsers) {
-		fallbackUsers = buildSSHUsersByProfile(keys, server.Profile)
+		fallbackUsers = applyServerSSHUsername(*server, buildSSHUsersByProfile(keys, server.Profile))
 	}
 	return server, mergeSSHUsers(sshUsers, fallbackUsers), fallbackUsers, nil
 }
 
-// 依据 scp的路径获取 sshuser和服务器
-// 返回 sshuser 和 服务器 remotePath
-func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *model.Server, string, error) {
+type scpPathTarget struct {
+	username string
+	host     string
+	keyName  string
+	path     string
+}
 
+// parseScpPath shares the target identity between authorization and connection.
+func parseScpPath(scpPath string) (scpPathTarget, error) {
 	args := strings.SplitN(scpPath, ":", 2)
-
 	if len(args) < 2 {
-		return nil, nil, "", fmt.Errorf("scp path %s invalid", scpPath)
+		return scpPathTarget{}, fmt.Errorf("scp path %s invalid", scpPath)
 	}
 
 	inputServer, remotePath := args[0], args[1]
@@ -219,23 +233,32 @@ func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *
 		inputServer = parts[0]
 		selector := parts[1]
 		if selector == "" {
-			return nil, nil, "", fmt.Errorf("scp path %s invalid: empty selector", scpPath)
+			return scpPathTarget{}, fmt.Errorf("scp path %s invalid: empty selector", scpPath)
 		}
 		if strings.HasPrefix(selector, "key_name=") {
 			selectorKeyName = strings.TrimPrefix(selector, "key_name=")
 			if selectorKeyName == "" {
-				return nil, nil, "", fmt.Errorf("scp path %s invalid: key_name empty", scpPath)
+				return scpPathTarget{}, fmt.Errorf("scp path %s invalid: key_name empty", scpPath)
 			}
 		} else {
-			return nil, nil, "", fmt.Errorf("scp path %s invalid: unsupported selector %s", scpPath, selector)
+			return scpPathTarget{}, fmt.Errorf("scp path %s invalid: unsupported selector %s", scpPath, selector)
 		}
 	}
 	serverArgs := strings.SplitN(inputServer, "@", 2)
-	if len(serverArgs) < 2 {
-		return nil, nil, "", fmt.Errorf("scp path %s invalid", scpPath)
+	if len(serverArgs) < 2 || serverArgs[0] == "" || serverArgs[1] == "" {
+		return scpPathTarget{}, fmt.Errorf("scp path %s invalid", scpPath)
 	}
+	return scpPathTarget{username: serverArgs[0], host: serverArgs[1], keyName: selectorKeyName, path: remotePath}, nil
+}
 
-	sshUsername, host := serverArgs[0], serverArgs[1]
+// 依据 scp的路径获取 sshuser和服务器
+// 返回 sshuser 和 服务器 remotePath
+func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *model.Server, string, error) {
+	target, err := parseScpPath(scpPath)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	sshUsername, host, selectorKeyName, remotePath := target.username, target.host, target.keyName, target.path
 
 	servers, err := i.db.LoadServer()
 	if err != nil {
@@ -260,12 +283,16 @@ func (i *SshdIO) GetSSHUserAndServerByScpPath(scpPath string) (*model.SSHUser, *
 				if key.UserName == nil || *key.UserName == "" {
 					return nil, nil, "", fmt.Errorf("key_name %s has empty user_name in jms", selectorKeyName)
 				}
-				if *key.UserName != sshUsername {
-					return nil, nil, "", fmt.Errorf("key_name %s belongs to user %s, not %s", selectorKeyName, *key.UserName, sshUsername)
+				loginUser := *key.UserName
+				if override := strings.TrimSpace(server.User); override != "" {
+					loginUser = override
+				}
+				if loginUser != sshUsername {
+					return nil, nil, "", fmt.Errorf("key_name %s belongs to user %s, not %s", selectorKeyName, loginUser, sshUsername)
 				}
 				return &model.SSHUser{
 					KeyName:   *key.IdentityFile,
-					UserName:  *key.UserName,
+					UserName:  loginUser,
 					Base64Pem: tea.StringValue(key.PemBase64),
 				}, &server, remotePath, nil
 			}

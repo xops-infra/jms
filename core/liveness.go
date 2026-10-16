@@ -44,6 +44,7 @@ func ServerLiveness(dingtalkToken string) {
 		}
 
 		for _, sshUser := range sshUsers {
+			sshUser.Auto = true
 			proxyClient, client, err := sshd.NewSSHClient("system_liveness_check", server, sshUser)
 			if err != nil {
 				_, found := app.App.Config.WithSSHCheck.LivenessCache.Get(server.Host)

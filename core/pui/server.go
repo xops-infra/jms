@@ -15,6 +15,7 @@ import (
 	"github.com/xops-infra/jms/app"
 	"github.com/xops-infra/jms/core/dingtalk"
 	"github.com/xops-infra/jms/core/sshd"
+	jmsio "github.com/xops-infra/jms/io"
 	. "github.com/xops-infra/jms/model"
 )
 
@@ -27,7 +28,10 @@ func (ui *PUI) getServersMenuV2(sess *ssh.Session) ([]MenuItem, error) {
 	if !app.App.Config.WithDB.Enable || app.App.DBIo == nil {
 		return nil, errors.New("database not enabled, server list unavailable")
 	}
-	matchPolicies := app.App.Sshd.SshdIO.GetUserPolicys((*sess).User())
+	matchPolicies, err := app.App.Sshd.SshdIO.GetUserPolicys((*sess).User())
+	if err != nil {
+		return nil, err
+	}
 	sshd.Info(fmt.Sprintf("matchPolicies: %d", len(matchPolicies)), sess)
 	servers, err := app.App.DBIo.LoadServer()
 	if err != nil {
@@ -164,12 +168,18 @@ func (ui *PUI) getServerSSHUsersMenu(server Server) func(int, MenuItem, *ssh.Ses
 				return menu
 			}
 			fallbackUsers := buildSSHUsersByProfile(keys, currentServer.Profile)
+			if username := strings.TrimSpace(currentServer.User); username != "" {
+				for index := range fallbackUsers {
+					fallbackUsers[index].UserName = username
+				}
+			}
 			if len(fallbackUsers) > 0 {
 				usingFallbackKeys = true
 				sshUsers = append(sshUsers, fallbackUsers...)
 			}
 		}
 
+		sshUsers = append(jmsio.AutomaticSSHUsers(sshUsers), sshUsers...)
 		for _, sshUser := range sshUsers {
 			serverSnapshot := currentServer
 			sshUserSnapshot := sshUser
@@ -202,6 +212,9 @@ func (ui *PUI) getServerSSHUsersMenu(server Server) func(int, MenuItem, *ssh.Ses
 				return true, nil
 			}
 			subMenu.Label = fmt.Sprintf("key:%s user:%s", sshUserSnapshot.KeyName, sshUserSnapshot.UserName)
+			if sshUserSnapshot.Auto {
+				subMenu.Label = fmt.Sprintf("自动连接 · %s", sshUserSnapshot.KeyName)
+			}
 			menu = append(menu, subMenu)
 		}
 

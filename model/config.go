@@ -13,6 +13,7 @@ import (
 
 // Config config
 type Config struct {
+	SSHLogin SSHLoginConfig `mapstructure:"sshLogin"`
 	// Profiles     []CreateProfileRequest `mapstructure:"profiles"` // 云账号配置，用来自动同步云服务器信息
 	// Proxys       []CreateProxyRequest `mapstructure:"proxies"` // ssh代理
 	// Keys         Keys         `mapstructure:"keys"`
@@ -26,6 +27,10 @@ type Config struct {
 	Auth         Auth         `mapstructure:"auth"`
 	Upload       UploadConfig `mapstructure:"upload"`
 	Terminal     Terminal     `mapstructure:"terminal"`
+}
+
+type SSHLoginConfig struct {
+	AutoUserEnabled *bool `mapstructure:"autoUserEnabled"`
 }
 
 // Auth 配置 JWT
@@ -241,6 +246,7 @@ func configCheck(conf *Config) {
 
 // SSHUser ssh user
 type SSHUser struct {
+	Auto      bool   // Resolve the username during authentication, before opening a session.
 	UserName  string // 登录用户名 默认为 root
 	KeyName   string // pem file name, 这里是支持本地读取内容的
 	Base64Pem string // base64 pem，不指定KeyName本地读取可以将本地内容写入这里

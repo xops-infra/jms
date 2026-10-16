@@ -8,7 +8,7 @@ type User struct {
 	UpdatedAt      *time.Time  `json:"updated_at" gorm:"column:updated_at"`
 	IsDeleted      *bool       `json:"is_deleted" gorm:"column:is_deleted;default:false;not null"`
 	Username       *string     `json:"username" gorm:"column:username;not null"`
-	Passwd         *string     `json:"passwd" gorm:"column:passwd"` // bas64
+	Passwd         *string     `json:"-" gorm:"column:passwd"` // bas64
 	Email          *string     `json:"email" gorm:"column:email"`
 	DingtalkID     *string     `json:"dingtalk_id" gorm:"column:dingtalk_id"`
 	DingtalkDeptID *string     `json:"dingtalk_dept_id" gorm:"column:dingtalk_dept_id"`

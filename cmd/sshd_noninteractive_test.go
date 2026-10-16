@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	jmsio "github.com/xops-infra/jms/io"
 	"github.com/xops-infra/jms/model"
 )
 
@@ -32,7 +33,6 @@ func TestParseRunOptionsRejectsInvalidInput(t *testing.T) {
 		args []string
 	}{
 		{name: "missing target", args: []string{"--user", "deploy", "--", "true"}},
-		{name: "missing user", args: []string{"--target", "prod-01", "--", "true"}},
 		{name: "missing command", args: []string{"--target", "prod-01", "--user", "deploy"}},
 		{name: "shell missing value", args: []string{"--target", "prod-01", "--user", "deploy", "--shell"}},
 		{name: "base64 and argv", args: []string{"--target", "prod-01", "--user", "deploy", "--shell-base64", "dHJ1ZQ==", "false"}},
@@ -80,12 +80,12 @@ func TestResolveExactSSHUserRequiresKeyWhenAmbiguous(t *testing.T) {
 		{UserName: "deploy", KeyName: "key-a"},
 		{UserName: "deploy", KeyName: "key-b"},
 	}
-	if _, err := resolveExactSSHUser(users, "deploy", ""); err == nil {
-		t.Fatal("resolveExactSSHUser() expected ambiguity error")
+	if _, err := jmsio.SelectSSHUser(users, "deploy", ""); err == nil {
+		t.Fatal("jmsio.SelectSSHUser() expected ambiguity error")
 	}
-	user, err := resolveExactSSHUser(users, "deploy", "key-b")
+	user, err := jmsio.SelectSSHUser(users, "deploy", "key-b")
 	if err != nil || user.KeyName != "key-b" {
-		t.Fatalf("resolveExactSSHUser() = %#v, %v", user, err)
+		t.Fatalf("jmsio.SelectSSHUser() = %#v, %v", user, err)
 	}
 }
 
@@ -94,5 +94,12 @@ func TestJoinShellArgs(t *testing.T) {
 	want := `'printf' '%s' 'it'"'"'s safe' ''`
 	if got != want {
 		t.Fatalf("joinShellArgs() = %q, want %q", got, want)
+	}
+}
+
+func TestParseRunOptionsAllowsAutomaticUsername(t *testing.T) {
+	opts, err := parseRunOptions([]string{"--target", "server", "--key", "test.pem", "--", "true"})
+	if err != nil || opts.User != "" {
+		t.Fatalf("automatic username not accepted: %v", err)
 	}
 }

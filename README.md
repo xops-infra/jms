@@ -153,6 +153,29 @@ scp -P 22222 ./artifact.tar.gz \
 
 当前 SCP 代理支持单文件上传和下载，不支持递归目录传输。
 
+### Automatic login username
+
+Choose the automatic connection option in the menu or Web UI, or omit `--user` from a CLI `run` command. JMS tries a bounded set of usernames only after target authentication rejection, remembers the successful username per asset/key, and executes the command once. Explicit usernames and per-server overrides remain strict. See [the design](docs/ssh-login-selection.md) for behavior and configuration.
+
+### Per-server login username
+
+The existing `server.user` database field overrides the login username for that asset, including managed keys and password authentication. Leave it empty to use the shared key's username. Asset synchronization preserves this override by asset ID; it does not change the shared key or other assets.
+
+### SSH connection diagnostics
+
+Connection errors include a `stage` and the relevant endpoint and SSH identity. For proxy routes, the proxy and target use separate credentials; changing a target key will not fix a proxy login failure.
+
+| Stage | What failed | Check |
+|---|---|---|
+| `proxy_lookup` / `proxy_config` | Loading or validating the route | Proxy configuration and database availability |
+| `proxy_credentials` | Loading the proxy credential | Managed proxy key ID or identity file |
+| `proxy_connect` | Connecting or authenticating to the proxy | Proxy reachability, login user, accepted key, and proxy SSH logs |
+| `proxy_forward` | Opening the target connection through the proxy | Forwarding policy and proxy-to-target network access |
+| `target_credentials` | Loading the target credential | Selected target user and key |
+| `target_connect` | Connecting or authenticating to the target | Target reachability, login user, accepted key, and target SSH logs |
+
+The underlying SSH/network error remains attached. Key labels and authentication methods may appear in diagnostics; passwords and private-key contents must not be logged.
+
 ## API 与 Web
 
 运行 `jms api` 后，可在 <http://localhost:8013/swagger/index.html> 查看并试用当前版本的 API。Web 前端默认通过 `jms-api` 访问管理接口和终端 WebSocket。

@@ -307,17 +307,18 @@ func PolicyCheck(inPutAction Action, server Server, policy Policy, onlyIp bool) 
 	}
 	log.Debugf("server match policy allow for Policy %s", tea.Prettify(policy))
 	// 符合的机器再判断 action
+	var allow *bool
 	for _, action := range policy.Actions {
-		if string(inPutAction) == action {
-			log.Debugf("action allow")
-			return tea.Bool(true)
-		}
 		if string(inPutAction) == string(ReverseAction(Action(action))) {
 			log.Debugf("got action deny")
 			return tea.Bool(false)
 		}
+		if string(inPutAction) == action {
+			log.Debugf("action allow")
+			allow = tea.Bool(true)
+		}
 	}
-	return nil
+	return allow
 }
 
 // 审批表单目前只支持prod,dev,stage,none
