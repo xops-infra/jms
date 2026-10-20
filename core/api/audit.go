@@ -73,13 +73,18 @@ func listLoginAudit(c *gin.Context) {
 // listCommandAudit is restricted to administrators because command text can contain sensitive data.
 func listCommandAudit(c *gin.Context) {
 	limit, offset := auditLimitOffset(c)
+	status := c.Query("status")
+	if status != "" && !model.ValidCommandAuditStatus(status) {
+		c.JSON(400, "invalid command audit status")
+		return
+	}
 	hours := cast.ToInt(c.DefaultQuery("duration", "24"))
 	if hours <= 0 || hours > 24*365 {
 		c.JSON(400, "duration must be between 1 and 8760 hours")
 		return
 	}
 	records, total, err := app.App.DBIo.ListSSHCommandRecords(model.QuerySSHCommandRequest{
-		User: c.Query("user"), Target: c.Query("ip"), Duration: hours, Limit: limit, Offset: offset,
+		User: c.Query("user"), Target: c.Query("ip"), Status: status, Duration: hours, Limit: limit, Offset: offset,
 	})
 	if err != nil {
 		c.JSON(500, "command audit query failed")

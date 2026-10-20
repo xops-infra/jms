@@ -11,7 +11,8 @@ type Page = { items: Command[]; total: number; has_more: boolean }
 export const CommandAudit = ({ rangeHours }: { rangeHours: number }) => {
   const [user, setUser] = useState('')
   const [ip, setIp] = useState('')
-  const [query, setQuery] = useState({ user: '', ip: '' })
+  const [status, setStatus] = useState('')
+  const [query, setQuery] = useState({ user: '', ip: '', status: '' })
   const [offset, setOffset] = useState(0)
   const [reload, setReload] = useState(0)
   const [page, setPage] = useState<Page>({ items: [], total: 0, has_more: false })
@@ -47,10 +48,14 @@ export const CommandAudit = ({ rangeHours }: { rangeHours: number }) => {
       <button className="ghost" disabled={busy} onClick={() => setReload((v) => v + 1)}>刷新</button>
     </div>
     <form className="panel-body admin-audit-filters" onSubmit={(e) => {
-      e.preventDefault(); setOffset(0); setQuery({ user: user.trim(), ip: ip.trim() })
+      e.preventDefault(); setOffset(0); setQuery({ user: user.trim(), ip: ip.trim(), status })
     }}>
       <label className="admin-audit-field"><span>当前认证用户</span><input value={user} onChange={(e) => setUser(e.target.value)} /></label>
       <label className="admin-audit-field"><span>目标 IP</span><input value={ip} onChange={(e) => setIp(e.target.value)} /></label>
+      <label className="admin-audit-field"><span>结果</span><select value={status} onChange={(e) => setStatus(e.target.value)}>
+        <option value="">全部</option><option value="denied">权限拒绝</option><option value="failed">执行失败 / 超时</option>
+        <option value="running">未完成</option><option value="completed">已结束</option>
+      </select></label>
       <button className="primary" disabled={busy}>应用筛选</button>
     </form>
     {error && <div role="alert" className="workspace-state-message">{error}</div>}
@@ -60,8 +65,8 @@ export const CommandAudit = ({ rangeHours }: { rangeHours: number }) => {
         <div className="admin-audit-row-head"><strong>{row.User}</strong><time>{new Date(row.CreatedAt).toLocaleString()}</time></div>
         <div className="admin-audit-row-meta">
           <span>目标 {row.TargetServer} · {row.SSHUser || '—'}</span><span>客户端 {row.Client}</span>
-          <span>{row.status === 'running' ? '未完成（可能中断或结果未写入）' : row.status === 'completed' ? '已结束' : '历史记录'}</span>
-          {row.status !== 'running' && <span>退出码 {row.ExitCode} · {row.DurationMS} ms{row.TimedOut ? ' · 超时' : ''}</span>}
+          <span>{row.status === 'denied' ? '权限拒绝（未执行）' : row.status === 'running' ? '未完成（可能中断或结果未写入）' : row.status === 'completed' ? '已结束' : '历史记录'}</span>
+          {row.status !== 'running' && row.status !== 'denied' && <span>退出码 {row.ExitCode} · {row.DurationMS} ms{row.TimedOut ? ' · 超时' : ''}</span>}
           <span>凭据 {row.SSHKey || '—'} · 指纹 {row.KeyFingerprint || '—'}</span>
           <span>记录 {row.UUID}</span>
         </div>

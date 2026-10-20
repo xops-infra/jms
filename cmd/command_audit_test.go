@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/xops-infra/jms/model"
@@ -51,10 +52,42 @@ func TestAuditedCommandRejectsUnrecordedExecutionAndNeverRetries(t *testing.T) {
 			if tc.startErr != nil && err == nil {
 				t.Fatal("missing audit failure")
 			}
-			if tc.startErr == nil && (err != nil || a.result.User != "authenticated-user" || a.result.SSHUser != "ubuntu" || a.result.ExitCode != 7) {
+			if tc.startErr == nil && (a.result.User != "authenticated-user" || a.result.SSHUser != "ubuntu" || a.result.ExitCode != 7) {
 				t.Fatalf("lost execution result: %+v %v", a.result, err)
 			}
+			if tc.finishErr != nil && (err == nil || !strings.Contains(err.Error(), "do not retry automatically") || strings.Contains(err.Error(), tc.finishErr.Error())) {
+				t.Fatalf("missing sanitized completion warning: %v", err)
+			}
+			if tc.startErr == nil && tc.finishErr == nil && err != nil {
+				t.Fatal(err)
+			}
 		})
+	}
+}
+
+type testDenialAuditor struct {
+	calls   int
+	err     error
+	request model.AddSSHCommandRecordRequest
+}
+
+func (a *testDenialAuditor) DenySSHCommandRecord(req model.AddSSHCommandRecordRequest) error {
+	a.calls++
+	a.request = req
+	return a.err
+}
+
+func TestCommandDenialAuditNeverGrantsAccessOnWriteFailure(t *testing.T) {
+	log.Default().WithFilename(filepath.Join(t.TempDir(), "denial.log")).WithLevel(log.FatalLevel).Init()
+	for _, failure := range []error{nil, errors.New("audit unavailable")} {
+		a := &testDenialAuditor{err: failure}
+		req := model.AddSSHCommandRecordRequest{User: "authenticated-caller", TargetServer: "192.0.2.1", Command: "true"}
+		if authorizeAuditedCommand(a, req, false) || a.calls != 1 || a.request.User != req.User {
+			t.Fatal("denial must remain denied and attributed")
+		}
+		if !authorizeAuditedCommand(a, req, true) || a.calls != 1 {
+			t.Fatal("allowed command must use the execution audit lifecycle")
+		}
 	}
 }
 

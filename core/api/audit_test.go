@@ -93,4 +93,29 @@ func TestAuditSourcesAndCommandQueryAuthorization(t *testing.T) {
 			t.Fatalf("duration %s: %d", value, response.Code)
 		}
 	}
+	if err := app.App.DBIo.DenySSHCommandRecord(model.AddSSHCommandRecordRequest{User: "member", TargetServer: "192.0.2.2", Command: "true"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.App.DBIo.StartSSHCommandRecord(model.AddSSHCommandRecordRequest{User: "member", TargetServer: "192.0.2.2", Command: "true"}); err != nil {
+		t.Fatal(err)
+	}
+	for status, want := range map[string]int{"denied": 1, "failed": 2, "running": 1, "completed": 3} {
+		response = securityTestRequest(t, router, http.MethodGet, "/api/v1/audit/command?user=member&ip=192.0.2.2&status="+status, "administrator", "")
+		var page struct {
+			Total int
+			Items []model.SSHCommandRecord
+		}
+		if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &page) != nil || page.Total != want {
+			t.Fatalf("status %s: %d %s", status, response.Code, response.Body)
+		}
+		for _, row := range page.Items {
+			if status != "failed" && row.Status != status {
+				t.Fatalf("wrong status: %+v", row)
+			}
+		}
+	}
+	response = securityTestRequest(t, router, http.MethodGet, "/api/v1/audit/command?status=unsupported", "administrator", "")
+	if response.Code != 400 {
+		t.Fatalf("invalid status: %d", response.Code)
+	}
 }

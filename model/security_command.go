@@ -23,8 +23,12 @@ type AddSSHCommandRecordRequest struct {
 
 // QuerySSHCommandRequest filters non-interactive command audit records.
 type QuerySSHCommandRequest struct {
-	User, Target            string
+	User, Target, Status    string
 	Duration, Limit, Offset int
+}
+
+func ValidCommandAuditStatus(status string) bool {
+	return status == "running" || status == "completed" || status == "denied" || status == "failed"
 }
 
 // SSHCommandRecord records non-interactive command attempts and their completion.

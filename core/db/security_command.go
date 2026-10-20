@@ -41,6 +41,17 @@ func (d *DBService) StartSSHCommandRecord(req model.AddSSHCommandRecordRequest) 
 	return record.UUID, d.DB.Create(&record).Error
 }
 
+// DenySSHCommandRecord records a permission decision without starting execution.
+func (d *DBService) DenySSHCommandRecord(req model.AddSSHCommandRecordRequest) error {
+	record := model.SSHCommandRecord{
+		UUID: uuid.NewString(), Source: model.AuditSourceCLI, Status: "denied",
+		User: req.User, KeyFingerprint: req.KeyFingerprint, Client: req.Client,
+		TargetServer: req.TargetServer, InstanceID: req.InstanceID,
+		SSHUser: req.SSHUser, SSHKey: req.SSHKey, Command: req.Command, ExitCode: 65,
+	}
+	return d.DB.Create(&record).Error
+}
+
 func (d *DBService) FinishSSHCommandRecord(id string, req model.AddSSHCommandRecordRequest) error {
 	result := d.DB.Model(&model.SSHCommandRecord{}).Where("uuid = ? AND status = ?", id, "running").Updates(map[string]any{
 		"status": "completed", "ssh_user": req.SSHUser, "ssh_key": req.SSHKey,
@@ -66,6 +77,11 @@ func (d *DBService) commandAuditQuery(req model.QuerySSHCommandRequest) *gorm.DB
 	}
 	if req.Target != "" {
 		q = q.Where("target_server = ?", req.Target)
+	}
+	if req.Status == "failed" {
+		q = q.Where("status = ? AND (exit_code <> 0 OR timed_out = ?)", "completed", true)
+	} else if req.Status != "" {
+		q = q.Where("status = ?", req.Status)
 	}
 	return q
 }

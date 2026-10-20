@@ -23,6 +23,8 @@ jobs:
         run: go build ./...
       - name: Go vet
         run: go vet ./...
+      - name: Audit regression tests (local fixtures)
+        run: go test ./cmd ./core/api -run '^Test(Audit|Audited|Command)' -count=1
 
   web-build:
     runs-on: ubuntu-latest
@@ -49,6 +51,7 @@ jobs:
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
+          echo "version=$(date -u +%Y%m%d)-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "do_push=true" >> "$GITHUB_OUTPUT"
             DATE_TAG=$(date -u +%Y%m%d)
@@ -78,3 +81,6 @@ jobs:
           context: .
           push: ${{ steps.meta.outputs.do_push == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            VCS_REF=${{ github.sha }}

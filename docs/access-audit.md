@@ -4,11 +4,13 @@ JMS attributes access to the current authenticated caller and distinguishes thre
 
 Administrators can filter login records by entry point, caller, target and time. Login records include the resolved target SSH username and credential name. The command tab shows non-interactive `run` attempts, caller public-key fingerprint, target identity, completion, exit code, duration and timeout. Command text is available to administrators and may contain sensitive arguments.
 
-Before a CLI command starts, JMS must save a durable start record. If this fails, it returns status `69` and does not connect upstream or execute. A completion-write failure retains an unfinished record and logs its UUID; JMS preserves the command result and does not retry it. Unfinished means the result needs investigation, not that the process is definitely still running.
+Before a CLI command starts, JMS must save a durable start record. If this fails, it returns status `69` and does not connect upstream or execute. A completion-write failure retains an unfinished record, logs its UUID and warns the caller on stderr; JMS preserves the command exit status and does not retry it. Unfinished means the result needs investigation, not that the process is definitely still running.
+
+Permission-denied CLI `run` requests are also recorded with their authenticated caller, requested command and target. Denied means no upstream command was executed. Administrators can filter command records by denied, failed/timed out, unfinished or completed. A failure to store the denial never grants access.
 
 Historical login sources remain unknown. Historical command records remain visible without a new lifecycle status. Existing records are not reclassified from guesses about their caller.
 
-This release covers terminal access and CLI command execution. Discovery commands, rejected requests, administrative changes, security alerts and recording storage changes are separate follow-up work. Login records confirm an upstream connection, not successful completion of a command or shell.
+This release covers terminal access, CLI command execution and CLI `run` policy denials. Discovery commands, other rejection paths, administrative changes, external security notifications and recording storage changes are separate follow-up work. Login records confirm an upstream connection, not successful completion of a command or shell.
 
 Run schema migration with the new Scheduler version before upgrading SSHD/API, then upgrade the Web UI. The migration adds columns to existing audit tables; it does not delete historical records. Verify it in a test environment first and retain a backup. An unmigrated audit store can block CLI execution. Production rollout requires explicit operator authorization.
 

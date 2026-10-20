@@ -189,20 +189,6 @@ func runCommand(args []string, sess *ssh.Session) (int, error) {
 	if err != nil {
 		return exitTargetNotFound, err
 	}
-	if !app.App.Sshd.SshdIO.MatchPolicy(user, model.Connect, server, policies, false) {
-		return exitPermissionDenied, fmt.Errorf("user %s cannot connect to target %s", (*sess).User(), opts.Target)
-	}
-	if server.Status != "" && server.Status != cloudmodel.InstanceStatusRunning {
-		return exitUpstreamFailure, fmt.Errorf("target %s status is %s", opts.Target, strings.ToLower(string(server.Status)))
-	}
-	_, sshUsers, _, err := app.App.Sshd.SshdIO.GetSSHUsersByHostResolvedLive(server.Host)
-	if err != nil {
-		return exitSSHUserNotFound, err
-	}
-	sshUser, err := jmsio.SelectSSHUser(sshUsers, opts.User, opts.Key)
-	if err != nil {
-		return exitSSHUserNotFound, err
-	}
 	command := opts.Shell
 	if opts.ShellBase64 != "" {
 		decoded, err := base64.StdEncoding.DecodeString(opts.ShellBase64)
@@ -222,12 +208,30 @@ func runCommand(args []string, sess *ssh.Session) (int, error) {
 	}
 	request := model.AddSSHCommandRecordRequest{
 		User: (*sess).User(), KeyFingerprint: fingerprint, Client: client,
-		TargetServer: server.Host, InstanceID: server.ID, SSHUser: sshUser.UserName,
-		SSHKey: sshUser.KeyName, Command: command,
+		TargetServer: server.Host, InstanceID: server.ID, SSHUser: opts.User,
+		SSHKey: opts.Key, Command: command,
 	}
+
+	if !authorizeAuditedCommand(app.App.DBIo, request, app.App.Sshd.SshdIO.MatchPolicy(user, model.Connect, server, policies, false)) {
+		return exitPermissionDenied, fmt.Errorf("user %s cannot connect to target %s", (*sess).User(), opts.Target)
+	}
+
+	if server.Status != "" && server.Status != cloudmodel.InstanceStatusRunning {
+		return exitUpstreamFailure, fmt.Errorf("target %s status is %s", opts.Target, strings.ToLower(string(server.Status)))
+	}
+	_, sshUsers, _, err := app.App.Sshd.SshdIO.GetSSHUsersByHostResolvedLive(server.Host)
+	if err != nil {
+		return exitSSHUserNotFound, err
+	}
+	sshUser, err := jmsio.SelectSSHUser(sshUsers, opts.User, opts.Key)
+	if err != nil {
+		return exitSSHUserNotFound, err
+	}
+	request.SSHUser, request.SSHKey = sshUser.UserName, sshUser.KeyName
 	if sshUser.Auto {
 		request.SSHUser = ""
 	}
+
 	code, execErr := auditedCommand(app.App.DBIo, request, func() (int, error) {
 		return executeUpstreamCommand(sess, server, &sshUser, command, opts.Timeout)
 	}, &sshUser)
@@ -405,7 +409,8 @@ type commandAuditor interface {
 func auditedCommand(auditor commandAuditor, request model.AddSSHCommandRecordRequest, execute func() (int, error), actual *model.SSHUser) (int, error) {
 	id, err := auditor.StartSSHCommandRecord(request)
 	if err != nil {
-		return exitAuditFailure, fmt.Errorf("command audit unavailable; command was not executed: %w", err)
+		log.Errorf("command audit start failed: %v", err)
+		return exitAuditFailure, errors.New("command audit unavailable; command was not executed")
 	}
 	started := time.Now()
 	code, execErr := execute()
@@ -413,6 +418,22 @@ func auditedCommand(auditor commandAuditor, request model.AddSSHCommandRecordReq
 	request.ExitCode, request.Duration, request.TimedOut = code, time.Since(started), code == exitExecutionTimedOut && execErr != nil
 	if err := auditor.FinishSSHCommandRecord(id, request); err != nil {
 		log.Errorf("command audit completion failed uuid=%s: %v", id, err)
+		execErr = errors.Join(execErr, fmt.Errorf("command ended but audit completion could not be saved (record %s); do not retry automatically", id))
 	}
 	return code, execErr
+}
+
+type commandDenialAuditor interface {
+	DenySSHCommandRecord(model.AddSSHCommandRecordRequest) error
+}
+
+// A failed denial write must never turn a refusal into permission to execute.
+func authorizeAuditedCommand(auditor commandDenialAuditor, request model.AddSSHCommandRecordRequest, allowed bool) bool {
+	if allowed {
+		return true
+	}
+	if err := auditor.DenySSHCommandRecord(request); err != nil {
+		log.Errorf("command denial audit failed user=%q target=%q: %v", request.User, request.InstanceID, err)
+	}
+	return false
 }
