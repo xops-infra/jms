@@ -23,6 +23,8 @@ jobs:
         run: go build ./...
       - name: Go vet
         run: go vet ./...
+      - name: Approval and SSH identity regression tests (local fixtures)
+        run: go test ./core/dingtalk ./core/sshd -run '^Test(ApprovalPoll|AutomaticLogin|Explicit)' -count=1
       - name: Audit regression tests (local fixtures)
         run: go test ./cmd ./core/api -run '^Test(Audit|Audited|Command)' -count=1
 

@@ -142,7 +142,6 @@ func saveDingtalkUsers(users []*dt.UserInfo) error {
 // 本地审批列表到云上获取审批状态并更新。
 func LoadApproval() {
 	timeStart := time.Now()
-	var successes []string
 	err := app.App.Scheduler.DingTalkClient.SetAccessToken() // 更新 token
 	if err != nil {
 		log.Errorf("SetAccessToken failed! %s", err)
@@ -154,48 +153,53 @@ func LoadApproval() {
 		log.Errorf("QueryAllPolicy failed! %s", err)
 		return
 	}
+	successes := syncApprovals(policies, app.App.Scheduler.DingTalkClient.Workflow, app.App.Scheduler.DingTalkClient.AccessToken.Token)
+	log.Infof("load dingtalk approval success, %d/%d, cost %v", len(successes), len(policies), time.Since(timeStart))
+}
+
+// syncApprovals leaves policies unchanged when the upstream result is unavailable.
+// A rate limit ends this poll; the next scheduled poll may try again without a retry burst.
+func syncApprovals(policies []Policy, workflow dt.Workflow, token string) []string {
+	var successes []string
 	for _, policy := range policies {
-		if policy.ApprovalID == "" {
+		if policy.ApprovalID == "" || strings.Contains(policy.Approver, "BusinessId") {
 			continue
 		}
-		if strings.Contains(policy.Approver, "BusinessId") {
-			// 已经更新过的审批不再更新
-			continue
-		}
-		resp, err := app.App.Scheduler.DingTalkClient.Workflow.GetProcessInstance(policy.ApprovalID, app.App.Scheduler.DingTalkClient.AccessToken.Token)
+		resp, err := workflow.GetProcessInstance(policy.ApprovalID, token)
 		if err != nil {
 			log.Errorf("GetProcessInstance failed! %s", err)
-		}
-		// 更新
-		if !resp.Success {
+			message := strings.ToLower(err.Error())
+			if strings.Contains(message, "qpslimit") || strings.Contains(message, "throttl") || strings.Contains(message, "status code: 429") {
+				break
+			}
 			continue
 		}
-		if resp.Result.Result != nil {
-			update := ApprovalResult{
-				Applicant: tea.String(fmt.Sprintf("%s: %s", "BusinessId", *resp.Result.BusinessId)),
-				IsPass:    tea.Bool(false),
-			}
-			switch *resp.Result.Status {
-			case "COMPLETED":
-				if *resp.Result.Result == "agree" {
-					update.IsPass = tea.Bool(true)
-				}
-			case "TERMINATED":
-				update.Applicant = tea.String("BusinessId: TERMINATED")
-				update.IsPass = tea.Bool(false)
-			default:
-				continue
-			}
-			err = app.App.DBIo.UpdatePolicyStatus(policy.ID, update)
-			if err != nil {
-				log.Errorf("UpdatePolicyStatus failed! %s", err)
-				continue
-			}
-			successes = append(successes, *resp.Result.BusinessId)
-			log.Infof("update dingtalk approval %s(%s) to %v from DTCloud", *resp.Result.BusinessId, *resp.Result.Title, *update.IsPass)
+		if resp == nil || !resp.Success {
+			continue
 		}
+		result := resp.Result
+		businessID := tea.StringValue(result.BusinessId)
+		update := ApprovalResult{IsPass: tea.Bool(false)}
+		switch tea.StringValue(result.Status) {
+		case "COMPLETED":
+			if businessID == "" || tea.StringValue(result.Result) == "" {
+				continue
+			}
+			update.Applicant = tea.String("BusinessId: " + businessID)
+			update.IsPass = tea.Bool(tea.StringValue(result.Result) == "agree")
+		case "TERMINATED":
+			update.Applicant = tea.String("BusinessId: TERMINATED")
+		default:
+			continue
+		}
+		if err := app.App.DBIo.UpdatePolicyStatus(policy.ID, update); err != nil {
+			log.Errorf("UpdatePolicyStatus failed! %s", err)
+			continue
+		}
+		successes = append(successes, businessID)
+		log.Infof("update dingtalk approval %s(%s) to %v from DTCloud", businessID, tea.StringValue(result.Title), tea.BoolValue(update.IsPass))
 	}
-	log.Infof("load dingtalk approval success, %d/%d, cost %v", len(successes), len(policies), time.Since(timeStart))
+	return successes
 }
 
 // 发送钉钉机器人通知
