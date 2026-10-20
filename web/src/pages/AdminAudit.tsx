@@ -5,6 +5,7 @@ import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import { apiClient } from '../api/client'
 import { RefreshIcon } from './terminalShared'
+import { CommandAudit } from './CommandAudit'
 
 type SSHLoginRecord = {
   ID?: number
@@ -12,6 +13,9 @@ type SSHLoginRecord = {
   user?: string
   client?: string
   target?: string
+  source?: string
+  ssh_user?: string
+  ssh_key?: string
   target_instance_id?: string
 }
 
@@ -67,7 +71,7 @@ const normalizeTerminalList = (data: TerminalListResponse, append: boolean, prev
   return { files, total, hasMore }
 }
 
-type AuditTab = 'login' | 'scp' | 'terminal'
+type AuditTab = 'login' | 'scp' | 'terminal' | 'command'
 
 const RANGE_HOURS = [24, 72, 168, 720] as const
 const RANGE_LABELS: Record<(typeof RANGE_HOURS)[number], string> = {
@@ -80,7 +84,7 @@ const RANGE_LABELS: Record<(typeof RANGE_HOURS)[number], string> = {
 const PAGE_LIMIT = 50
 
 const parseTab = (raw: string | null): AuditTab => {
-  if (raw === 'scp' || raw === 'terminal') return raw
+  if (raw === 'scp' || raw === 'terminal' || raw === 'command') return raw
   return 'login'
 }
 
@@ -134,6 +138,7 @@ export const AdminAuditPage = () => {
   const rangeHours = useMemo(() => parseRangeHours(searchParams.get('range')), [searchParams])
   const loginUserQ = searchParams.get('user') ?? ''
   const loginIpQ = searchParams.get('ip') ?? ''
+  const loginSourceQ = searchParams.get('source') ?? ''
   const scpUserQ = searchParams.get('suser') ?? ''
   const scpKwQ = searchParams.get('kw') ?? ''
   const scpActionQ = searchParams.get('action') ?? ''
@@ -224,6 +229,7 @@ export const AdminAuditPage = () => {
             offset,
             ...(loginUserQ.trim() ? { user: loginUserQ.trim() } : {}),
             ...(loginIpQ.trim() ? { ip: loginIpQ.trim() } : {}),
+            ...(loginSourceQ ? { source: loginSourceQ } : {}),
           },
         })
         const data = res.data
@@ -244,7 +250,7 @@ export const AdminAuditPage = () => {
         setLoginLoadingMore(false)
       }
     },
-    [rangeHours, loginUserQ, loginIpQ],
+    [rangeHours, loginUserQ, loginIpQ, loginSourceQ],
   )
 
   useEffect(() => {
@@ -257,7 +263,7 @@ export const AdminAuditPage = () => {
     return () => {
       cancelled = true
     }
-  }, [tab, rangeHours, loginUserQ, loginIpQ, fetchLogin])
+  }, [tab, rangeHours, loginUserQ, loginIpQ, loginSourceQ, fetchLogin])
 
   const fetchScp = useCallback(
     async (offset: number, append: boolean) => {
@@ -526,7 +532,7 @@ export const AdminAuditPage = () => {
           <span className="terminal-prompt-eyebrow">Admin Console</span>
           <h1>审计</h1>
           <p>
-            查询 SSH 登录与 SCP/Web 文件传输（分页加载，滑到底自动续载）；终端列表支持分页。URL 参数可保存当前子页与筛选条件。
+            按当前认证用户查询 Web、SSH 交互和 SSH 非交互访问，以及命令结果、文件传输和终端回放。
           </p>
         </div>
         <div className="admin-shell-summary">
@@ -550,6 +556,7 @@ export const AdminAuditPage = () => {
           [
             ['login', '登录记录'],
             ['scp', '文件传输'],
+            ['command', '命令执行（Agent/CLI）'],
             ['terminal', '终端回放'],
           ] as const
         ).map(([id, label]) => (
@@ -587,7 +594,7 @@ export const AdminAuditPage = () => {
           <div className="panel-header">
             <div>
               <h3>登录记录</h3>
-              <p>record_ssh_login，按创建时间倒序分页。</p>
+              <p>按时间倒序；历史记录未识别入口时显示未知。登录记录不代表命令执行成功。</p>
             </div>
             <button
               type="button"
@@ -600,6 +607,16 @@ export const AdminAuditPage = () => {
             </button>
           </div>
           <div className="panel-body admin-audit-filters">
+            <label className="admin-audit-field">
+              <span>交互方式</span>
+              <select value={loginSourceQ} onChange={(e) => setParams({ source: e.target.value || null })}>
+                <option value="">全部</option>
+                <option value="web">Web 终端</option>
+                <option value="ssh_interactive">SSH 交互</option>
+                <option value="ssh_noninteractive">SSH 非交互（Agent/CLI）</option>
+                <option value="unknown">未知（历史记录）</option>
+              </select>
+            </label>
             <label className="admin-audit-field">
               <span>用户</span>
               <input value={loginUserDraft} onChange={(e) => setLoginUserDraft(e.target.value)} placeholder="可选" />
@@ -625,6 +642,8 @@ export const AdminAuditPage = () => {
                   <span className="admin-audit-time">{formatDateTime(row.CreatedAt)}</span>
                 </div>
                 <div className="admin-audit-row-meta">
+                  <span>方式 {{ web: 'Web 终端', ssh_interactive: 'SSH 交互', ssh_noninteractive: 'SSH 非交互（Agent/CLI）' }[row.source || ''] || '未知'}</span>
+                  <span>目标身份 {row.ssh_user || '—'} · {row.ssh_key || '—'}</span>
                   <span>客户端 {row.client || '—'}</span>
                   <span>目标 {row.target || '—'}</span>
                   <span>实例 {row.target_instance_id || '—'}</span>
@@ -637,6 +656,8 @@ export const AdminAuditPage = () => {
           </div>
         </section>
       )}
+
+      {tab === 'command' && <CommandAudit key={rangeHours} rangeHours={rangeHours} />}
 
       {tab === 'scp' && (
         <section className="panel admin-shell-panel">

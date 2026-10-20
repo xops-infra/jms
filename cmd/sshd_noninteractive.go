@@ -30,6 +30,7 @@ const (
 	exitSSHUserNotFound   = 66
 	exitUpstreamFailure   = 67
 	exitExecutionTimedOut = 68
+	exitAuditFailure      = 69
 )
 
 type targetOutput struct {
@@ -215,34 +216,21 @@ func runCommand(args []string, sess *ssh.Session) (int, error) {
 	}
 
 	client := (*sess).RemoteAddr().String()
-	if err := app.App.DBIo.AddServerLoginRecord(&model.AddSshLoginRequest{
-		User: tea.String((*sess).User()), Client: tea.String(client),
-		TargetServer: tea.String(server.Host), InstanceID: tea.String(server.ID),
-	}); err != nil {
-		log.Errorf("create ssh run audit record error: %s", err)
-	}
-
-	startedAt := time.Now()
-	code, execErr := executeUpstreamCommand(sess, server, &sshUser, command, opts.Timeout)
 	fingerprint := ""
 	if publicKey := (*sess).PublicKey(); publicKey != nil {
 		fingerprint = gossh.FingerprintSHA256(publicKey)
 	}
-	if err := app.App.DBIo.AddSSHCommandRecord(model.AddSSHCommandRecordRequest{
-		User:           (*sess).User(),
-		KeyFingerprint: fingerprint,
-		Client:         client,
-		TargetServer:   server.Host,
-		InstanceID:     server.ID,
-		SSHUser:        sshUser.UserName,
-		SSHKey:         sshUser.KeyName,
-		Command:        command,
-		ExitCode:       code,
-		Duration:       time.Since(startedAt),
-		TimedOut:       code == exitExecutionTimedOut,
-	}); err != nil {
-		log.Errorf("create ssh command audit record error: %s", err)
+	request := model.AddSSHCommandRecordRequest{
+		User: (*sess).User(), KeyFingerprint: fingerprint, Client: client,
+		TargetServer: server.Host, InstanceID: server.ID, SSHUser: sshUser.UserName,
+		SSHKey: sshUser.KeyName, Command: command,
 	}
+	if sshUser.Auto {
+		request.SSHUser = ""
+	}
+	code, execErr := auditedCommand(app.App.DBIo, request, func() (int, error) {
+		return executeUpstreamCommand(sess, server, &sshUser, command, opts.Timeout)
+	}, &sshUser)
 	return code, execErr
 }
 
@@ -256,6 +244,14 @@ func executeUpstreamCommand(clientSess *ssh.Session, server model.Server, sshUse
 		defer proxyClient.Close()
 	}
 	defer upstream.Close()
+	client := (*clientSess).RemoteAddr().String()
+	if err := app.App.DBIo.AddServerLoginRecord(&model.AddSshLoginRequest{
+		User: tea.String((*clientSess).User()), Client: &client, TargetServer: &server.Host, InstanceID: &server.ID,
+		Source: model.AuditSourceCLI, SSHUser: sshUser.UserName, SSHKey: sshUser.KeyName,
+	}); err != nil {
+		log.Errorf("create ssh run login record error: %v", err)
+	}
+
 	remote, err := upstream.NewSession()
 	if err != nil {
 		return exitUpstreamFailure, err
@@ -397,4 +393,26 @@ func writeJSON(w io.Writer, value any) (int, error) {
 		return exitUpstreamFailure, err
 	}
 	return 0, nil
+}
+
+type commandAuditor interface {
+	StartSSHCommandRecord(model.AddSSHCommandRecordRequest) (string, error)
+	FinishSSHCommandRecord(string, model.AddSSHCommandRecordRequest) error
+}
+
+// auditedCommand never starts execution if its durable start record cannot be written.
+// Completion failures leave a running record for investigation; they never retry execution.
+func auditedCommand(auditor commandAuditor, request model.AddSSHCommandRecordRequest, execute func() (int, error), actual *model.SSHUser) (int, error) {
+	id, err := auditor.StartSSHCommandRecord(request)
+	if err != nil {
+		return exitAuditFailure, fmt.Errorf("command audit unavailable; command was not executed: %w", err)
+	}
+	started := time.Now()
+	code, execErr := execute()
+	request.SSHUser, request.SSHKey = actual.UserName, actual.KeyName
+	request.ExitCode, request.Duration, request.TimedOut = code, time.Since(started), code == exitExecutionTimedOut && execErr != nil
+	if err := auditor.FinishSSHCommandRecord(id, request); err != nil {
+		log.Errorf("command audit completion failed uuid=%s: %v", id, err)
+	}
+	return code, execErr
 }

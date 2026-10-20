@@ -132,6 +132,12 @@ ssh -p 22222 alice@bastion.example.com \
 
 仓库内置的 [jms-ssh Skill](.agents/skills/jms-ssh/SKILL.md) 描述了 AI Agent 的发现、执行、传输和故障处理流程。
 
+### Access audit
+
+Login audit distinguishes Web terminals, interactive SSH and non-interactive SSH (Agent/CLI), using the authenticated caller and resolved target identity. Historical login records keep an unknown source. Administrators can filter logins and inspect non-interactive command attempts and results in the audit console. Non-interactive access can also come from human scripts; it is not proof of an Agent identity.
+
+CLI `run` requires a durable start record before connecting upstream; an unavailable audit store rejects the command with status `69`. Completion updates that record without retrying execution. See [access audit behavior and rollout](docs/access-audit.md).
+
 ### SCP 文件传输
 
 SCP 路径格式为 `<目标用户>@<目标地址>[:或 #key_name=...:]<目标路径>`：

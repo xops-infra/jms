@@ -61,6 +61,7 @@ Treat the local `ssh` exit status as authoritative. JMS returns the target comma
 - `66`: SSH user missing or ambiguous
 - `67`: upstream connection/execution failure
 - `68`: timeout
+- `69`: the command audit start record could not be saved; the command was not executed
 
 Keep stdout and stderr separate when structured handling matters:
 

@@ -37,6 +37,11 @@ func auditLimitOffset(c *gin.Context) (limit, offset int) {
 // @Router /api/v1/audit/login [get]
 func listLoginAudit(c *gin.Context) {
 	req := model.QueryLoginRequest{}
+	req.Source = c.Query("source")
+	if req.Source != "" && !model.ValidAuditSource(req.Source) {
+		c.JSON(400, "invalid audit source")
+		return
+	}
 	if c.Query("duration") != "" {
 		req.Duration = tea.Int(cast.ToInt(c.Query("duration")))
 	}
@@ -63,6 +68,24 @@ func listLoginAudit(c *gin.Context) {
 		"offset":   offset,
 		"has_more": hasMore,
 	})
+}
+
+// listCommandAudit is restricted to administrators because command text can contain sensitive data.
+func listCommandAudit(c *gin.Context) {
+	limit, offset := auditLimitOffset(c)
+	hours := cast.ToInt(c.DefaultQuery("duration", "24"))
+	if hours <= 0 || hours > 24*365 {
+		c.JSON(400, "duration must be between 1 and 8760 hours")
+		return
+	}
+	records, total, err := app.App.DBIo.ListSSHCommandRecords(model.QuerySSHCommandRequest{
+		User: c.Query("user"), Target: c.Query("ip"), Duration: hours, Limit: limit, Offset: offset,
+	})
+	if err != nil {
+		c.JSON(500, "command audit query failed")
+		return
+	}
+	c.JSON(200, gin.H{"items": records, "total": total, "limit": limit, "offset": offset, "has_more": int64(offset)+int64(len(records)) < total})
 }
 
 // @Summary listScpAudit

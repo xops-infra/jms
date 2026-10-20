@@ -21,8 +21,17 @@ type AddSSHCommandRecordRequest struct {
 	TimedOut       bool
 }
 
-// SSHCommandRecord records non-interactive commands executed through the bastion.
+// QuerySSHCommandRequest filters non-interactive command audit records.
+type QuerySSHCommandRequest struct {
+	User, Target            string
+	Duration, Limit, Offset int
+}
+
+// SSHCommandRecord records non-interactive command attempts and their completion.
 type SSHCommandRecord struct {
+	Status string `json:"status" gorm:"type:varchar(32)"`
+	Source string `json:"source" gorm:"type:varchar(32)"`
+
 	gorm.Model
 	UUID           string `gorm:"column:uuid;type:varchar(36);uniqueIndex;not null"`
 	User           string `gorm:"column:user;type:varchar(255);not null;index"`

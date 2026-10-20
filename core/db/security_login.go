@@ -12,6 +12,7 @@ import (
 // 登录记录入库
 func (d *DBService) AddServerLoginRecord(req *model.AddSshLoginRequest) (err error) {
 	record := &model.SSHLoginRecord{
+		Source: req.Source, SSHUser: req.SSHUser, SSHKey: req.SSHKey,
 		User:             *req.User,
 		Client:           *req.Client,
 		Target:           *req.TargetServer,
@@ -33,6 +34,11 @@ func (d *DBService) loginAuditQuery(req model.QueryLoginRequest) *gorm.DB {
 	if req.User != nil {
 		sql = sql.Where("\"user\" = ?", *req.User)
 	}
+	if req.Source == "unknown" {
+		sql = sql.Where("source IS NULL OR source = ''")
+	} else if req.Source != "" {
+		sql = sql.Where("source = ?", req.Source)
+	}
 	return sql
 }
 
@@ -51,6 +57,6 @@ func (d *DBService) ListServerLoginRecord(req model.QueryLoginRequest) (records 
 	if req.Offset != nil && *req.Offset > 0 {
 		offset = *req.Offset
 	}
-	err = d.loginAuditQuery(req).Order("created_at DESC").Offset(offset).Limit(limit).Find(&records).Error
+	err = d.loginAuditQuery(req).Order("created_at DESC, id DESC").Offset(offset).Limit(limit).Find(&records).Error
 	return records, total, err
 }

@@ -189,18 +189,6 @@ func (ui *PUI) getServerSSHUsersMenu(server Server) func(int, MenuItem, *ssh.Ses
 				if serverSnapshot.Status != model.InstanceStatusRunning {
 					return false, fmt.Errorf("%s status %s, can not login", serverSnapshot.Host, strings.ToLower(string(serverSnapshot.Status)))
 				}
-				// 记录登录日志到数据库
-				if app.App.Config.WithDB.Enable {
-					err := app.App.DBIo.AddServerLoginRecord(&AddSshLoginRequest{
-						TargetServer: tea.String(serverSnapshot.Host),
-						InstanceID:   tea.String(serverSnapshot.ID),
-						User:         tea.String((*sess).User()),
-						Client:       tea.String((*sess).RemoteAddr().String()),
-					})
-					if err != nil {
-						log.Errorf("create ssh login record error: %s", err)
-					}
-				}
 				// 进入的时候标记超时暂停检查
 				ui.pause()
 				defer ui.resume()

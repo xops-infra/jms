@@ -61,6 +61,16 @@ func NewTerminal(server Server, sshUser SSHUser, sess *ssh.Session) error {
 		defer proxyClient.Close()
 	}
 	defer upstreamClient.Close()
+	if app.App.Config.WithDB.Enable {
+		actor, client, host, id := (*sess).User(), (*sess).RemoteAddr().String(), server.Host, server.ID
+		if err := app.App.DBIo.AddServerLoginRecord(&AddSshLoginRequest{
+			User: &actor, Client: &client, TargetServer: &host, InstanceID: &id,
+			Source: AuditSourceSSH, SSHUser: actual.UserName, SSHKey: actual.KeyName,
+		}); err != nil {
+			log.Errorf("create ssh login record error: %v", err)
+		}
+	}
+
 	if sshUser.Auto {
 		Info(fmt.Sprintf("已使用 %s 连接", actual.UserName), sess)
 	}

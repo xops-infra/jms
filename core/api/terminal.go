@@ -153,6 +153,7 @@ func terminalWS(c *gin.Context) {
 	if app.App.Config.WithDB.Enable && app.App.DBIo != nil {
 		client := c.ClientIP()
 		if err := app.App.DBIo.AddServerLoginRecord(&model.AddSshLoginRequest{
+			Source: model.AuditSourceWeb, SSHUser: sshUser.UserName, SSHKey: sshUser.KeyName,
 			User:         user.Username,
 			Client:       &client,
 			TargetServer: &server.Host,
