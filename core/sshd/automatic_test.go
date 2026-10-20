@@ -249,3 +249,25 @@ func TestLoginMemoryIsBestEffortAndDoesNotCrossAssets(t *testing.T) {
 	}
 	client.Close()
 }
+
+func TestExplicitSuccessfulIdentityDoesNotProbeOrUseLearnedUsername(t *testing.T) {
+	f, server, user := loginSetup(t)
+	_, client, _, err := ConnectSSHClient("caller", server, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.Close()
+	f.takeAttempts()
+	f.mu.Lock()
+	f.allowed["root"] = true
+	f.mu.Unlock()
+	user.Auto = false
+	_, client, actual, err := ConnectSSHClient("caller", server, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.Close()
+	if actual.UserName != "root" || !reflect.DeepEqual(f.takeAttempts(), []string{"root"}) {
+		t.Fatal("explicit identity was replaced by learned identity or probed")
+	}
+}

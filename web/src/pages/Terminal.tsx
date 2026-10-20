@@ -315,7 +315,7 @@ export const TerminalPage = () => {
     setLaunchStatus('')
     try {
       const res = await apiClient.get<{ items: SSHOption[] }>(
-        `/api/v1/servers/${encodeURIComponent(item.host)}/ssh-users?automatic=true`,
+        `/api/v1/servers/${encodeURIComponent(item.host)}/ssh-users`,
       )
       if (requestId !== sshRequestRef.current) return
       const options = res.data.items || []

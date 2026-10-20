@@ -161,7 +161,7 @@ scp -P 22222 ./artifact.tar.gz \
 
 ### Automatic login username
 
-Choose the automatic connection option in the menu or Web UI, or omit `--user` from a CLI `run` command. JMS tries a bounded set of usernames only after target authentication rejection, remembers the successful username per asset/key, and executes the command once. Explicit usernames and per-server overrides remain strict. See [the design](docs/ssh-login-selection.md) for behavior and configuration.
+Choose the exact username/key in the SSH menu or Web UI for a direct, strict connection. To infer the username in a CLI `run` command, omit `--user`. JMS tries a bounded set of usernames only after target authentication rejection, remembers the successful username per asset/key, and executes the command once. Explicit usernames and per-server overrides remain strict. See [the design](docs/ssh-login-selection.md) for behavior and configuration.
 
 ### Per-server login username
 

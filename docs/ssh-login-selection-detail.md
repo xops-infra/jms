@@ -4,7 +4,7 @@
 
 ## Selection boundary
 
-`model.SSHUser.Auto` marks an automatic request. `io.SelectSSHUser` preserves explicit usernames and rejects ambiguous credentials. `io.AutomaticSSHUsers` supplies one automatic menu choice per credential; identical managed key material is deduplicated without exposing it.
+`model.SSHUser.Auto` marks an automatic request. `io.SelectSSHUser` preserves explicit usernames and rejects ambiguous credentials. `io.AutomaticSSHUsers` supplies automatic identities for implicit callers and compatible existing Web URLs; it no longer adds entries to interactive menus. Identical managed key material is deduplicated without exposing it.
 
 `core/sshd.ConnectSSHClient` performs authentication and returns the actual selected identity. Session creation, shell execution, SFTP and SCP remain outside its retry loop. Its compatibility wrapper `NewSSHClient` keeps existing explicit call sites working.
 
@@ -23,8 +23,8 @@ The existing server.user override remains separate and is preserved by asset ID 
 ## Clients and audit
 
 - CLI run accepts an omitted --user; explicit --user remains strict. The command audit records the actual selected username.
-- Interactive menus prepend an automatic choice per key while retaining the manual choices.
-- New Web clients request ssh-users?automatic=true. Older clients receive only the original manual options.
+- Interactive SSH menus show only the concrete username/key choices. Selecting one is strict and does not probe other usernames.
+- The Web launch page requests ordinary ssh-users options and opens an explicit username/key route. Existing auth=auto workspace URLs still request automatic options for compatibility; new launch pages do not create those URLs.
 - The Web terminal returns the successful username in an identity message and displays it in the connection snapshot. Reconnect and file operations retain the original automatic selection and selected key.
 - Scheduled tasks and liveness probes use automatic authentication for their implicit username selection. Explicit SCP user@host paths remain strict.
 

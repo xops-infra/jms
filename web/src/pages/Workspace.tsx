@@ -107,7 +107,7 @@ export const WorkspacePage = () => {
     try {
       const [serversResult, sshResult] = await Promise.allSettled([
         apiClient.get<{ items: ServerItem[] }>('/api/v1/servers'),
-        apiClient.get<{ items: SSHOption[] }>(`/api/v1/servers/${encodeURIComponent(routeHost)}/ssh-users?automatic=true`),
+        apiClient.get<{ items: SSHOption[] }>(`/api/v1/servers/${encodeURIComponent(routeHost)}/ssh-users${routeAuth === 'auto' ? '?automatic=true' : ''}`),
       ])
 
       if (requestId !== validationRequestRef.current) return

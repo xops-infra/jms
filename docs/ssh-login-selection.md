@@ -10,6 +10,6 @@ Explicit usernames and the existing per-asset `server.user` override remain stri
 
 Successful usernames are learned separately from administrator settings and shared key metadata. The memory is scoped to asset ID, endpoint and public-key fingerprint; a rejected learned username is discarded. A changed key or endpoint does not reuse the old hint.
 
-The release adds the connection behavior, menu and Web choices, accurate selected-user command audit, and shared login memory. It does not change shared key usernames or automatically rewrite server overrides.
+The SSH menu and Web UI show concrete username/key choices, without extra automatic-key entries. Explicit choices connect directly and never switch identities after failure. CLI requests that omit the username and scheduled implicit connections retain bounded authentication fallback and shared login memory. It does not change shared key usernames or automatically rewrite server overrides.
 
 Implementation and rollout notes are in [the detailed document](ssh-login-selection-detail.md).
